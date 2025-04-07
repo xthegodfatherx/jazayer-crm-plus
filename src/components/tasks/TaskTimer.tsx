@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -6,27 +7,32 @@ import {
   Clock, 
   StopCircle, 
   Save, 
-  X 
+  X,
+  User
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 interface TaskTimerProps {
   taskId: string;
   taskTitle: string;
   onSaveTime?: (taskId: string, seconds: number) => void;
   initialSeconds?: number;
+  assignee?: string;
 }
 
 const TaskTimer: React.FC<TaskTimerProps> = ({ 
   taskId, 
   taskTitle, 
   onSaveTime, 
-  initialSeconds = 0 
+  initialSeconds = 0,
+  assignee
 }) => {
   const [seconds, setSeconds] = useState(initialSeconds);
   const [isActive, setIsActive] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isActive) {
@@ -54,20 +60,29 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
 
   const toggleTimer = () => {
     setIsActive(!isActive);
+    toast({
+      title: isActive ? "Timer paused" : "Timer started",
+      description: `Task: ${taskTitle}`,
+    });
   };
 
   const stopTimer = () => {
     setIsActive(false);
-    // You can keep the timer at the current value or reset it
-    // setSeconds(0);
+    toast({
+      title: "Timer stopped",
+      description: `Total time: ${formatTime(seconds)}`,
+    });
   };
 
   const saveTime = () => {
     if (onSaveTime) {
       onSaveTime(taskId, seconds);
+      toast({
+        title: "Time saved",
+        description: `${formatTime(seconds)} recorded for task "${taskTitle}"`,
+        variant: "success",
+      });
     }
-    // Optionally reset the timer after saving
-    // setSeconds(0);
     setIsActive(false);
   };
 
@@ -78,19 +93,23 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
   if (isMinimized) {
     return (
       <div 
-        className="fixed bottom-4 right-4 bg-primary text-white p-2 rounded-full shadow-lg cursor-pointer flex items-center z-50"
+        className="fixed bottom-4 right-4 bg-primary text-white p-3 rounded-full shadow-lg cursor-pointer flex items-center z-50 hover:bg-primary/90 transition-colors"
         onClick={toggleMinimize}
       >
         <Clock className="h-5 w-5" />
+        {isActive && <span className="animate-pulse absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>}
       </div>
     );
   }
 
   return (
-    <Card className="fixed bottom-4 right-4 w-80 shadow-lg z-50">
+    <Card className="fixed bottom-4 right-4 w-80 shadow-lg z-50 border-2 border-primary/20 animate-in fade-in slide-in-from-bottom-10 duration-300">
       <CardContent className="p-4">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="font-medium">Task Timer</h3>
+          <h3 className="font-medium flex items-center">
+            <Clock className="h-4 w-4 mr-2 text-primary" />
+            Task Timer
+          </h3>
           <div className="flex gap-1">
             <Button variant="ghost" size="icon" onClick={toggleMinimize} className="h-6 w-6">
               <X className="h-4 w-4" />
@@ -98,11 +117,18 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
           </div>
         </div>
         
-        <div className="truncate text-sm mb-3" title={taskTitle}>
+        <div className="truncate text-sm mb-3 font-medium" title={taskTitle}>
           {taskTitle}
         </div>
         
-        <div className="text-3xl font-mono text-center my-3">
+        {assignee && (
+          <div className="text-xs text-muted-foreground mb-3 flex items-center">
+            <User className="h-3 w-3 mr-1" />
+            {assignee}
+          </div>
+        )}
+        
+        <div className="text-3xl font-mono text-center my-3 tabular-nums">
           {formatTime(seconds)}
         </div>
         

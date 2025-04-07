@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter, Search, FileText, Calendar, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import CreateInvoiceForm from '@/components/invoices/CreateInvoiceForm';
+import { useToast } from '@/hooks/use-toast';
 
 export interface Invoice {
   id: string;
@@ -36,9 +39,8 @@ export interface Invoice {
 }
 
 const Invoices: React.FC = () => {
-  const [searchTerm, setSearchTerm] = React.useState('');
-
-  const invoices: Invoice[] = [
+  const [searchTerm, setSearchTerm] = useState('');
+  const [invoices, setInvoices] = useState<Invoice[]>([
     {
       id: '1',
       number: 'INV-2025-001',
@@ -148,12 +150,23 @@ const Invoices: React.FC = () => {
         },
       ],
     },
-  ];
+  ]);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const filteredInvoices = invoices.filter(invoice => 
     invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     invoice.client.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleCreateInvoice = (newInvoice: Invoice) => {
+    setInvoices([...invoices, newInvoice]);
+    setIsCreateDialogOpen(false);
+    toast({
+      title: "Invoice Created",
+      description: `Invoice ${newInvoice.number} has been created successfully.`,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -180,10 +193,24 @@ const Invoices: React.FC = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            New Invoice
-          </Button>
+          
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Invoice
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[800px]">
+              <DialogHeader>
+                <DialogTitle>Create New Invoice</DialogTitle>
+              </DialogHeader>
+              <CreateInvoiceForm 
+                onCreateInvoice={handleCreateInvoice}
+                onCancel={() => setIsCreateDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
