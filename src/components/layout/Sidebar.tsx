@@ -9,7 +9,10 @@ import {
   Receipt, 
   Settings, 
   CreditCard, 
-  Bell
+  Bell,
+  Folder,
+  LineChart,
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,10 +30,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const navItems: NavItem[] = [
     { title: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
     { title: 'Tasks', icon: <CheckSquare size={20} />, path: '/tasks' },
+    { title: 'Projects', icon: <Folder size={20} />, path: '/projects' },
     { title: 'Team', icon: <Users size={20} />, path: '/team' },
     { title: 'Clients', icon: <UserCircle size={20} />, path: '/clients' },
     { title: 'Invoices', icon: <Receipt size={20} />, path: '/invoices' },
     { title: 'Payments', icon: <CreditCard size={20} />, path: '/payments' },
+    { title: 'Reports', icon: <LineChart size={20} />, path: '/reports' },
+    { title: 'Time Tracking', icon: <Clock size={20} />, path: '/time-tracking' },
     { title: 'Notifications', icon: <Bell size={20} />, path: '/notifications' },
     { title: 'Settings', icon: <Settings size={20} />, path: '/settings' },
   ];

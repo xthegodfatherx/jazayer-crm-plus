@@ -12,6 +12,9 @@ import Tasks from "./pages/Tasks";
 import Team from "./pages/Team";
 import Clients from "./pages/Clients";
 import Invoices from "./pages/Invoices";
+import Settings from "./pages/Settings";
+import Projects from "./pages/Projects";
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +31,9 @@ const App = () => (
             <Route path="/team" element={<Team />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/invoices" element={<Invoices />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/reports" element={<Reports />} />
             {/* Additional routes will be added as we develop more pages */}
           </Route>
           <Route path="*" element={<NotFound />} />
