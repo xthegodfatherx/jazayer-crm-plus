@@ -17,6 +17,7 @@ import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import Reports from "./pages/Reports";
 import TimeTracking from "./pages/TimeTracking";
+import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/time-tracking" element={<TimeTracking />} />
+            <Route path="/notifications" element={<Notifications />} />
             {/* Additional routes will be added as we develop more pages */}
           </Route>
           <Route path="*" element={<NotFound />} />
