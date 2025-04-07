@@ -63,6 +63,7 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
     toast({
       title: isActive ? "Timer paused" : "Timer started",
       description: `Task: ${taskTitle}`,
+      variant: isActive ? "destructive" : "default" // Fixed variant
     });
   };
 
@@ -71,6 +72,7 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
     toast({
       title: "Timer stopped",
       description: `Total time: ${formatTime(seconds)}`,
+      variant: "default" // Fixed variant
     });
   };
 
@@ -80,7 +82,7 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
       toast({
         title: "Time saved",
         description: `${formatTime(seconds)} recorded for task "${taskTitle}"`,
-        variant: "success",
+        variant: "default" // Removed "success" variant
       });
     }
     setIsActive(false);
@@ -178,3 +180,4 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
 };
 
 export default TaskTimer;
+
