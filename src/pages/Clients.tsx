@@ -160,13 +160,15 @@ const Clients: React.FC = () => {
         </div>
       </Card>
 
-      <TabsContent value="list" className="mt-0">
-        <ClientList clients={filteredClients} />
-      </TabsContent>
-      
-      <TabsContent value="grid" className="mt-0">
-        <ClientGrid clients={filteredClients} />
-      </TabsContent>
+      <Tabs defaultValue="list">
+        <TabsContent value="list" className="mt-0">
+          <ClientList clients={filteredClients} />
+        </TabsContent>
+        
+        <TabsContent value="grid" className="mt-0">
+          <ClientGrid clients={filteredClients} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
