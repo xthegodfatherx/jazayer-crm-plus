@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Filter, Search, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import ClientList from '@/components/clients/ClientList';
 import ClientGrid from '@/components/clients/ClientGrid';
 
@@ -105,7 +105,7 @@ const Clients: React.FC = () => {
       company: 'Mobilis',
       logo: '',
       status: 'inactive',
-      address: 'Quartier d'Affaires d'Alger îlot 05, lots 27, 28, 29 Bab Ezzouar, Alger',
+      address: "Quartier d'Affaires d'Alger îlot 05, lots 27, 28, 29 Bab Ezzouar, Alger",
       contactPerson: 'Ahmed Zeroual',
       tags: ['Telecom', 'Technology'],
       totalRevenue: 90000,
