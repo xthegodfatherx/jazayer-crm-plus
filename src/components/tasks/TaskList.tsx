@@ -1,43 +1,49 @@
 
 import React from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Task } from '@/pages/Tasks';
-import StarRating from './StarRating';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { 
   ArrowUpCircle, 
   ArrowRightCircle, 
-  ArrowDownCircle,
-  MoreHorizontal,
-  Edit,
-  Trash,
-  Eye
+  ArrowDownCircle, 
+  Check, 
+  Clock,
+  Calendar,
+  Timer
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import StarRating from './StarRating';
 
 interface TaskListProps {
   tasks: Task[];
   onRateTask: (taskId: string, rating: number) => void;
+  onStartTimer?: (task: Task) => void;
+  formatTime?: (seconds?: number) => string;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, onRateTask }) => {
+const TaskList: React.FC<TaskListProps> = ({ 
+  tasks, 
+  onRateTask,
+  onStartTimer,
+  formatTime 
+}) => {
+  const getStatusBadge = (status: Task['status']) => {
+    switch (status) {
+      case 'todo':
+        return <Badge variant="outline" className="border-blue-500 text-blue-500">To Do</Badge>;
+      case 'in-progress':
+        return <Badge variant="outline" className="border-amber-500 text-amber-500">In Progress</Badge>;
+      case 'in-review':
+        return <Badge variant="outline" className="border-purple-500 text-purple-500">In Review</Badge>;
+      case 'done':
+        return <Badge variant="outline" className="border-green-500 text-green-500">Done</Badge>;
+      default:
+        return null;
+    }
+  };
+
   const getPriorityIcon = (priority: Task['priority']) => {
     switch (priority) {
       case 'high':
@@ -51,22 +57,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onRateTask }) => {
     }
   };
 
-  const getStatusBadge = (status: Task['status']) => {
-    switch (status) {
-      case 'todo':
-        return <Badge variant="outline">To Do</Badge>;
-      case 'in-progress':
-        return <Badge variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-100">In Progress</Badge>;
-      case 'in-review':
-        return <Badge variant="secondary" className="bg-purple-100 text-purple-800 hover:bg-purple-100">In Review</Badge>;
-      case 'done':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">Done</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
-
-  const formatDueDate = (dateString: string) => {
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('fr-DZ', { 
       year: 'numeric', 
@@ -75,17 +66,23 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onRateTask }) => {
     }).format(date);
   };
 
+  const handleStartTimer = (task: Task) => {
+    if (onStartTimer) {
+      onStartTimer(task);
+    }
+  };
+
   return (
-    <div className="border rounded-md">
+    <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-12"></TableHead>
             <TableHead>Task</TableHead>
             <TableHead>Assignee</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Priority</TableHead>
             <TableHead>Due Date</TableHead>
+            <TableHead>Priority</TableHead>
+            {formatTime && <TableHead>Time</TableHead>}
             <TableHead>Rating</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -93,34 +90,48 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onRateTask }) => {
         <TableBody>
           {tasks.map((task) => (
             <TableRow key={task.id}>
-              <TableCell className="px-4 py-2">
-                <Checkbox id={`task-${task.id}`} />
-              </TableCell>
               <TableCell className="font-medium">
                 <div>
-                  <div>{task.title}</div>
-                  <div className="text-xs text-muted-foreground mt-1 max-w-xs truncate">
-                    {task.description}
+                  {task.title}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {task.tags.map((tag, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
               </TableCell>
               <TableCell>
                 <div className="flex items-center">
-                  <Avatar className="h-8 w-8 mr-2">
+                  <Avatar className="h-6 w-6 mr-2">
                     <AvatarImage src="" alt={task.assignee} />
                     <AvatarFallback>{task.assignee.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <span>{task.assignee}</span>
+                  <span className="text-sm">{task.assignee}</span>
                 </div>
               </TableCell>
               <TableCell>{getStatusBadge(task.status)}</TableCell>
               <TableCell>
                 <div className="flex items-center">
-                  {getPriorityIcon(task.priority)}
-                  <span className="ml-2 capitalize">{task.priority}</span>
+                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm">{formatDate(task.dueDate)}</span>
                 </div>
               </TableCell>
-              <TableCell>{formatDueDate(task.dueDate)}</TableCell>
+              <TableCell>
+                <div className="flex items-center">
+                  {getPriorityIcon(task.priority)}
+                  <span className="ml-2 capitalize text-sm">{task.priority}</span>
+                </div>
+              </TableCell>
+              {formatTime && (
+                <TableCell>
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span className="text-sm">{formatTime(task.timeTracked)}</span>
+                  </div>
+                </TableCell>
+              )}
               <TableCell>
                 <StarRating 
                   rating={task.rating || 0} 
@@ -130,30 +141,23 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onRateTask }) => {
                 />
               </TableCell>
               <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
+                <div className="flex justify-end space-x-2">
+                  {task.subtasks && (
+                    <Button variant="outline" size="sm">
+                      <Check className="h-4 w-4 mr-1" />
+                      <span className="text-xs">{task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}</span>
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Task
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-red-600">
-                      <Trash className="h-4 w-4 mr-2" />
-                      Delete Task
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  )}
+                  {onStartTimer && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleStartTimer(task)}
+                    >
+                      <Timer className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}

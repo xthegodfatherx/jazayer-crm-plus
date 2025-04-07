@@ -3,15 +3,28 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Timer, Clock, Plus, Calendar } from 'lucide-react';
+import { Timer, Clock, Plus, Calendar, Edit, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import TeamTimeReport from '@/components/reports/TeamTimeReport';
 import { Task } from './Tasks';
+import { useToast } from '@/hooks/use-toast';
+
+interface TimeEntry {
+  id: string;
+  taskId: string;
+  startTime: string;
+  endTime?: string;
+  duration: number; // in seconds
+  status: 'ongoing' | 'paused' | 'completed';
+  notes?: string;
+}
 
 const TimeTracking: React.FC = () => {
   const [activeTimer, setActiveTimer] = useState<Task | null>(null);
-  const [savedTimes, setSavedTimes] = useState<{taskId: string, seconds: number}[]>([]);
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Sample tasks (in a real app, these would come from a context or API)
   const tasks: Task[] = [
@@ -55,12 +68,52 @@ const TimeTracking: React.FC = () => {
   ];
   
   const handleSaveTime = (taskId: string, seconds: number) => {
-    setSavedTimes(prev => [...prev, { taskId, seconds }]);
+    const timeEntry: TimeEntry = {
+      id: Date.now().toString(),
+      taskId,
+      startTime: new Date(Date.now() - seconds * 1000).toISOString(),
+      endTime: new Date().toISOString(),
+      duration: seconds,
+      status: 'completed',
+    };
+    
+    setTimeEntries(prev => [...prev, timeEntry]);
     setActiveTimer(null);
   };
 
   const startTimerForTask = (task: Task) => {
     setActiveTimer(task);
+    
+    // Create a new ongoing time entry
+    const timeEntry: TimeEntry = {
+      id: Date.now().toString(),
+      taskId: task.id,
+      startTime: new Date().toISOString(),
+      duration: 0,
+      status: 'ongoing',
+    };
+    
+    setTimeEntries(prev => [...prev, timeEntry]);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    return `${hours}h ${minutes}m`;
+  };
+
+  const calculateTotalTime = () => {
+    const totalSeconds = timeEntries.reduce((sum, entry) => sum + entry.duration, 0);
+    return formatDuration(totalSeconds);
+  };
+
+  const getTaskById = (taskId: string) => {
+    return tasks.find(task => task.id === taskId);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
   };
 
   return (
@@ -114,28 +167,36 @@ const TimeTracking: React.FC = () => {
             <CardHeader>
               <CardTitle className="text-xl flex items-center">
                 <Clock className="h-5 w-5 mr-2" />
-                My Recent Time Entries
+                My Time Entries
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {savedTimes.length > 0 ? (
+              {timeEntries.length > 0 ? (
                 <div className="space-y-4">
-                  {savedTimes.map((timeEntry, index) => {
-                    const task = tasks.find(t => t.id === timeEntry.taskId);
+                  {timeEntries.map((timeEntry) => {
+                    const task = getTaskById(timeEntry.taskId);
                     if (!task) return null;
                     
-                    const hours = Math.floor(timeEntry.seconds / 3600);
-                    const minutes = Math.floor((timeEntry.seconds % 3600) / 60);
-                    
                     return (
-                      <div key={index} className="flex justify-between items-center p-3 border rounded-md">
+                      <div key={timeEntry.id} className="flex justify-between items-center p-3 border rounded-md group">
                         <div>
                           <h3 className="font-medium">{task.title}</h3>
-                          <p className="text-sm text-muted-foreground">Project: {task.tags[0]}</p>
+                          <div className="flex flex-col space-y-1 text-sm text-muted-foreground">
+                            <span className="flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Started: {formatDate(timeEntry.startTime)}
+                            </span>
+                            {timeEntry.endTime && (
+                              <span>Ended: {formatDate(timeEntry.endTime)}</span>
+                            )}
+                            <span className="text-xs">Status: {timeEntry.status}</span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-mono font-medium">{hours}h {minutes}m</p>
-                          <p className="text-xs text-muted-foreground">{new Date().toLocaleDateString()}</p>
+                        <div className="text-right flex flex-col items-end">
+                          <p className="font-mono font-medium">{formatDuration(timeEntry.duration)}</p>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Edit className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     );
@@ -153,23 +214,48 @@ const TimeTracking: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-6">
-                <div className="text-3xl font-bold text-center">12h 30m</div>
-                <p className="text-center text-sm text-muted-foreground mt-2">This week</p>
+                <div className="text-3xl font-bold text-center">{calculateTotalTime()}</div>
+                <p className="text-center text-sm text-muted-foreground mt-2">Total Tracked Time</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6">
-                <div className="text-3xl font-bold text-center">42h 15m</div>
-                <p className="text-center text-sm text-muted-foreground mt-2">This month</p>
+                <div className="text-3xl font-bold text-center">
+                  {formatDuration(timeEntries.filter(entry => entry.status === 'completed').reduce((sum, entry) => sum + entry.duration, 0))}
+                </div>
+                <p className="text-center text-sm text-muted-foreground mt-2">Completed Time</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6">
-                <div className="text-3xl font-bold text-center">3.5h</div>
-                <p className="text-center text-sm text-muted-foreground mt-2">Daily average</p>
+                <div className="text-3xl font-bold text-center">
+                  {timeEntries.length > 0 ? (timeEntries.reduce((sum, entry) => sum + entry.duration, 0) / timeEntries.length / 60 / 60).toFixed(1) + 'h' : '0h'}
+                </div>
+                <p className="text-center text-sm text-muted-foreground mt-2">Average Entry</p>
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center">
+                <FileText className="h-5 w-5 mr-2" />
+                Time Reports
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button variant="outline" className="h-auto py-4 flex flex-col">
+                  <Calendar className="h-8 w-8 mb-2" />
+                  <span>Weekly Report</span>
+                </Button>
+                <Button variant="outline" className="h-auto py-4 flex flex-col">
+                  <Calendar className="h-8 w-8 mb-2" />
+                  <span>Monthly Report</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="team-time" className="mt-6">

@@ -180,4 +180,3 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
 };
 
 export default TaskTimer;
-

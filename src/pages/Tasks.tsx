@@ -9,12 +9,13 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, Timer } from 'lucide-react';
 import TaskList from '@/components/tasks/TaskList';
 import TaskKanban from '@/components/tasks/TaskKanban';
 import TaskFilters from '@/components/tasks/TaskFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import CreateTaskForm from '@/components/tasks/CreateTaskForm';
+import TaskTimer from '@/components/tasks/TaskTimer';
 
 export interface Task {
   id: string;
@@ -27,10 +28,12 @@ export interface Task {
   rating?: number;
   tags: string[];
   subtasks?: { id: string; title: string; completed: boolean }[];
+  timeTracked?: number; // Total time tracked in seconds
 }
 
 const Tasks = () => {
   const [showFilters, setShowFilters] = useState(false);
+  const [activeTimer, setActiveTimer] = useState<Task | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: '1',
@@ -42,6 +45,7 @@ const Tasks = () => {
       priority: 'high',
       rating: 4,
       tags: ['Design', 'Website'],
+      timeTracked: 7200, // 2 hours
       subtasks: [
         { id: '1-1', title: 'Create wireframes', completed: true },
         { id: '1-2', title: 'Design mockups', completed: false },
@@ -57,6 +61,7 @@ const Tasks = () => {
       status: 'todo',
       priority: 'medium',
       tags: ['Backend', 'Security'],
+      timeTracked: 3600, // 1 hour
     },
     {
       id: '3',
@@ -68,6 +73,7 @@ const Tasks = () => {
       priority: 'high',
       rating: 3,
       tags: ['Frontend', 'Mobile'],
+      timeTracked: 10800, // 3 hours
     },
     {
       id: '4',
@@ -89,6 +95,7 @@ const Tasks = () => {
       priority: 'high',
       rating: 5,
       tags: ['Payment', 'Integration'],
+      timeTracked: 18000, // 5 hours
     },
   ]);
 
@@ -106,6 +113,26 @@ const Tasks = () => {
     setTasks(tasks.map(task => 
       task.id === taskId ? { ...task, status: newStatus } : task
     ));
+  };
+
+  const handleStartTimer = (task: Task) => {
+    setActiveTimer(task);
+  };
+
+  const handleSaveTime = (taskId: string, seconds: number) => {
+    setTasks(tasks.map(task => 
+      task.id === taskId 
+        ? { ...task, timeTracked: (task.timeTracked || 0) + seconds } 
+        : task
+    ));
+    setActiveTimer(null);
+  };
+
+  const formatTime = (seconds?: number) => {
+    if (!seconds) return "0h 0m";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
   };
 
   return (
@@ -152,12 +179,28 @@ const Tasks = () => {
             tasks={tasks} 
             onRateTask={handleRateTask} 
             onUpdateTaskStatus={handleUpdateTaskStatus}
+            onStartTimer={handleStartTimer}
+            formatTime={formatTime}
           />
         </TabsContent>
         <TabsContent value="list" className="mt-6">
-          <TaskList tasks={tasks} onRateTask={handleRateTask} />
+          <TaskList 
+            tasks={tasks} 
+            onRateTask={handleRateTask} 
+            onStartTimer={handleStartTimer}
+            formatTime={formatTime}
+          />
         </TabsContent>
       </Tabs>
+
+      {activeTimer && (
+        <TaskTimer 
+          taskId={activeTimer.id} 
+          taskTitle={activeTimer.title} 
+          onSaveTime={handleSaveTime}
+          assignee={activeTimer.assignee}
+        />
+      )}
     </div>
   );
 };

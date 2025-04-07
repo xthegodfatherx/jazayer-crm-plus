@@ -8,21 +8,31 @@ import {
   ArrowUpCircle, 
   ArrowRightCircle, 
   ArrowDownCircle,
-  Calendar
+  Calendar,
+  Timer
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Task } from '@/pages/Tasks';
 import StarRating from './StarRating';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 
 interface TaskCardProps {
   task: Task;
   onRateTask: (taskId: string, rating: number) => void;
   isDraggable?: boolean;
+  onStartTimer?: (task: Task) => void;
+  formatTime?: (seconds?: number) => string;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onRateTask, isDraggable = false }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ 
+  task, 
+  onRateTask, 
+  isDraggable = false,
+  onStartTimer,
+  formatTime
+}) => {
   const getPriorityIcon = () => {
     switch (task.priority) {
       case 'high':
@@ -48,6 +58,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onRateTask, isDraggable = fal
       month: 'short', 
       day: 'numeric' 
     }).format(date);
+  };
+
+  const handleStartTimer = () => {
+    if (onStartTimer) {
+      onStartTimer(task);
+    }
   };
 
   return (
@@ -77,6 +93,27 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onRateTask, isDraggable = fal
               <span>{task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}</span>
             </div>
             <Progress value={subtaskProgress || 0} className="h-1" />
+          </div>
+        )}
+
+        {/* Time tracking information */}
+        {formatTime && (
+          <div className="mb-3 flex justify-between items-center">
+            <div className="flex items-center text-xs text-muted-foreground">
+              <Clock className="h-3 w-3 mr-1" />
+              <span>Time tracked: {formatTime(task.timeTracked)}</span>
+            </div>
+            {onStartTimer && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-6 px-2 text-xs"
+                onClick={handleStartTimer}
+              >
+                <Timer className="h-3 w-3 mr-1" />
+                Track
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
