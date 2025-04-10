@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -35,11 +34,11 @@ interface TaskFiltersProps {
 }
 
 const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = [], assignees = [] }) => {
-  // Use empty string as default for status and priority to represent "all"
-  const [status, setStatus] = useState<'' | Task['status']>('');
-  const [priority, setPriority] = useState<'' | Task['priority']>('');
-  const [assignee, setAssignee] = useState('');
-  const [project, setProject] = useState('');
+  // Use null instead of empty string for "all" values
+  const [status, setStatus] = useState<Task['status'] | null>(null);
+  const [priority, setPriority] = useState<Task['priority'] | null>(null);
+  const [assignee, setAssignee] = useState<string | null>(null);
+  const [project, setProject] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week'>('all');
   const [showPinned, setShowPinned] = useState(false);
   const [minRating, setMinRating] = useState(0);
@@ -85,10 +84,10 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
   };
 
   const handleClearFilters = () => {
-    setStatus('');
-    setPriority('');
-    setAssignee('');
-    setProject('');
+    setStatus(null);
+    setPriority(null);
+    setAssignee(null);
+    setProject(null);
     setDueDate('all');
     setShowPinned(false);
     setMinRating(0);
@@ -104,14 +103,14 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
         <div className="space-y-2">
           <Label htmlFor="status">Status</Label>
           <Select 
-            value={status} 
-            onValueChange={(value: '' | Task['status']) => setStatus(value)}
+            value={status || undefined} 
+            onValueChange={(value: Task['status']) => setStatus(value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All statuses</SelectItem>
+              <SelectItem value="all-statuses">All statuses</SelectItem>
               <SelectItem value="todo">To Do</SelectItem>
               <SelectItem value="in-progress">In Progress</SelectItem>
               <SelectItem value="in-review">In Review</SelectItem>
@@ -123,14 +122,14 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
         <div className="space-y-2">
           <Label htmlFor="priority">Priority</Label>
           <Select 
-            value={priority} 
-            onValueChange={(value: '' | Task['priority']) => setPriority(value)}
+            value={priority || undefined} 
+            onValueChange={(value: Task['priority']) => setPriority(value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="All priorities" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All priorities</SelectItem>
+              <SelectItem value="all-priorities">All priorities</SelectItem>
               <SelectItem value="high">High</SelectItem>
               <SelectItem value="medium">Medium</SelectItem>
               <SelectItem value="low">Low</SelectItem>
@@ -140,12 +139,12 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
         
         <div className="space-y-2">
           <Label htmlFor="assignee">Assignee</Label>
-          <Select value={assignee} onValueChange={setAssignee}>
+          <Select value={assignee || undefined} onValueChange={setAssignee}>
             <SelectTrigger>
               <SelectValue placeholder="All assignees" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All assignees</SelectItem>
+              <SelectItem value="all-assignees">All assignees</SelectItem>
               {assignees?.map(assignee => (
                 <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>
               ))}
@@ -173,12 +172,12 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-2">
           <Label htmlFor="project">Project</Label>
-          <Select value={project} onValueChange={setProject}>
+          <Select value={project || undefined} onValueChange={setProject}>
             <SelectTrigger>
               <SelectValue placeholder="All projects" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All projects</SelectItem>
+              <SelectItem value="all-projects">All projects</SelectItem>
               {projects?.map(project => (
                 <SelectItem key={project} value={project}>{project}</SelectItem>
               ))}

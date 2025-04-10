@@ -197,24 +197,32 @@ const Tasks = () => {
   // Apply filters to tasks
   const filteredTasks = React.useMemo(() => {
     return tasks.filter(task => {
-      // Filter by status
-      if (filters.status && task.status !== filters.status) {
-        return false;
+      // Filter by status (ignore "all-statuses" value)
+      if (filters.status && filters.status !== 'all-statuses') {
+        if (task.status !== filters.status) {
+          return false;
+        }
       }
       
-      // Filter by priority
-      if (filters.priority && task.priority !== filters.priority) {
-        return false;
+      // Filter by priority (ignore "all-priorities" value)
+      if (filters.priority && filters.priority !== 'all-priorities') {
+        if (task.priority !== filters.priority) {
+          return false;
+        }
       }
       
-      // Filter by assignee
-      if (filters.assignee && task.assignee !== filters.assignee) {
-        return false;
+      // Filter by assignee (ignore "all-assignees" value)
+      if (filters.assignee && filters.assignee !== 'all-assignees') {
+        if (task.assignee !== filters.assignee) {
+          return false;
+        }
       }
       
-      // Filter by project
-      if (filters.project && task.project !== filters.project) {
-        return false;
+      // Filter by project (ignore "all-projects" value)
+      if (filters.project && filters.project !== 'all-projects') {
+        if (task.project !== filters.project) {
+          return false;
+        }
       }
       
       // Filter by tags (any of the specified tags)
