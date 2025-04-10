@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -9,7 +8,7 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Plus, Filter, Timer } from 'lucide-react';
+import { Plus, Filter, Timer, Pin } from 'lucide-react';
 import TaskList from '@/components/tasks/TaskList';
 import TaskKanban from '@/components/tasks/TaskKanban';
 import TaskFilters from '@/components/tasks/TaskFilters';
@@ -17,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import CreateTaskForm from '@/components/tasks/CreateTaskForm';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog';
+import { useToast } from '@/hooks/use-toast';
 
 export interface Comment {
   id: string;
@@ -38,12 +38,28 @@ export interface Task {
   subtasks?: { id: string; title: string; completed: boolean }[];
   timeTracked?: number; // Total time tracked in seconds
   comments?: Comment[];
+  pinned?: boolean; // New property for pinned tasks
+  project?: string; // New property for project
+}
+
+interface FilterOptions {
+  status?: Task['status'];
+  priority?: Task['priority'];
+  assignee?: string;
+  tags?: string[];
+  searchQuery?: string;
+  showPinned?: boolean;
+  minRating?: number;
+  project?: string;
+  dueDate?: 'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week';
 }
 
 const Tasks = () => {
+  const { toast } = useToast();
   const [showFilters, setShowFilters] = useState(false);
   const [activeTimer, setActiveTimer] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [filters, setFilters] = useState<FilterOptions>({});
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: '1',
@@ -56,6 +72,8 @@ const Tasks = () => {
       rating: 4,
       tags: ['Design', 'Website'],
       timeTracked: 7200, // 2 hours
+      pinned: true,
+      project: 'Client Website Redesign',
       subtasks: [
         { id: '1-1', title: 'Create wireframes', completed: true },
         { id: '1-2', title: 'Design mockups', completed: false },
@@ -85,6 +103,7 @@ const Tasks = () => {
       status: 'todo',
       priority: 'medium',
       tags: ['Backend', 'Security'],
+      project: 'API Development',
       timeTracked: 3600, // 1 hour
       comments: [
         {
@@ -105,6 +124,7 @@ const Tasks = () => {
       priority: 'high',
       rating: 3,
       tags: ['Frontend', 'Mobile'],
+      project: 'Client Website Redesign',
       timeTracked: 10800, // 3 hours
       comments: []
     },
@@ -117,6 +137,7 @@ const Tasks = () => {
       status: 'todo',
       priority: 'low',
       tags: ['Documentation'],
+      project: 'API Development',
       comments: []
     },
     {
@@ -129,6 +150,7 @@ const Tasks = () => {
       priority: 'high',
       rating: 5,
       tags: ['Payment', 'Integration'],
+      project: 'E-commerce Platform',
       timeTracked: 18000, // 5 hours
       comments: [
         {
@@ -147,6 +169,118 @@ const Tasks = () => {
     },
   ]);
 
+  // Keep track of recent active tasks for notifications
+  useEffect(() => {
+    // Check for tasks due today or tomorrow
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const dueTodayTasks = tasks.filter(task => {
+      const taskDate = new Date(task.dueDate);
+      taskDate.setHours(0, 0, 0, 0);
+      return taskDate.getTime() === today.getTime() && task.status !== 'done';
+    });
+    
+    if (dueTodayTasks.length > 0) {
+      toast({
+        title: `${dueTodayTasks.length} tasks due today`,
+        description: dueTodayTasks.map(task => task.title).join(', '),
+        variant: "default"
+      });
+    }
+  }, []);
+
+  // Apply filters to tasks
+  const filteredTasks = React.useMemo(() => {
+    return tasks.filter(task => {
+      // Filter by status
+      if (filters.status && task.status !== filters.status) {
+        return false;
+      }
+      
+      // Filter by priority
+      if (filters.priority && task.priority !== filters.priority) {
+        return false;
+      }
+      
+      // Filter by assignee
+      if (filters.assignee && task.assignee !== filters.assignee) {
+        return false;
+      }
+      
+      // Filter by project
+      if (filters.project && task.project !== filters.project) {
+        return false;
+      }
+      
+      // Filter by tags (any of the specified tags)
+      if (filters.tags && filters.tags.length > 0) {
+        if (!task.tags.some(tag => filters.tags?.includes(tag))) {
+          return false;
+        }
+      }
+      
+      // Filter by pinned status
+      if (filters.showPinned === true && !task.pinned) {
+        return false;
+      }
+      
+      // Filter by minimum rating
+      if (filters.minRating !== undefined && (task.rating || 0) < filters.minRating) {
+        return false;
+      }
+      
+      // Filter by due date
+      if (filters.dueDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const taskDate = new Date(task.dueDate);
+        taskDate.setHours(0, 0, 0, 0);
+        
+        if (filters.dueDate === 'today' && taskDate.getTime() !== today.getTime()) {
+          return false;
+        } else if (filters.dueDate === 'tomorrow' && taskDate.getTime() !== tomorrow.getTime()) {
+          return false;
+        } else if (filters.dueDate === 'overdue' && (taskDate >= today || task.status === 'done')) {
+          return false;
+        } else if (filters.dueDate === 'this-week') {
+          const endOfWeek = new Date(today);
+          endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+          if (taskDate < today || taskDate > endOfWeek) {
+            return false;
+          }
+        }
+      }
+      
+      // Search query (search in title, description, and tags)
+      if (filters.searchQuery) {
+        const query = filters.searchQuery.toLowerCase();
+        return (
+          task.title.toLowerCase().includes(query) ||
+          task.description.toLowerCase().includes(query) ||
+          task.tags.some(tag => tag.toLowerCase().includes(query))
+        );
+      }
+      
+      return true;
+    });
+  }, [tasks, filters]);
+
+  const getProjects = () => {
+    return Array.from(new Set(tasks.map(task => task.project))).filter(Boolean) as string[];
+  };
+
+  const getAssignees = () => {
+    return Array.from(new Set(tasks.map(task => task.assignee)));
+  };
+
   const handleRateTask = (taskId: string, rating: number) => {
     setTasks(tasks.map(task => 
       task.id === taskId ? { ...task, rating } : task
@@ -164,6 +298,16 @@ const Tasks = () => {
   };
 
   const handleStartTimer = (task: Task) => {
+    // If there's already an active timer, notify user
+    if (activeTimer && activeTimer.id !== task.id) {
+      toast({
+        title: "Timer already running",
+        description: `You have an active timer for "${activeTimer.title}". Please stop it first.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setActiveTimer(task);
   };
 
@@ -174,6 +318,12 @@ const Tasks = () => {
         : task
     ));
     setActiveTimer(null);
+    
+    toast({
+      title: "Time saved",
+      description: `${formatTime(seconds)} has been added to the task.`,
+      variant: "default"
+    });
   };
 
   const handleAddComment = (taskId: string, content: string) => {
@@ -189,6 +339,61 @@ const Tasks = () => {
         ? { ...task, comments: [...(task.comments || []), newComment] } 
         : task
     ));
+    
+    // Check for mentions in the comment
+    const mentionRegex = /@(\w+)/g;
+    const mentions = content.match(mentionRegex);
+    
+    if (mentions && mentions.length > 0) {
+      toast({
+        title: "Mentions detected",
+        description: `You mentioned ${mentions.join(', ')} in your comment.`,
+        variant: "default"
+      });
+    }
+  };
+
+  const handleTogglePin = (taskId: string) => {
+    setTasks(tasks.map(task => 
+      task.id === taskId ? { ...task, pinned: !task.pinned } : task
+    ));
+    
+    const taskToUpdate = tasks.find(task => task.id === taskId);
+    if (taskToUpdate) {
+      toast({
+        title: taskToUpdate.pinned ? "Task unpinned" : "Task pinned",
+        description: `"${taskToUpdate.title}" has been ${taskToUpdate.pinned ? 'unpinned' : 'pinned'}.`,
+        variant: "default"
+      });
+    }
+  };
+
+  const handleToggleSubtask = (taskId: string, subtaskId: string) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId && task.subtasks) {
+        const updatedSubtasks = task.subtasks.map(subtask => 
+          subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+        );
+        return { ...task, subtasks: updatedSubtasks };
+      }
+      return task;
+    }));
+  };
+
+  const handleAddSubtask = (taskId: string, title: string) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        const newSubtask = {
+          id: `sub-${Date.now()}`,
+          title,
+          completed: false
+        };
+        
+        const updatedSubtasks = task.subtasks ? [...task.subtasks, newSubtask] : [newSubtask];
+        return { ...task, subtasks: updatedSubtasks };
+      }
+      return task;
+    }));
   };
 
   const handleViewTask = (task: Task) => {
@@ -201,6 +406,19 @@ const Tasks = () => {
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}m`;
   };
+
+  const handleApplyFilters = (newFilters: FilterOptions) => {
+    setFilters(newFilters);
+    
+    toast({
+      title: "Filters applied",
+      description: "Task list has been updated based on your filters.",
+      variant: "default"
+    });
+  };
+
+  // Group pinned tasks for the pinned section
+  const pinnedTasks = tasks.filter(task => task.pinned);
 
   return (
     <div className="space-y-6">
@@ -228,10 +446,42 @@ const Tasks = () => {
         </div>
       </div>
 
+      {pinnedTasks.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center">
+              <Pin className="h-4 w-4 mr-2 text-primary" fill="currentColor" />
+              Pinned Tasks
+            </CardTitle>
+            <CardDescription>Important tasks you've pinned to the top</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {pinnedTasks.map(task => (
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  onRateTask={handleRateTask}
+                  onStartTimer={handleStartTimer}
+                  formatTime={formatTime}
+                  onViewTask={handleViewTask}
+                  onTogglePin={handleTogglePin}
+                  onToggleSubtask={handleToggleSubtask}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {showFilters && (
         <Card>
           <CardContent className="p-4">
-            <TaskFilters />
+            <TaskFilters 
+              onApplyFilters={handleApplyFilters} 
+              projects={getProjects()}
+              assignees={getAssignees()}
+            />
           </CardContent>
         </Card>
       )}
@@ -243,17 +493,18 @@ const Tasks = () => {
         </TabsList>
         <TabsContent value="kanban" className="mt-6">
           <TaskKanban 
-            tasks={tasks} 
+            tasks={filteredTasks} 
             onRateTask={handleRateTask} 
             onUpdateTaskStatus={handleUpdateTaskStatus}
             onStartTimer={handleStartTimer}
             formatTime={formatTime}
             onViewTask={handleViewTask}
+            onTogglePin={handleTogglePin}
           />
         </TabsContent>
         <TabsContent value="list" className="mt-6">
           <TaskList 
-            tasks={tasks} 
+            tasks={filteredTasks} 
             onRateTask={handleRateTask} 
             onStartTimer={handleStartTimer}
             formatTime={formatTime}
@@ -276,6 +527,10 @@ const Tasks = () => {
           task={selectedTask} 
           onClose={() => setSelectedTask(null)} 
           onAddComment={(content) => handleAddComment(selectedTask.id, content)}
+          onToggleSubtask={handleToggleSubtask}
+          onAddSubtask={handleAddSubtask}
+          onTogglePin={handleTogglePin}
+          onStartTimer={handleStartTimer}
         />
       )}
     </div>

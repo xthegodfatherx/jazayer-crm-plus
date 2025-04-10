@@ -19,24 +19,39 @@ import {
   ArrowDownCircle,
   Calendar,
   Clock,
-  CheckSquare
+  CheckSquare,
+  Timer,
+  PlusCircle,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface TaskDetailDialogProps {
   task: Task;
   onClose: () => void;
   onAddComment: (content: string) => void;
+  onToggleSubtask?: (taskId: string, subtaskId: string) => void;
+  onAddSubtask?: (taskId: string, title: string) => void;
+  onTogglePin?: (taskId: string) => void;
+  onStartTimer?: (task: Task) => void;
 }
 
 const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({ 
   task, 
   onClose,
-  onAddComment
+  onAddComment,
+  onToggleSubtask,
+  onAddSubtask,
+  onTogglePin,
+  onStartTimer
 }) => {
   const [commentText, setCommentText] = useState('');
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
   const getPriorityIcon = () => {
     switch (task.priority) {
@@ -78,6 +93,25 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     }
   };
 
+  const handleSubmitSubtask = () => {
+    if (newSubtaskTitle.trim() && onAddSubtask) {
+      onAddSubtask(task.id, newSubtaskTitle);
+      setNewSubtaskTitle('');
+    }
+  };
+
+  const handleTogglePin = () => {
+    if (onTogglePin) {
+      onTogglePin(task.id);
+    }
+  };
+
+  const handleStartTimer = () => {
+    if (onStartTimer) {
+      onStartTimer(task);
+    }
+  };
+
   // Calculate subtask progress if subtasks exist
   const subtaskProgress = task.subtasks 
     ? Math.round((task.subtasks.filter(subtask => subtask.completed).length / task.subtasks.length) * 100) 
@@ -98,17 +132,35 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     }
   };
 
+  const isPastDue = new Date(task.dueDate) < new Date() && task.status !== 'done';
+
   return (
     <Dialog open={!!task} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-xl">{task.title}</DialogTitle>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            {task.pinned && <Pin className="h-5 w-5 text-primary" fill="currentColor" />}
+            {task.title}
+            {onTogglePin && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 ml-2" 
+                onClick={handleTogglePin}
+              >
+                {task.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+              </Button>
+            )}
+          </DialogTitle>
           <DialogDescription className="flex items-center gap-2 mt-1">
             {getStatusBadge()}
             <div className="flex items-center ml-2">
               {getPriorityIcon()}
               <span className="ml-1 text-xs capitalize">{task.priority} priority</span>
             </div>
+            {isPastDue && (
+              <Badge variant="destructive" className="ml-2">Overdue</Badge>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -126,17 +178,32 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
             <span className="text-xs text-muted-foreground">Due Date</span>
             <div className="flex items-center mt-1">
               <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
-              <span className="text-sm">{formatDate(task.dueDate)}</span>
+              <span className={`text-sm ${isPastDue ? 'text-red-500 font-semibold' : ''}`}>
+                {formatDate(task.dueDate)}
+              </span>
             </div>
           </div>
           {task.timeTracked !== undefined && (
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground">Time Tracked</span>
-              <div className="flex items-center mt-1">
-                <Clock className="h-4 w-4 mr-1 text-muted-foreground" />
-                <span className="text-sm">
-                  {Math.floor(task.timeTracked / 3600)}h {Math.floor((task.timeTracked % 3600) / 60)}m
-                </span>
+              <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center">
+                  <Clock className="h-4 w-4 mr-1 text-muted-foreground" />
+                  <span className="text-sm">
+                    {Math.floor(task.timeTracked / 3600)}h {Math.floor((task.timeTracked % 3600) / 60)}m
+                  </span>
+                </div>
+                {onStartTimer && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-6 px-2 text-xs"
+                    onClick={handleStartTimer}
+                  >
+                    <Timer className="h-3 w-3 mr-1" />
+                    Track
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -150,29 +217,61 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           <p className="text-sm text-muted-foreground">{task.description}</p>
         </div>
 
-        {/* Subtasks if they exist */}
-        {task.subtasks && (
-          <div className="mb-4">
-            <h3 className="text-sm font-medium mb-2">Subtasks</h3>
-            <div className="mb-2">
-              <div className="flex justify-between text-xs mb-1">
-                <span>Progress</span>
-                <span>{task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}</span>
+        {/* Subtasks section */}
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-medium">Subtasks</h3>
+            {onAddSubtask && task.subtasks && (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">
+                  {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length} completed
+                </span>
               </div>
-              <Progress value={subtaskProgress || 0} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              {task.subtasks.map(subtask => (
-                <div key={subtask.id} className="flex items-center">
-                  <CheckSquare className={`h-4 w-4 mr-2 ${subtask.completed ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className={`text-sm ${subtask.completed ? 'line-through text-muted-foreground' : ''}`}>
-                    {subtask.title}
-                  </span>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
-        )}
+          
+          {task.subtasks && task.subtasks.length > 0 ? (
+            <>
+              <Progress value={subtaskProgress || 0} className="h-2 mb-3" />
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {task.subtasks.map(subtask => (
+                  <div key={subtask.id} className="flex items-center">
+                    <Checkbox 
+                      id={`detail-subtask-${subtask.id}`}
+                      checked={subtask.completed}
+                      onCheckedChange={() => onToggleSubtask && onToggleSubtask(task.id, subtask.id)}
+                      className="mr-2"
+                    />
+                    <label 
+                      htmlFor={`detail-subtask-${subtask.id}`}
+                      className={`text-sm ${subtask.completed ? 'line-through text-muted-foreground' : ''}`}
+                    >
+                      {subtask.title}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">No subtasks yet.</p>
+          )}
+          
+          {/* Add new subtask */}
+          {onAddSubtask && (
+            <div className="mt-3 flex gap-2">
+              <Input
+                placeholder="Add a subtask..."
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                className="text-sm"
+              />
+              <Button size="sm" onClick={handleSubmitSubtask} disabled={!newSubtaskTitle.trim()}>
+                <PlusCircle className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Tags */}
         <div className="mb-4">
@@ -208,7 +307,7 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         {/* Add Comment */}
         <div className="mt-4">
           <Textarea
-            placeholder="Add a comment..."
+            placeholder="Add a comment... (use @username to mention someone)"
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             className="min-h-[80px]"
@@ -226,6 +325,25 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
 // Comment Item Component
 const CommentItem: React.FC<{ comment: Comment }> = ({ comment }) => {
+  // Function to highlight mentions in comment text
+  const renderCommentText = (text: string) => {
+    // Simple regex to find @mentions
+    const mentionRegex = /(@\w+)/g;
+    
+    // Split text by mentions and map each part
+    return text.split(mentionRegex).map((part, index) => {
+      if (part.match(mentionRegex)) {
+        // If it's a mention, highlight it
+        return (
+          <span key={index} className="font-medium text-primary">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="bg-muted/40 rounded-md p-3">
       <div className="flex items-center mb-2">
@@ -239,7 +357,7 @@ const CommentItem: React.FC<{ comment: Comment }> = ({ comment }) => {
           </span>
         </div>
       </div>
-      <p className="text-sm">{comment.content}</p>
+      <p className="text-sm">{renderCommentText(comment.content)}</p>
     </div>
   );
 };

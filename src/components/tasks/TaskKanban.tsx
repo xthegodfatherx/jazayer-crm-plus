@@ -3,6 +3,8 @@ import React from 'react';
 import { Task } from '@/pages/Tasks';
 import TaskCard from './TaskCard';
 import { cn } from '@/lib/utils';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 interface KanbanColumn {
   id: Task['status'];
@@ -17,6 +19,7 @@ interface TaskKanbanProps {
   onStartTimer?: (task: Task) => void;
   formatTime?: (seconds?: number) => string;
   onViewTask?: (task: Task) => void;
+  onTogglePin?: (taskId: string) => void;
 }
 
 const TaskKanban: React.FC<TaskKanbanProps> = ({ 
@@ -25,7 +28,8 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   onUpdateTaskStatus,
   onStartTimer,
   formatTime,
-  onViewTask
+  onViewTask,
+  onTogglePin
 }) => {
   const columns: KanbanColumn[] = [
     { id: 'todo', title: 'To Do', color: 'border-blue-500' },
@@ -34,69 +38,95 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     { id: 'done', title: 'Done', color: 'border-green-500' },
   ];
 
-  // Basic drag and drop functionality
+  // Improved drag and drop functionality with DndKit
   const [draggedTask, setDraggedTask] = React.useState<string | null>(null);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
-  const handleDragStart = (taskId: string) => {
-    setDraggedTask(taskId);
+  const handleDragStart = (event: DragStartEvent) => {
+    setDraggedTask(event.active.id as string);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent, columnId: Task['status']) => {
-    e.preventDefault();
-    if (draggedTask) {
-      onUpdateTaskStatus(draggedTask, columnId);
-      setDraggedTask(null);
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const columnId = over.id as Task['status'];
+      onUpdateTaskStatus(active.id as string, columnId);
     }
+    
+    setDraggedTask(null);
+  };
+
+  // Group tasks by column and sort pinned tasks to the top
+  const getColumnTasks = (columnId: Task['status']) => {
+    return tasks
+      .filter(task => task.status === columnId)
+      .sort((a, b) => {
+        // Sort by pinned status first (pinned tasks on top)
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return 0;
+      });
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {columns.map((column) => (
-        <div key={column.id} className="space-y-4">
-          <div 
-            className={cn(
-              "py-2 border-t-4 rounded-t bg-background flex justify-between items-center px-4",
-              column.color
-            )}
-          >
-            <h3 className="font-medium">{column.title}</h3>
-            <span className="text-sm text-muted-foreground">
-              {tasks.filter(task => task.status === column.id).length}
-            </span>
-          </div>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {columns.map((column) => {
+          const columnTasks = getColumnTasks(column.id);
+          return (
+            <div key={column.id} className="space-y-4">
+              <div 
+                className={cn(
+                  "py-2 border-t-4 rounded-t bg-background flex justify-between items-center px-4",
+                  column.color
+                )}
+              >
+                <h3 className="font-medium">{column.title}</h3>
+                <span className="text-sm text-muted-foreground">
+                  {columnTasks.length}
+                </span>
+              </div>
 
-          <div 
-            className="bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, column.id)}
-          >
-            {tasks
-              .filter(task => task.status === column.id)
-              .map(task => (
-                <div 
-                  key={task.id}
-                  draggable
-                  onDragStart={() => handleDragStart(task.id)}
+              <div 
+                className="bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3"
+                id={column.id} // Use column ID for drop target
+              >
+                <SortableContext 
+                  items={columnTasks.map(task => task.id)} 
+                  strategy={verticalListSortingStrategy}
                 >
-                  <TaskCard 
-                    task={task} 
-                    onRateTask={onRateTask} 
-                    isDraggable={true}
-                    onStartTimer={onStartTimer}
-                    formatTime={formatTime}
-                    onViewTask={onViewTask}
-                  />
-                </div>
-              ))
-            }
-          </div>
-        </div>
-      ))}
-    </div>
+                  {columnTasks.map(task => (
+                    <div key={task.id}>
+                      <TaskCard 
+                        task={task} 
+                        onRateTask={onRateTask} 
+                        isDraggable={true}
+                        onStartTimer={onStartTimer}
+                        formatTime={formatTime}
+                        onViewTask={onViewTask}
+                        onTogglePin={onTogglePin}
+                      />
+                    </div>
+                  ))}
+                </SortableContext>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </DndContext>
   );
 };
 

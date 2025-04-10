@@ -10,7 +10,9 @@ import {
   ArrowDownCircle,
   Calendar,
   Timer,
-  MessageSquare
+  MessageSquare,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Task } from '@/pages/Tasks';
@@ -18,6 +20,7 @@ import StarRating from './StarRating';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface TaskCardProps {
   task: Task;
@@ -26,6 +29,8 @@ interface TaskCardProps {
   onStartTimer?: (task: Task) => void;
   formatTime?: (seconds?: number) => string;
   onViewTask?: (task: Task) => void;
+  onTogglePin?: (taskId: string) => void;
+  onToggleSubtask?: (taskId: string, subtaskId: string) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ 
@@ -34,7 +39,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
   isDraggable = false,
   onStartTimer,
   formatTime,
-  onViewTask
+  onViewTask,
+  onTogglePin,
+  onToggleSubtask
 }) => {
   const getPriorityIcon = () => {
     switch (task.priority) {
@@ -75,15 +82,46 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
+  const handleTogglePin = () => {
+    if (onTogglePin) {
+      onTogglePin(task.id);
+    }
+  };
+
+  const handleToggleSubtask = (subtaskId: string) => {
+    if (onToggleSubtask) {
+      onToggleSubtask(task.id, subtaskId);
+    }
+  };
+
   const commentCount = task.comments?.length || 0;
 
+  const isPastDue = new Date(task.dueDate) < new Date() && task.status !== 'done';
+
   return (
-    <Card className={`group ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+    <Card className={`group ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${task.pinned ? 'border-primary' : ''} ${isPastDue ? 'border-red-300' : ''}`}>
       <CardHeader className="p-4 pb-2">
         <div className="flex justify-between items-start">
-          <h3 className="font-medium">{task.title}</h3>
-          <div className="flex items-center">
+          <h3 className="font-medium flex items-center gap-2">
+            {task.pinned && <Pin className="h-4 w-4 text-primary" fill="currentColor" />}
+            {task.title}
+          </h3>
+          <div className="flex items-center gap-2">
             {getPriorityIcon()}
+            {onTogglePin && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" 
+                onClick={handleTogglePin}
+              >
+                {task.pinned ? (
+                  <PinOff className="h-4 w-4" />
+                ) : (
+                  <Pin className="h-4 w-4" />
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -97,13 +135,35 @@ const TaskCard: React.FC<TaskCardProps> = ({
           ))}
         </div>
         
-        {task.subtasks && (
+        {task.subtasks && task.subtasks.length > 0 && (
           <div className="mb-3">
             <div className="flex justify-between text-xs mb-1">
               <span className="text-muted-foreground">Subtasks</span>
               <span>{task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}</span>
             </div>
             <Progress value={subtaskProgress || 0} className="h-1" />
+            <div className="mt-2 space-y-1 max-h-24 overflow-y-auto">
+              {task.subtasks.slice(0, 3).map((subtask) => (
+                <div key={subtask.id} className="flex items-center gap-2 text-xs">
+                  <Checkbox 
+                    id={`subtask-${subtask.id}`}
+                    checked={subtask.completed}
+                    onCheckedChange={() => handleToggleSubtask(subtask.id)}
+                  />
+                  <label 
+                    htmlFor={`subtask-${subtask.id}`}
+                    className={`${subtask.completed ? 'line-through text-muted-foreground' : ''}`}
+                  >
+                    {subtask.title}
+                  </label>
+                </div>
+              ))}
+              {task.subtasks.length > 3 && (
+                <Button variant="ghost" size="sm" className="text-xs p-0 h-auto" onClick={handleViewTask}>
+                  Show {task.subtasks.length - 3} more...
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
@@ -138,7 +198,10 @@ const TaskCard: React.FC<TaskCardProps> = ({
         <div className="flex items-center justify-between w-full text-sm">
           <div className="flex items-center">
             <Calendar className="h-4 w-4 text-muted-foreground mr-1" />
-            <span className="text-xs">{formatDueDate(task.dueDate)}</span>
+            <span className={`text-xs ${isPastDue ? 'text-red-500 font-semibold' : ''}`}>
+              {formatDueDate(task.dueDate)}
+              {isPastDue && ' (overdue)'}
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <Avatar className="h-6 w-6">
