@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -109,7 +108,10 @@ const CreateInvoiceForm: React.FC<CreateInvoiceFormProps> = ({ onCreateInvoice, 
         quantity: item.quantity,
         price: item.price,
         tax: 19, // Default tax rate
+        total: item.quantity * item.price, // Add the total property to fix the error
       })),
+      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
+      template: 'standard',
     };
     
     onCreateInvoice(newInvoice);
