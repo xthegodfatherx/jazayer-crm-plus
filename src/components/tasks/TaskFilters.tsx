@@ -16,8 +16,8 @@ import { Task } from '@/pages/Tasks';
 import { Slider } from '@/components/ui/slider';
 
 interface FilterOptions {
-  status?: Task['status'];
-  priority?: Task['priority'];
+  status?: Task['status'] | 'all-statuses';
+  priority?: Task['priority'] | 'all-priorities';
   assignee?: string;
   tags?: string[];
   searchQuery?: string;
@@ -35,8 +35,8 @@ interface TaskFiltersProps {
 
 const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = [], assignees = [] }) => {
   // Use null instead of empty string for "all" values
-  const [status, setStatus] = useState<Task['status'] | null>(null);
-  const [priority, setPriority] = useState<Task['priority'] | null>(null);
+  const [status, setStatus] = useState<Task['status'] | 'all-statuses' | null>('all-statuses');
+  const [priority, setPriority] = useState<Task['priority'] | 'all-priorities' | null>('all-priorities');
   const [assignee, setAssignee] = useState<string | null>(null);
   const [project, setProject] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week'>('all');
@@ -84,8 +84,8 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
   };
 
   const handleClearFilters = () => {
-    setStatus(null);
-    setPriority(null);
+    setStatus('all-statuses');
+    setPriority('all-priorities');
     setAssignee(null);
     setProject(null);
     setDueDate('all');
@@ -103,8 +103,8 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
         <div className="space-y-2">
           <Label htmlFor="status">Status</Label>
           <Select 
-            value={status || undefined} 
-            onValueChange={(value: Task['status']) => setStatus(value)}
+            value={status || 'all-statuses'} 
+            onValueChange={(value: Task['status'] | 'all-statuses') => setStatus(value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="All statuses" />
@@ -122,8 +122,8 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
         <div className="space-y-2">
           <Label htmlFor="priority">Priority</Label>
           <Select 
-            value={priority || undefined} 
-            onValueChange={(value: Task['priority']) => setPriority(value)}
+            value={priority || 'all-priorities'} 
+            onValueChange={(value: Task['priority'] | 'all-priorities') => setPriority(value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="All priorities" />

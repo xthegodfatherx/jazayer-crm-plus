@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -12,7 +13,7 @@ import { Plus, Filter, Timer, Pin } from 'lucide-react';
 import TaskList from '@/components/tasks/TaskList';
 import TaskKanban from '@/components/tasks/TaskKanban';
 import TaskFilters from '@/components/tasks/TaskFilters';
-import TaskCard from '@/components/tasks/TaskCard'; // Added missing import
+import TaskCard from '@/components/tasks/TaskCard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import CreateTaskForm from '@/components/tasks/CreateTaskForm';
 import TaskTimer from '@/components/tasks/TaskTimer';
@@ -44,8 +45,8 @@ export interface Task {
 }
 
 interface FilterOptions {
-  status?: Task['status'];
-  priority?: Task['priority'];
+  status?: Task['status'] | 'all-statuses';
+  priority?: Task['priority'] | 'all-priorities';
   assignee?: string;
   tags?: string[];
   searchQuery?: string;
