@@ -12,6 +12,7 @@ import { Plus, Filter, Timer, Pin } from 'lucide-react';
 import TaskList from '@/components/tasks/TaskList';
 import TaskKanban from '@/components/tasks/TaskKanban';
 import TaskFilters from '@/components/tasks/TaskFilters';
+import TaskCard from '@/components/tasks/TaskCard'; // Added missing import
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import CreateTaskForm from '@/components/tasks/CreateTaskForm';
 import TaskTimer from '@/components/tasks/TaskTimer';
