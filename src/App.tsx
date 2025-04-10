@@ -18,6 +18,11 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Reports from "./pages/Reports";
 import TimeTracking from "./pages/TimeTracking";
 import Notifications from "./pages/Notifications";
+import Payments from "./pages/Payments";
+import Estimates from "./pages/Estimates";
+import Subscriptions from "./pages/Subscriptions";
+import Products from "./pages/Products";
+import Expenses from "./pages/Expenses";
 
 const queryClient = new QueryClient();
 
@@ -34,13 +39,17 @@ const App = () => (
             <Route path="/team" element={<Team />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/invoices" element={<Invoices />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/estimates" element={<Estimates />} />
+            <Route path="/subscriptions" element={<Subscriptions />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/expenses" element={<Expenses />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/time-tracking" element={<TimeTracking />} />
             <Route path="/notifications" element={<Notifications />} />
-            {/* Additional routes will be added as we develop more pages */}
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

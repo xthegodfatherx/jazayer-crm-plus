@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -12,7 +12,15 @@ import {
   Bell,
   Folder,
   LineChart,
-  Clock
+  Clock,
+  ChevronDown,
+  ChevronRight,
+  DollarSign,
+  FileText,
+  FileCheck,
+  Calendar,
+  Package,
+  Wallet
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,17 +32,39 @@ interface NavItem {
   title: string;
   icon: React.ReactNode;
   path: string;
+  children?: NavItem[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Sales']);
+  
+  const toggleExpand = (title: string) => {
+    setExpandedItems(prev => 
+      prev.includes(title) 
+        ? prev.filter(item => item !== title) 
+        : [...prev, title]
+    );
+  };
+
   const navItems: NavItem[] = [
     { title: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
     { title: 'Tasks', icon: <CheckSquare size={20} />, path: '/tasks' },
     { title: 'Projects', icon: <Folder size={20} />, path: '/projects' },
+    { 
+      title: 'Sales', 
+      icon: <DollarSign size={20} />, 
+      path: '#',
+      children: [
+        { title: 'Invoices', icon: <Receipt size={18} />, path: '/invoices' },
+        { title: 'Payments', icon: <CreditCard size={18} />, path: '/payments' },
+        { title: 'Estimates', icon: <FileText size={18} />, path: '/estimates' },
+        { title: 'Subscriptions', icon: <Calendar size={18} />, path: '/subscriptions' },
+        { title: 'Products', icon: <Package size={18} />, path: '/products' },
+        { title: 'Expenses', icon: <Wallet size={18} />, path: '/expenses' },
+      ]
+    },
     { title: 'Team', icon: <Users size={20} />, path: '/team' },
     { title: 'Clients', icon: <UserCircle size={20} />, path: '/clients' },
-    { title: 'Invoices', icon: <Receipt size={20} />, path: '/invoices' },
-    { title: 'Payments', icon: <CreditCard size={20} />, path: '/payments' },
     { title: 'Reports', icon: <LineChart size={20} />, path: '/reports' },
     { title: 'Time Tracking', icon: <Clock size={20} />, path: '/time-tracking' },
     { title: 'Notifications', icon: <Bell size={20} />, path: '/notifications' },
@@ -56,22 +86,66 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         )}
       </div>
       <nav className="py-4">
-        <ul className="space-y-2 px-2">
+        <ul className="space-y-1 px-2">
           {navItems.map((item, index) => (
             <li key={index}>
-              <NavLink
-                to={item.path}
-                className={({ isActive }) => cn(
-                  "flex items-center py-2 px-3 rounded-md transition-colors",
-                  isActive 
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50",
-                  collapsed ? "justify-center" : ""
-                )}
-              >
-                {item.icon}
-                {!collapsed && <span className="ml-3">{item.title}</span>}
-              </NavLink>
+              {!item.children ? (
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) => cn(
+                    "flex items-center py-2 px-3 rounded-md transition-colors",
+                    isActive 
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/50",
+                    collapsed ? "justify-center" : ""
+                  )}
+                >
+                  {item.icon}
+                  {!collapsed && <span className="ml-3">{item.title}</span>}
+                </NavLink>
+              ) : (
+                <>
+                  <button
+                    onClick={() => toggleExpand(item.title)}
+                    className={cn(
+                      "w-full flex items-center py-2 px-3 rounded-md transition-colors text-sidebar-foreground hover:bg-sidebar-accent/50",
+                      collapsed ? "justify-center" : "justify-between"
+                    )}
+                  >
+                    <div className="flex items-center">
+                      {item.icon}
+                      {!collapsed && <span className="ml-3">{item.title}</span>}
+                    </div>
+                    {!collapsed && (
+                      expandedItems.includes(item.title) 
+                        ? <ChevronDown size={16} /> 
+                        : <ChevronRight size={16} />
+                    )}
+                  </button>
+                  
+                  {/* Submenu */}
+                  {expandedItems.includes(item.title) && !collapsed && (
+                    <ul className="mt-1 ml-7 space-y-1">
+                      {item.children.map((child, childIndex) => (
+                        <li key={childIndex}>
+                          <NavLink
+                            to={child.path}
+                            className={({ isActive }) => cn(
+                              "flex items-center py-1.5 px-3 rounded-md transition-colors text-sm",
+                              isActive 
+                                ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                                : "text-sidebar-foreground/90 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                            )}
+                          >
+                            {child.icon}
+                            <span className="ml-2">{child.title}</span>
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
             </li>
           ))}
         </ul>
