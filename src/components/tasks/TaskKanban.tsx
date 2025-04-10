@@ -16,6 +16,7 @@ interface TaskKanbanProps {
   onUpdateTaskStatus: (taskId: string, newStatus: Task['status']) => void;
   onStartTimer?: (task: Task) => void;
   formatTime?: (seconds?: number) => string;
+  onViewTask?: (task: Task) => void;
 }
 
 const TaskKanban: React.FC<TaskKanbanProps> = ({ 
@@ -23,7 +24,8 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   onRateTask, 
   onUpdateTaskStatus,
   onStartTimer,
-  formatTime
+  formatTime,
+  onViewTask
 }) => {
   const columns: KanbanColumn[] = [
     { id: 'todo', title: 'To Do', color: 'border-blue-500' },
@@ -86,6 +88,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                     isDraggable={true}
                     onStartTimer={onStartTimer}
                     formatTime={formatTime}
+                    onViewTask={onViewTask}
                   />
                 </div>
               ))

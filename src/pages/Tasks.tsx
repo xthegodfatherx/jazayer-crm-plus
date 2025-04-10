@@ -16,6 +16,14 @@ import TaskFilters from '@/components/tasks/TaskFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import CreateTaskForm from '@/components/tasks/CreateTaskForm';
 import TaskTimer from '@/components/tasks/TaskTimer';
+import TaskDetailDialog from '@/components/tasks/TaskDetailDialog';
+
+export interface Comment {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
+}
 
 export interface Task {
   id: string;
@@ -29,11 +37,13 @@ export interface Task {
   tags: string[];
   subtasks?: { id: string; title: string; completed: boolean }[];
   timeTracked?: number; // Total time tracked in seconds
+  comments?: Comment[];
 }
 
 const Tasks = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [activeTimer, setActiveTimer] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: '1',
@@ -50,6 +60,20 @@ const Tasks = () => {
         { id: '1-1', title: 'Create wireframes', completed: true },
         { id: '1-2', title: 'Design mockups', completed: false },
         { id: '1-3', title: 'Get client approval', completed: false },
+      ],
+      comments: [
+        {
+          id: 'c1',
+          author: 'Leila Benzema',
+          content: 'The header needs more contrast. Consider using a darker background.',
+          createdAt: '2025-04-08T14:30:00Z'
+        },
+        {
+          id: 'c2',
+          author: 'Ahmed Khalifi',
+          content: 'I agree. I\'ll update the mockups with better contrast.',
+          createdAt: '2025-04-09T09:15:00Z'
+        }
       ]
     },
     {
@@ -62,6 +86,14 @@ const Tasks = () => {
       priority: 'medium',
       tags: ['Backend', 'Security'],
       timeTracked: 3600, // 1 hour
+      comments: [
+        {
+          id: 'c3',
+          author: 'Karim Mansouri',
+          content: 'Make sure to use refresh tokens with a reasonable expiration time.',
+          createdAt: '2025-04-07T16:20:00Z'
+        }
+      ]
     },
     {
       id: '3',
@@ -74,6 +106,7 @@ const Tasks = () => {
       rating: 3,
       tags: ['Frontend', 'Mobile'],
       timeTracked: 10800, // 3 hours
+      comments: []
     },
     {
       id: '4',
@@ -84,6 +117,7 @@ const Tasks = () => {
       status: 'todo',
       priority: 'low',
       tags: ['Documentation'],
+      comments: []
     },
     {
       id: '5',
@@ -96,6 +130,20 @@ const Tasks = () => {
       rating: 5,
       tags: ['Payment', 'Integration'],
       timeTracked: 18000, // 5 hours
+      comments: [
+        {
+          id: 'c4',
+          author: 'Selma Bouaziz',
+          content: 'The integration with SATIM is complete. Testing is successful.',
+          createdAt: '2025-04-05T11:45:00Z'
+        },
+        {
+          id: 'c5',
+          author: 'Karim Mansouri',
+          content: 'Great job! This completes the payment requirements for the project.',
+          createdAt: '2025-04-06T13:20:00Z'
+        }
+      ]
     },
   ]);
 
@@ -126,6 +174,25 @@ const Tasks = () => {
         : task
     ));
     setActiveTimer(null);
+  };
+
+  const handleAddComment = (taskId: string, content: string) => {
+    const newComment: Comment = {
+      id: `c${Date.now()}`,
+      author: 'Current User', // In a real app, get from auth context
+      content,
+      createdAt: new Date().toISOString()
+    };
+    
+    setTasks(tasks.map(task => 
+      task.id === taskId 
+        ? { ...task, comments: [...(task.comments || []), newComment] } 
+        : task
+    ));
+  };
+
+  const handleViewTask = (task: Task) => {
+    setSelectedTask(task);
   };
 
   const formatTime = (seconds?: number) => {
@@ -181,6 +248,7 @@ const Tasks = () => {
             onUpdateTaskStatus={handleUpdateTaskStatus}
             onStartTimer={handleStartTimer}
             formatTime={formatTime}
+            onViewTask={handleViewTask}
           />
         </TabsContent>
         <TabsContent value="list" className="mt-6">
@@ -189,6 +257,7 @@ const Tasks = () => {
             onRateTask={handleRateTask} 
             onStartTimer={handleStartTimer}
             formatTime={formatTime}
+            onViewTask={handleViewTask}
           />
         </TabsContent>
       </Tabs>
@@ -199,6 +268,14 @@ const Tasks = () => {
           taskTitle={activeTimer.title} 
           onSaveTime={handleSaveTime}
           assignee={activeTimer.assignee}
+        />
+      )}
+
+      {selectedTask && (
+        <TaskDetailDialog 
+          task={selectedTask} 
+          onClose={() => setSelectedTask(null)} 
+          onAddComment={(content) => handleAddComment(selectedTask.id, content)}
         />
       )}
     </div>

@@ -11,7 +11,9 @@ import {
   Check, 
   Clock,
   Calendar,
-  Timer
+  Timer,
+  Eye,
+  MessageSquare
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import StarRating from './StarRating';
@@ -21,13 +23,15 @@ interface TaskListProps {
   onRateTask: (taskId: string, rating: number) => void;
   onStartTimer?: (task: Task) => void;
   formatTime?: (seconds?: number) => string;
+  onViewTask?: (task: Task) => void;
 }
 
 const TaskList: React.FC<TaskListProps> = ({ 
   tasks, 
   onRateTask,
   onStartTimer,
-  formatTime 
+  formatTime,
+  onViewTask
 }) => {
   const getStatusBadge = (status: Task['status']) => {
     switch (status) {
@@ -72,6 +76,12 @@ const TaskList: React.FC<TaskListProps> = ({
     }
   };
 
+  const handleViewTask = (task: Task) => {
+    if (onViewTask) {
+      onViewTask(task);
+    }
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -83,6 +93,7 @@ const TaskList: React.FC<TaskListProps> = ({
             <TableHead>Due Date</TableHead>
             <TableHead>Priority</TableHead>
             {formatTime && <TableHead>Time</TableHead>}
+            <TableHead>Comments</TableHead>
             <TableHead>Rating</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -133,6 +144,12 @@ const TaskList: React.FC<TaskListProps> = ({
                 </TableCell>
               )}
               <TableCell>
+                <div className="flex items-center">
+                  <MessageSquare className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm">{task.comments?.length || 0}</span>
+                </div>
+              </TableCell>
+              <TableCell>
                 <StarRating 
                   rating={task.rating || 0} 
                   readOnly={false}
@@ -155,6 +172,15 @@ const TaskList: React.FC<TaskListProps> = ({
                       onClick={() => handleStartTimer(task)}
                     >
                       <Timer className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onViewTask && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewTask(task)}
+                    >
+                      <Eye className="h-4 w-4" />
                     </Button>
                   )}
                 </div>

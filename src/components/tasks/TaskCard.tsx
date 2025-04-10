@@ -9,7 +9,8 @@ import {
   ArrowRightCircle, 
   ArrowDownCircle,
   Calendar,
-  Timer
+  Timer,
+  MessageSquare
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Task } from '@/pages/Tasks';
@@ -24,6 +25,7 @@ interface TaskCardProps {
   isDraggable?: boolean;
   onStartTimer?: (task: Task) => void;
   formatTime?: (seconds?: number) => string;
+  onViewTask?: (task: Task) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ 
@@ -31,7 +33,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onRateTask, 
   isDraggable = false,
   onStartTimer,
-  formatTime
+  formatTime,
+  onViewTask
 }) => {
   const getPriorityIcon = () => {
     switch (task.priority) {
@@ -65,6 +68,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
       onStartTimer(task);
     }
   };
+
+  const handleViewTask = () => {
+    if (onViewTask) {
+      onViewTask(task);
+    }
+  };
+
+  const commentCount = task.comments?.length || 0;
 
   return (
     <Card className={`group ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}>
@@ -116,6 +127,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
             )}
           </div>
         )}
+
+        {/* Comments count */}
+        <div className="flex items-center text-xs text-muted-foreground mb-2">
+          <MessageSquare className="h-3 w-3 mr-1" />
+          <span>{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
+        </div>
       </CardContent>
       <CardFooter className="p-4 pt-2 flex flex-col">
         <div className="flex items-center justify-between w-full text-sm">
@@ -131,11 +148,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </div>
         </div>
         
-        <div className="w-full mt-3 border-t pt-3">
+        <div className="w-full mt-3 border-t pt-3 flex justify-between items-center">
           <Popover>
             <PopoverTrigger asChild>
-              <div className="flex justify-between items-center cursor-pointer">
-                <span className="text-xs font-medium">Task Rating</span>
+              <div className="flex items-center cursor-pointer">
+                <span className="text-xs font-medium mr-1">Rating</span>
                 <StarRating 
                   rating={task.rating || 0} 
                   readOnly={true}
@@ -158,6 +175,16 @@ const TaskCard: React.FC<TaskCardProps> = ({
               </div>
             </PopoverContent>
           </Popover>
+
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 px-2 text-xs"
+            onClick={handleViewTask}
+          >
+            <MessageSquare className="h-3 w-3 mr-1" />
+            View Details
+          </Button>
         </div>
       </CardFooter>
     </Card>
