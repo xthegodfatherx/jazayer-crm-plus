@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Dialog, 
@@ -34,7 +33,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 interface TaskDetailDialogProps {
   task: Task;
   onClose: () => void;
-  onAddComment: (content: string) => void;
+  onAddComment: (taskId: string, content: string) => void;
   onToggleSubtask?: (taskId: string, subtaskId: string) => void;
   onAddSubtask?: (taskId: string, title: string) => void;
   onTogglePin?: (taskId: string) => void;
@@ -88,7 +87,7 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
   const handleSubmitComment = () => {
     if (commentText.trim()) {
-      onAddComment(commentText);
+      onAddComment(task.id, commentText);
       setCommentText('');
     }
   };
@@ -264,6 +263,12 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
                 value={newSubtaskTitle}
                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
                 className="text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newSubtaskTitle.trim()) {
+                    e.preventDefault();
+                    handleSubmitSubtask();
+                  }
+                }}
               />
               <Button size="sm" onClick={handleSubmitSubtask} disabled={!newSubtaskTitle.trim()}>
                 <PlusCircle className="h-4 w-4 mr-1" />
@@ -311,6 +316,11 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             className="min-h-[80px]"
+            onKeyDown={(e) => {
+              if (e.ctrlKey && e.key === 'Enter' && commentText.trim()) {
+                handleSubmitComment();
+              }
+            }}
           />
           <div className="flex justify-end mt-2">
             <Button onClick={handleSubmitComment} disabled={!commentText.trim()}>

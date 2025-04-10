@@ -20,7 +20,8 @@ import {
   FileCheck,
   Calendar,
   Package,
-  Wallet
+  Wallet,
+  ShieldAlert
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -68,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     { title: 'Reports', icon: <LineChart size={20} />, path: '/reports' },
     { title: 'Time Tracking', icon: <Clock size={20} />, path: '/time-tracking' },
     { title: 'Notifications', icon: <Bell size={20} />, path: '/notifications' },
+    { title: 'Admin Panel', icon: <ShieldAlert size={20} />, path: '/admin' },
     { title: 'Settings', icon: <Settings size={20} />, path: '/settings' },
   ];
 

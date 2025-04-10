@@ -23,6 +23,7 @@ import Estimates from "./pages/Estimates";
 import Subscriptions from "./pages/Subscriptions";
 import Products from "./pages/Products";
 import Expenses from "./pages/Expenses";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/reports" element={<Reports />} />
             <Route path="/time-tracking" element={<TimeTracking />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

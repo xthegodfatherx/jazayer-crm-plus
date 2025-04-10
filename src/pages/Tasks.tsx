@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -344,7 +343,7 @@ const Tasks = () => {
       createdAt: new Date().toISOString()
     };
     
-    setTasks(tasks.map(task => 
+    setTasks(prevTasks => prevTasks.map(task => 
       task.id === taskId 
         ? { ...task, comments: [...(task.comments || []), newComment] } 
         : task
@@ -363,6 +362,40 @@ const Tasks = () => {
     }
   };
 
+  const handleToggleSubtask = (taskId: string, subtaskId: string) => {
+    setTasks(prevTasks => prevTasks.map(task => {
+      if (task.id === taskId && task.subtasks) {
+        const updatedSubtasks = task.subtasks.map(subtask => 
+          subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+        );
+        return { ...task, subtasks: updatedSubtasks };
+      }
+      return task;
+    }));
+  };
+
+  const handleAddSubtask = (taskId: string, title: string) => {
+    setTasks(prevTasks => prevTasks.map(task => {
+      if (task.id === taskId) {
+        const newSubtask = {
+          id: `sub-${Date.now()}`,
+          title,
+          completed: false
+        };
+        
+        const updatedSubtasks = task.subtasks ? [...task.subtasks, newSubtask] : [newSubtask];
+        return { ...task, subtasks: updatedSubtasks };
+      }
+      return task;
+    }));
+    
+    toast({
+      title: "Subtask added",
+      description: `New subtask has been added.`,
+      variant: "default"
+    });
+  };
+
   const handleTogglePin = (taskId: string) => {
     setTasks(tasks.map(task => 
       task.id === taskId ? { ...task, pinned: !task.pinned } : task
@@ -376,34 +409,6 @@ const Tasks = () => {
         variant: "default"
       });
     }
-  };
-
-  const handleToggleSubtask = (taskId: string, subtaskId: string) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId && task.subtasks) {
-        const updatedSubtasks = task.subtasks.map(subtask => 
-          subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
-        );
-        return { ...task, subtasks: updatedSubtasks };
-      }
-      return task;
-    }));
-  };
-
-  const handleAddSubtask = (taskId: string, title: string) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const newSubtask = {
-          id: `sub-${Date.now()}`,
-          title,
-          completed: false
-        };
-        
-        const updatedSubtasks = task.subtasks ? [...task.subtasks, newSubtask] : [newSubtask];
-        return { ...task, subtasks: updatedSubtasks };
-      }
-      return task;
-    }));
   };
 
   const handleViewTask = (task: Task) => {
