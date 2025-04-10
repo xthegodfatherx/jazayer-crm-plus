@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Invoice } from '@/pages/Invoices';
+import { Invoice } from '@/types/invoice';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   FileText, 

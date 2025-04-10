@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter, Search, FileText, Calendar, ChevronDown } from 'lucide-react';
@@ -17,11 +16,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import CreateInvoiceForm from '@/components/invoices/CreateInvoiceForm';
 import CreateInvoiceAdvanced from '@/components/invoices/CreateInvoiceAdvanced';
 import { useToast } from '@/hooks/use-toast';
-import { Invoice as InvoiceType } from '@/types/invoice';
+import { Invoice } from '@/types/invoice';
 
 const Invoices: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [invoices, setInvoices] = useState<InvoiceType[]>([
+  const [invoices, setInvoices] = useState<Invoice[]>([
     {
       id: '1',
       number: 'INV-2025-001',
@@ -156,7 +155,7 @@ const Invoices: React.FC = () => {
     invoice.client.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateInvoice = (newInvoice: InvoiceType) => {
+  const handleCreateInvoice = (newInvoice: Invoice) => {
     setInvoices([...invoices, newInvoice]);
     setIsCreateDialogOpen(false);
     toast({
