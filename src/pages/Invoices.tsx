@@ -15,32 +15,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import CreateInvoiceForm from '@/components/invoices/CreateInvoiceForm';
+import CreateInvoiceAdvanced from '@/components/invoices/CreateInvoiceAdvanced';
 import { useToast } from '@/hooks/use-toast';
-
-export interface Invoice {
-  id: string;
-  number: string;
-  client: {
-    id: string;
-    name: string;
-    logo?: string;
-  };
-  issueDate: string;
-  dueDate: string;
-  total: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
-  items: {
-    id: string;
-    description: string;
-    quantity: number;
-    price: number;
-    tax?: number;
-  }[];
-}
+import { Invoice as InvoiceType } from '@/types/invoice';
 
 const Invoices: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [invoices, setInvoices] = useState<Invoice[]>([
+  const [invoices, setInvoices] = useState<InvoiceType[]>([
     {
       id: '1',
       number: 'INV-2025-001',
@@ -60,6 +41,7 @@ const Invoices: React.FC = () => {
           quantity: 1,
           price: 60000,
           tax: 19,
+          total: 60000,
         },
         {
           id: '1-2',
@@ -67,8 +49,11 @@ const Invoices: React.FC = () => {
           quantity: 1,
           price: 15000,
           tax: 19,
+          total: 15000,
         },
       ],
+      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
+      template: 'standard',
     },
     {
       id: '2',
@@ -89,8 +74,11 @@ const Invoices: React.FC = () => {
           quantity: 1,
           price: 45000,
           tax: 19,
+          total: 45000,
         },
       ],
+      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
+      template: 'standard',
     },
     {
       id: '3',
@@ -111,6 +99,7 @@ const Invoices: React.FC = () => {
           quantity: 1,
           price: 25000,
           tax: 19,
+          total: 25000,
         },
         {
           id: '3-2',
@@ -118,8 +107,11 @@ const Invoices: React.FC = () => {
           quantity: 1,
           price: 11000,
           tax: 19,
+          total: 11000,
         },
       ],
+      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
+      template: 'standard',
     },
     {
       id: '4',
@@ -140,6 +132,7 @@ const Invoices: React.FC = () => {
           quantity: 40,
           price: 1250,
           tax: 19,
+          total: 50000,
         },
         {
           id: '4-2',
@@ -147,11 +140,15 @@ const Invoices: React.FC = () => {
           quantity: 1,
           price: 5000,
           tax: 19,
+          total: 5000,
         },
       ],
+      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
+      template: 'standard',
     },
   ]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isAdvancedMode, setIsAdvancedMode] = useState(false);
   const { toast } = useToast();
 
   const filteredInvoices = invoices.filter(invoice => 
@@ -159,7 +156,7 @@ const Invoices: React.FC = () => {
     invoice.client.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateInvoice = (newInvoice: Invoice) => {
+  const handleCreateInvoice = (newInvoice: InvoiceType) => {
     setInvoices([...invoices, newInvoice]);
     setIsCreateDialogOpen(false);
     toast({
@@ -194,23 +191,28 @@ const Invoices: React.FC = () => {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
                 New Invoice
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px]">
-              <DialogHeader>
-                <DialogTitle>Create New Invoice</DialogTitle>
-              </DialogHeader>
-              <CreateInvoiceForm 
-                onCreateInvoice={handleCreateInvoice}
-                onCancel={() => setIsCreateDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                setIsAdvancedMode(false);
+                setIsCreateDialogOpen(true);
+              }}>
+                Simple Invoice
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                setIsAdvancedMode(true);
+                setIsCreateDialogOpen(true);
+              }}>
+                Custom Invoice (Builder)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -274,6 +276,25 @@ const Invoices: React.FC = () => {
           <InvoiceSummary invoices={invoices} />
         </div>
       </div>
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isAdvancedMode ? "Create Custom Invoice" : "Create Invoice"}</DialogTitle>
+          </DialogHeader>
+          {isAdvancedMode ? (
+            <CreateInvoiceAdvanced 
+              onSave={handleCreateInvoice}
+              onCancel={() => setIsCreateDialogOpen(false)}
+            />
+          ) : (
+            <CreateInvoiceForm 
+              onCreateInvoice={handleCreateInvoice}
+              onCancel={() => setIsCreateDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
