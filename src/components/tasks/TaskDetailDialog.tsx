@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Dialog, 
@@ -51,9 +52,15 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 }) => {
   const [commentText, setCommentText] = useState('');
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [localTask, setLocalTask] = useState<Task>(task);
+
+  // Update local task when the task prop changes
+  React.useEffect(() => {
+    setLocalTask(task);
+  }, [task]);
 
   const getPriorityIcon = () => {
-    switch (task.priority) {
+    switch (localTask.priority) {
       case 'high':
         return <ArrowUpCircle className="h-4 w-4 text-red-500" />;
       case 'medium':
@@ -87,37 +94,86 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
   const handleSubmitComment = () => {
     if (commentText.trim()) {
-      onAddComment(task.id, commentText);
+      onAddComment(localTask.id, commentText);
+      
+      // Optimistic update
+      const newComment: Comment = {
+        id: `c${Date.now()}`,
+        author: 'Current User', // In a real app, get from auth context
+        content: commentText,
+        createdAt: new Date().toISOString()
+      };
+      
+      setLocalTask(prevTask => ({
+        ...prevTask,
+        comments: [...(prevTask.comments || []), newComment]
+      }));
+      
       setCommentText('');
     }
   };
 
   const handleSubmitSubtask = () => {
     if (newSubtaskTitle.trim() && onAddSubtask) {
-      onAddSubtask(task.id, newSubtaskTitle);
+      onAddSubtask(localTask.id, newSubtaskTitle);
+      
+      // Optimistic update
+      const newSubtask = {
+        id: `sub-${Date.now()}`,
+        title: newSubtaskTitle,
+        completed: false
+      };
+      
+      setLocalTask(prevTask => ({
+        ...prevTask,
+        subtasks: [...(prevTask.subtasks || []), newSubtask]
+      }));
+      
       setNewSubtaskTitle('');
+    }
+  };
+
+  const handleToggleSubtaskLocal = (subtaskId: string) => {
+    if (onToggleSubtask) {
+      onToggleSubtask(localTask.id, subtaskId);
+      
+      // Optimistic update
+      setLocalTask(prevTask => {
+        if (prevTask.subtasks) {
+          const updatedSubtasks = prevTask.subtasks.map(subtask => 
+            subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+          );
+          return { ...prevTask, subtasks: updatedSubtasks };
+        }
+        return prevTask;
+      });
     }
   };
 
   const handleTogglePin = () => {
     if (onTogglePin) {
-      onTogglePin(task.id);
+      onTogglePin(localTask.id);
+      // Optimistic update
+      setLocalTask(prevTask => ({
+        ...prevTask,
+        pinned: !prevTask.pinned
+      }));
     }
   };
 
   const handleStartTimer = () => {
     if (onStartTimer) {
-      onStartTimer(task);
+      onStartTimer(localTask);
     }
   };
 
   // Calculate subtask progress if subtasks exist
-  const subtaskProgress = task.subtasks 
-    ? Math.round((task.subtasks.filter(subtask => subtask.completed).length / task.subtasks.length) * 100) 
+  const subtaskProgress = localTask.subtasks 
+    ? Math.round((localTask.subtasks.filter(subtask => subtask.completed).length / localTask.subtasks.length) * 100) 
     : null;
 
   const getStatusBadge = () => {
-    switch (task.status) {
+    switch (localTask.status) {
       case 'todo':
         return <Badge variant="outline" className="border-blue-500 text-blue-500">To Do</Badge>;
       case 'in-progress':
@@ -131,15 +187,15 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     }
   };
 
-  const isPastDue = new Date(task.dueDate) < new Date() && task.status !== 'done';
+  const isPastDue = new Date(localTask.dueDate) < new Date() && localTask.status !== 'done';
 
   return (
-    <Dialog open={!!task} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog open={!!localTask} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
-            {task.pinned && <Pin className="h-5 w-5 text-primary" fill="currentColor" />}
-            {task.title}
+            {localTask.pinned && <Pin className="h-5 w-5 text-primary" fill="currentColor" />}
+            {localTask.title}
             {onTogglePin && (
               <Button 
                 variant="ghost" 
@@ -147,7 +203,7 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
                 className="h-6 w-6 ml-2" 
                 onClick={handleTogglePin}
               >
-                {task.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                {localTask.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
               </Button>
             )}
           </DialogTitle>
@@ -155,7 +211,7 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
             {getStatusBadge()}
             <div className="flex items-center ml-2">
               {getPriorityIcon()}
-              <span className="ml-1 text-xs capitalize">{task.priority} priority</span>
+              <span className="ml-1 text-xs capitalize">{localTask.priority} priority</span>
             </div>
             {isPastDue && (
               <Badge variant="destructive" className="ml-2">Overdue</Badge>
@@ -168,9 +224,9 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
             <span className="text-xs text-muted-foreground">Assignee</span>
             <div className="flex items-center mt-1">
               <Avatar className="h-6 w-6 mr-2">
-                <AvatarFallback>{task.assignee.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{localTask.assignee.charAt(0)}</AvatarFallback>
               </Avatar>
-              <span className="text-sm">{task.assignee}</span>
+              <span className="text-sm">{localTask.assignee}</span>
             </div>
           </div>
           <div className="flex flex-col">
@@ -178,18 +234,18 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
             <div className="flex items-center mt-1">
               <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
               <span className={`text-sm ${isPastDue ? 'text-red-500 font-semibold' : ''}`}>
-                {formatDate(task.dueDate)}
+                {formatDate(localTask.dueDate)}
               </span>
             </div>
           </div>
-          {task.timeTracked !== undefined && (
+          {localTask.timeTracked !== undefined && (
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground">Time Tracked</span>
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center">
                   <Clock className="h-4 w-4 mr-1 text-muted-foreground" />
                   <span className="text-sm">
-                    {Math.floor(task.timeTracked / 3600)}h {Math.floor((task.timeTracked % 3600) / 60)}m
+                    {Math.floor(localTask.timeTracked / 3600)}h {Math.floor((localTask.timeTracked % 3600) / 60)}m
                   </span>
                 </div>
                 {onStartTimer && (
@@ -213,32 +269,32 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         {/* Task Description */}
         <div className="mb-4">
           <h3 className="text-sm font-medium mb-2">Description</h3>
-          <p className="text-sm text-muted-foreground">{task.description}</p>
+          <p className="text-sm text-muted-foreground">{localTask.description}</p>
         </div>
 
         {/* Subtasks section */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-medium">Subtasks</h3>
-            {onAddSubtask && task.subtasks && (
+            {onAddSubtask && localTask.subtasks && (
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">
-                  {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length} completed
+                  {localTask.subtasks.filter(st => st.completed).length}/{localTask.subtasks.length} completed
                 </span>
               </div>
             )}
           </div>
           
-          {task.subtasks && task.subtasks.length > 0 ? (
+          {localTask.subtasks && localTask.subtasks.length > 0 ? (
             <>
               <Progress value={subtaskProgress || 0} className="h-2 mb-3" />
               <div className="space-y-2 max-h-40 overflow-y-auto">
-                {task.subtasks.map(subtask => (
+                {localTask.subtasks.map(subtask => (
                   <div key={subtask.id} className="flex items-center">
                     <Checkbox 
                       id={`detail-subtask-${subtask.id}`}
                       checked={subtask.completed}
-                      onCheckedChange={() => onToggleSubtask && onToggleSubtask(task.id, subtask.id)}
+                      onCheckedChange={() => handleToggleSubtaskLocal(subtask.id)}
                       className="mr-2"
                     />
                     <label 
@@ -282,7 +338,7 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         <div className="mb-4">
           <h3 className="text-sm font-medium mb-2">Tags</h3>
           <div className="flex flex-wrap gap-1">
-            {task.tags.map((tag, index) => (
+            {localTask.tags.map((tag, index) => (
               <Badge key={index} variant="secondary" className="text-xs">
                 {tag}
               </Badge>
@@ -294,12 +350,12 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
         {/* Comments Section */}
         <div className="flex-1 overflow-hidden">
-          <h3 className="text-sm font-medium mb-2">Comments ({task.comments?.length || 0})</h3>
+          <h3 className="text-sm font-medium mb-2">Comments ({localTask.comments?.length || 0})</h3>
           
           <ScrollArea className="h-[200px] pr-4">
             <div className="space-y-4">
-              {task.comments && task.comments.length > 0 ? (
-                task.comments.map(comment => (
+              {localTask.comments && localTask.comments.length > 0 ? (
+                localTask.comments.map(comment => (
                   <CommentItem key={comment.id} comment={comment} />
                 ))
               ) : (

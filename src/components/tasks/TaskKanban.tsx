@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Task } from '@/pages/Tasks';
 import TaskCard from './TaskCard';
 import { cn } from '@/lib/utils';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { createPortal } from 'react-dom';
 
 interface KanbanColumn {
   id: Task['status'];
@@ -39,7 +40,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   ];
 
   // Improved drag and drop functionality with DndKit
-  const [draggedTask, setDraggedTask] = React.useState<string | null>(null);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -50,18 +51,26 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    setDraggedTask(event.active.id as string);
+    const taskId = event.active.id as string;
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setActiveTask(task);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (over && active.id !== over.id) {
-      const columnId = over.id as Task['status'];
-      onUpdateTaskStatus(active.id as string, columnId);
+      // Check if the over id is a column id
+      const columnExists = columns.some(col => col.id === over.id);
+      if (columnExists) {
+        const newStatus = over.id as Task['status'];
+        onUpdateTaskStatus(active.id as string, newStatus);
+      }
     }
     
-    setDraggedTask(null);
+    setActiveTask(null);
   };
 
   // Group tasks by column and sort pinned tasks to the top
@@ -126,6 +135,23 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
           );
         })}
       </div>
+
+      {activeTask && createPortal(
+        <DragOverlay>
+          <div className="w-full max-w-[350px]">
+            <TaskCard 
+              task={activeTask} 
+              onRateTask={onRateTask} 
+              isDraggable={false}
+              onStartTimer={onStartTimer}
+              formatTime={formatTime}
+              onViewTask={onViewTask}
+              onTogglePin={onTogglePin}
+            />
+          </div>
+        </DragOverlay>,
+        document.body
+      )}
     </DndContext>
   );
 };
