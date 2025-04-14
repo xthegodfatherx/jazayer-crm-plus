@@ -1,14 +1,20 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { userRole } = usePermissions();
   
   useEffect(() => {
-    // Redirect to the dashboard
-    navigate('/');
-  }, [navigate]);
+    // Redirect based on user role
+    if (userRole === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/'); // For manager, employee, client - redirect to main dashboard
+    }
+  }, [navigate, userRole]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">

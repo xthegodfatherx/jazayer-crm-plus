@@ -24,6 +24,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/contexts/PermissionsContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -34,10 +35,12 @@ interface NavItem {
   icon: React.ReactNode;
   path: string;
   children?: NavItem[];
+  requiredRole?: string[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>(['Sales']);
+  const { userRole } = usePermissions();
   
   const toggleExpand = (title: string) => {
     setExpandedItems(prev => 
@@ -69,9 +72,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     { title: 'Reports', icon: <LineChart size={20} />, path: '/reports' },
     { title: 'Time Tracking', icon: <Clock size={20} />, path: '/time-tracking' },
     { title: 'Notifications', icon: <Bell size={20} />, path: '/notifications' },
-    { title: 'Admin Panel', icon: <ShieldAlert size={20} />, path: '/admin' },
+    { title: 'Admin Panel', icon: <ShieldAlert size={20} />, path: '/admin', requiredRole: ['admin'] },
     { title: 'Settings', icon: <Settings size={20} />, path: '/settings' },
   ];
+
+  // Filter items based on user role
+  const filteredNavItems = navItems.filter(item => {
+    if (!item.requiredRole) return true;
+    return item.requiredRole.includes(userRole);
+  });
 
   return (
     <aside 
@@ -89,7 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       </div>
       <nav className="py-4">
         <ul className="space-y-1 px-2">
-          {navItems.map((item, index) => (
+          {filteredNavItems.map((item, index) => (
             <li key={index}>
               {!item.children ? (
                 <NavLink
