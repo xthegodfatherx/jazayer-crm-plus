@@ -53,6 +53,7 @@ interface FilterOptions {
   minRating?: number;
   project?: string;
   dueDate?: 'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week';
+  onlyMyTasks?: boolean; // New filter property
 }
 
 const Tasks = () => {
@@ -61,6 +62,10 @@ const Tasks = () => {
   const [activeTimer, setActiveTimer] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [filters, setFilters] = useState<FilterOptions>({});
+  
+  // In a real app, this would come from authentication context
+  const currentUser = "Ahmed Khalifi"; // Example current user
+  
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: '1',
@@ -225,6 +230,11 @@ const Tasks = () => {
         }
       }
       
+      // Filter to only show current user's tasks
+      if (filters.onlyMyTasks && task.assignee !== currentUser) {
+        return false;
+      }
+      
       // Filter by tags (any of the specified tags)
       if (filters.tags && filters.tags.length > 0) {
         if (!task.tags.some(tag => filters.tags?.includes(tag))) {
@@ -280,7 +290,7 @@ const Tasks = () => {
       
       return true;
     });
-  }, [tasks, filters]);
+  }, [tasks, filters, currentUser]);
 
   const getProjects = () => {
     return Array.from(new Set(tasks.map(task => task.project))).filter(Boolean) as string[];
@@ -496,6 +506,7 @@ const Tasks = () => {
               onApplyFilters={handleApplyFilters} 
               projects={getProjects()}
               assignees={getAssignees()}
+              currentUser={currentUser}
             />
           </CardContent>
         </Card>

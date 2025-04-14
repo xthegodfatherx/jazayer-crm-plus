@@ -63,7 +63,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     
-    // Return if we're not dragging over anything or if it's the same task
+    // Return if we're not dragging over anything
     if (!over) return;
     
     // If hovering over a column and it's different from the current active column
@@ -135,6 +135,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                   activeColumn === column.id ? "ring-2 ring-primary ring-opacity-50" : ""
                 )}
                 id={column.id} // Use column ID for drop target
+                data-type="droppable-column" // Add a data attribute to identify droppable areas
               >
                 <SortableContext 
                   items={columnTasks.map(task => task.id)} 

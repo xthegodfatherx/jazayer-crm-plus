@@ -25,15 +25,17 @@ interface FilterOptions {
   minRating?: number;
   project?: string;
   dueDate?: 'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week';
+  onlyMyTasks?: boolean; // New property for showing only current user's tasks
 }
 
 interface TaskFiltersProps {
   onApplyFilters: (filters: FilterOptions) => void;
   projects?: string[];
   assignees?: string[];
+  currentUser?: string; // Added current user prop
 }
 
-const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = [], assignees = [] }) => {
+const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = [], assignees = [], currentUser }) => {
   // Use null instead of empty string for "all" values
   const [status, setStatus] = useState<Task['status'] | 'all-statuses' | null>('all-statuses');
   const [priority, setPriority] = useState<Task['priority'] | 'all-priorities' | null>('all-priorities');
@@ -45,6 +47,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [onlyMyTasks, setOnlyMyTasks] = useState(false); // New state for only my tasks filter
 
   // Common tag options
   const commonTags = ['Design', 'Frontend', 'Backend', 'Documentation', 'Bug', 'Feature', 'Mobile', 'Security'];
@@ -79,6 +82,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
     if (minRating > 0) filters.minRating = minRating;
     if (searchQuery) filters.searchQuery = searchQuery;
     if (selectedTags.length > 0) filters.tags = selectedTags;
+    if (onlyMyTasks) filters.onlyMyTasks = onlyMyTasks;
     
     onApplyFilters(filters);
   };
@@ -93,6 +97,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
     setMinRating(0);
     setSearchQuery('');
     setSelectedTags([]);
+    setOnlyMyTasks(false);
     
     onApplyFilters({});
   };
@@ -213,7 +218,7 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
           />
         </div>
         
-        <div className="space-y-2">
+        <div className="space-y-2 grid grid-cols-2 gap-4">
           <div className="flex items-center justify-between">
             <Label htmlFor="showPinned">Pinned Only</Label>
             <Switch
@@ -222,6 +227,17 @@ const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = []
               onCheckedChange={setShowPinned}
             />
           </div>
+          
+          {currentUser && (
+            <div className="flex items-center justify-between">
+              <Label htmlFor="onlyMyTasks">Only My Tasks</Label>
+              <Switch
+                id="onlyMyTasks"
+                checked={onlyMyTasks}
+                onCheckedChange={setOnlyMyTasks}
+              />
+            </div>
+          )}
         </div>
       </div>
       
