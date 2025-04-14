@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -157,7 +156,7 @@ const AdminTimeTracking = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline">
-              <Calendar className="h-4 w-4 mr-2" />
+              <CalendarIcon className="h-4 w-4 mr-2" />
               Select Date Range
             </Button>
             <Button variant="outline">
