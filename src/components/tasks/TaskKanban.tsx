@@ -71,37 +71,58 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
+    const { over } = event;
     
-    // Return if we're not dragging over anything
     if (!over) return;
     
-    // If hovering over a column and it's different from the current active column
-    const columnId = String(over.id);
-    const isColumn = columns.some(col => col.id === columnId);
+    // Check if hovering over a column
+    const overElementId = String(over.id);
     
-    if (isColumn && columnId !== activeColumn) {
-      setActiveColumn(columnId as Task['status']);
-      console.log(`Dragging over column: ${columnId}`);
+    // Check if this is a column ID
+    const isColumn = columns.some(col => col.id === overElementId);
+    
+    if (isColumn && overElementId !== activeColumn) {
+      setActiveColumn(overElementId as Task['status']);
+      console.log(`Dragging over column: ${overElementId}`);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    console.log('Drag end:', { active, over, activeColumn });
     
     if (over) {
-      const columnId = String(over.id);
-      const isColumn = columns.some(col => col.id === columnId);
+      const overElementId = String(over.id);
+      
+      // Check if dropped over a column directly
+      const isColumn = columns.some(col => col.id === overElementId);
       
       if (isColumn) {
         const taskId = String(active.id);
-        const newStatus = columnId as Task['status'];
+        const newStatus = overElementId as Task['status'];
         console.log(`Updating task ${taskId} status to ${newStatus}`);
         onUpdateTaskStatus(taskId, newStatus);
+      } else {
+        // If dropped on a task, we should check which column that task belongs to
+        const targetTask = tasks.find(task => task.id === overElementId);
+        if (targetTask) {
+          const taskId = String(active.id);
+          onUpdateTaskStatus(taskId, targetTask.status);
+          console.log(`Updating task ${taskId} status to ${targetTask.status} (dropped on another task)`);
+        } else if (activeColumn) {
+          // Fallback to the last active column if we tracked it during drag over
+          const taskId = String(active.id);
+          onUpdateTaskStatus(taskId, activeColumn as Task['status']);
+          console.log(`Updating task ${taskId} status to ${activeColumn} (fallback to active column)`);
+        }
       }
+    } else if (activeColumn) {
+      // If we have an active column but no direct over target, use the active column
+      const taskId = String(active.id);
+      onUpdateTaskStatus(taskId, activeColumn as Task['status']);
+      console.log(`Updating task ${taskId} status to ${activeColumn} (dropped outside but had active column)`);
     }
     
+    // Reset state
     setActiveTask(null);
     setActiveColumn(null);
   };
@@ -148,7 +169,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 
               <div 
                 id={column.id}
-                data-droppable="true"
+                data-type="droppable-column"
                 className={cn(
                   "bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3",
                   activeColumn === column.id ? "ring-2 ring-primary ring-opacity-50" : ""
