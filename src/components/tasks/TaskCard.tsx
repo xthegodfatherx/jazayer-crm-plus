@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useDraggable } from '@dnd-kit/core';
 
 interface TaskCardProps {
   task: Task;
@@ -43,6 +43,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onTogglePin,
   onToggleSubtask
 }) => {
+  // Setup draggable functionality
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.id,
+    disabled: !isDraggable,
+  });
+
   const getPriorityIcon = () => {
     switch (task.priority) {
       case 'high':
@@ -70,28 +76,36 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }).format(date);
   };
 
-  const handleStartTimer = () => {
+  const handleStartTimer = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent drag start when clicking buttons
     if (onStartTimer) {
       onStartTimer(task);
     }
   };
 
-  const handleViewTask = () => {
+  const handleViewTask = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent drag start when clicking buttons
     if (onViewTask) {
       onViewTask(task);
     }
   };
 
-  const handleTogglePin = () => {
+  const handleTogglePin = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent drag start when clicking buttons
     if (onTogglePin) {
       onTogglePin(task.id);
     }
   };
 
-  const handleToggleSubtask = (subtaskId: string) => {
+  const handleToggleSubtask = (subtaskId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent drag start when clicking buttons
     if (onToggleSubtask) {
       onToggleSubtask(task.id, subtaskId);
     }
+  };
+
+  const handleRating = (rating: number) => {
+    onRateTask(task.id, rating);
   };
 
   const commentCount = task.comments?.length || 0;
@@ -99,7 +113,20 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const isPastDue = new Date(task.dueDate) < new Date() && task.status !== 'done';
 
   return (
-    <Card className={`group ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${task.pinned ? 'border-primary' : ''} ${isPastDue ? 'border-red-300' : ''}`}>
+    <Card 
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={`${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} 
+                ${task.pinned ? 'border-primary' : ''} 
+                ${isPastDue ? 'border-red-300' : ''} 
+                ${isDragging ? 'opacity-50' : 'opacity-100'} 
+                touch-none`}
+      style={{
+        transform: isDragging ? 'scale(1.02)' : undefined,
+        transition: 'transform 0.1s ease-in-out',
+      }}
+    >
       <CardHeader className="p-4 pb-2">
         <div className="flex justify-between items-start">
           <h3 className="font-medium flex items-center gap-2">
@@ -125,6 +152,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </div>
         </div>
       </CardHeader>
+      
       <CardContent className="p-4 pt-2 pb-2">
         <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{task.description}</p>
         <div className="flex flex-wrap gap-1 mb-3">
@@ -148,18 +176,25 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   <Checkbox 
                     id={`subtask-${subtask.id}`}
                     checked={subtask.completed}
-                    onCheckedChange={() => handleToggleSubtask(subtask.id)}
+                    onCheckedChange={(checked) => onToggleSubtask && onToggleSubtask(task.id, subtask.id)}
+                    onClick={(e) => e.stopPropagation()}
                   />
                   <label 
                     htmlFor={`subtask-${subtask.id}`}
                     className={`${subtask.completed ? 'line-through text-muted-foreground' : ''}`}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {subtask.title}
                   </label>
                 </div>
               ))}
               {task.subtasks.length > 3 && (
-                <Button variant="ghost" size="sm" className="text-xs p-0 h-auto" onClick={handleViewTask}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs p-0 h-auto" 
+                  onClick={handleViewTask}
+                >
                   Show {task.subtasks.length - 3} more...
                 </Button>
               )}
@@ -194,6 +229,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           <span>{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
         </div>
       </CardContent>
+      
       <CardFooter className="p-4 pt-2 flex flex-col">
         <div className="flex items-center justify-between w-full text-sm">
           <div className="flex items-center">
@@ -214,7 +250,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         <div className="w-full mt-3 border-t pt-3 flex justify-between items-center">
           <Popover>
             <PopoverTrigger asChild>
-              <div className="flex items-center cursor-pointer">
+              <div className="flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
                 <span className="text-xs font-medium mr-1">Rating</span>
                 <StarRating 
                   rating={task.rating || 0} 
@@ -223,13 +259,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 />
               </div>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-4" align="end">
+            <PopoverContent className="w-auto p-4" align="end" onClick={(e) => e.stopPropagation()}>
               <div className="space-y-2">
                 <h4 className="font-medium text-sm">Rate this task</h4>
                 <StarRating 
                   rating={task.rating || 0} 
                   readOnly={false}
-                  onRating={(rating) => onRateTask(task.id, rating)}
+                  onRating={handleRating}
                   size="md"
                 />
                 <p className="text-xs text-muted-foreground mt-2">

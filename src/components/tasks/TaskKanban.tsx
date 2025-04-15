@@ -3,7 +3,17 @@ import React, { useState } from 'react';
 import { Task } from '@/pages/Tasks';
 import TaskCard from './TaskCard';
 import { cn } from '@/lib/utils';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverEvent } from '@dnd-kit/core';
+import { 
+  DndContext, 
+  DragEndEvent, 
+  DragOverlay, 
+  DragStartEvent, 
+  PointerSensor, 
+  useSensor, 
+  useSensors, 
+  DragOverEvent,
+  rectIntersection
+} from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { createPortal } from 'react-dom';
 
@@ -46,7 +56,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5, // Reduced distance for easier dragging activation
       },
     })
   );
@@ -67,22 +77,28 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     if (!over) return;
     
     // If hovering over a column and it's different from the current active column
-    const isColumn = columns.some(col => col.id === over.id);
-    if (isColumn && over.id !== activeColumn) {
-      setActiveColumn(over.id as string);
+    const columnId = String(over.id);
+    const isColumn = columns.some(col => col.id === columnId);
+    
+    if (isColumn && columnId !== activeColumn) {
+      setActiveColumn(columnId as Task['status']);
+      console.log(`Dragging over column: ${columnId}`);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    console.log('Drag end:', { active, over, activeColumn });
     
-    if (over && active.id !== over.id) {
-      // Check if the over id is a column id
-      const isColumn = columns.some(col => col.id === over.id);
+    if (over) {
+      const columnId = String(over.id);
+      const isColumn = columns.some(col => col.id === columnId);
       
       if (isColumn) {
-        const newStatus = over.id as Task['status'];
-        onUpdateTaskStatus(active.id as string, newStatus);
+        const taskId = String(active.id);
+        const newStatus = columnId as Task['status'];
+        console.log(`Updating task ${taskId} status to ${newStatus}`);
+        onUpdateTaskStatus(taskId, newStatus);
       }
     }
     
@@ -105,6 +121,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={rectIntersection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -130,28 +147,29 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
               </div>
 
               <div 
+                id={column.id}
+                data-droppable="true"
                 className={cn(
                   "bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3",
                   activeColumn === column.id ? "ring-2 ring-primary ring-opacity-50" : ""
                 )}
-                id={column.id} // Use column ID for drop target
-                data-type="droppable-column" // Add a data attribute to identify droppable areas
               >
                 <SortableContext 
                   items={columnTasks.map(task => task.id)} 
                   strategy={verticalListSortingStrategy}
                 >
                   {columnTasks.map(task => (
-                    <TaskCard 
-                      key={task.id}
-                      task={task} 
-                      onRateTask={onRateTask} 
-                      isDraggable={true}
-                      onStartTimer={onStartTimer}
-                      formatTime={formatTime}
-                      onViewTask={onViewTask}
-                      onTogglePin={onTogglePin}
-                    />
+                    <div key={task.id} className="touch-none">
+                      <TaskCard 
+                        task={task} 
+                        onRateTask={onRateTask} 
+                        isDraggable={true}
+                        onStartTimer={onStartTimer}
+                        formatTime={formatTime}
+                        onViewTask={onViewTask}
+                        onTogglePin={onTogglePin}
+                      />
+                    </div>
                   ))}
                 </SortableContext>
               </div>
