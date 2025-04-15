@@ -90,36 +90,40 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
+    if (!active || !active.id) {
+      setActiveTask(null);
+      setActiveColumn(null);
+      return;
+    }
+
     if (over) {
+      const taskId = String(active.id);
       const overElementId = String(over.id);
       
       // Check if dropped over a column directly
       const isColumn = columns.some(col => col.id === overElementId);
       
       if (isColumn) {
-        const taskId = String(active.id);
         const newStatus = overElementId as Task['status'];
         console.log(`Updating task ${taskId} status to ${newStatus}`);
         onUpdateTaskStatus(taskId, newStatus);
       } else {
-        // If dropped on a task, we should check which column that task belongs to
+        // If dropped on a task, check which column that task belongs to
         const targetTask = tasks.find(task => task.id === overElementId);
         if (targetTask) {
-          const taskId = String(active.id);
-          onUpdateTaskStatus(taskId, targetTask.status);
           console.log(`Updating task ${taskId} status to ${targetTask.status} (dropped on another task)`);
+          onUpdateTaskStatus(taskId, targetTask.status);
         } else if (activeColumn) {
-          // Fallback to the last active column if we tracked it during drag over
-          const taskId = String(active.id);
-          onUpdateTaskStatus(taskId, activeColumn as Task['status']);
+          // Use the last active column if we tracked it during drag over
           console.log(`Updating task ${taskId} status to ${activeColumn} (fallback to active column)`);
+          onUpdateTaskStatus(taskId, activeColumn as Task['status']);
         }
       }
     } else if (activeColumn) {
       // If we have an active column but no direct over target, use the active column
       const taskId = String(active.id);
-      onUpdateTaskStatus(taskId, activeColumn as Task['status']);
       console.log(`Updating task ${taskId} status to ${activeColumn} (dropped outside but had active column)`);
+      onUpdateTaskStatus(taskId, activeColumn as Task['status']);
     }
     
     // Reset state
