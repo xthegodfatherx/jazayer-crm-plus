@@ -169,7 +169,6 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 
               <div 
                 id={column.id}
-                data-type="droppable-column"
                 className={cn(
                   "bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3",
                   activeColumn === column.id ? "ring-2 ring-primary ring-opacity-50" : ""
