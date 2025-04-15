@@ -115,8 +115,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
   return (
     <Card 
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
+      {...(isDraggable ? attributes : {})}
+      {...(isDraggable ? listeners : {})}
       className={`${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} 
                 ${task.pinned ? 'border-primary' : ''} 
                 ${isPastDue ? 'border-red-300' : ''} 

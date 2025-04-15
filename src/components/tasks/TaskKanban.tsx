@@ -51,7 +51,6 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 
   // Improved drag and drop functionality with DndKit
   const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [activeColumn, setActiveColumn] = useState<string | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -66,69 +65,36 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     const task = tasks.find(t => t.id === taskId);
     if (task) {
       setActiveTask(task);
-      setActiveColumn(task.status);
-    }
-  };
-
-  const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
-    
-    if (!over) return;
-    
-    // Check if hovering over a column
-    const overElementId = String(over.id);
-    
-    // Check if this is a column ID
-    const isColumn = columns.some(col => col.id === overElementId);
-    
-    if (isColumn && overElementId !== activeColumn) {
-      setActiveColumn(overElementId as Task['status']);
-      console.log(`Dragging over column: ${overElementId}`);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (!active || !active.id) {
-      setActiveTask(null);
-      setActiveColumn(null);
-      return;
-    }
-
-    if (over) {
+    if (over && active) {
       const taskId = String(active.id);
-      const overElementId = String(over.id);
+      const overId = String(over.id);
       
-      // Check if dropped over a column directly
-      const isColumn = columns.some(col => col.id === overElementId);
-      
-      if (isColumn) {
-        const newStatus = overElementId as Task['status'];
-        console.log(`Updating task ${taskId} status to ${newStatus}`);
+      // Check if dropped over a column container
+      const columnContainer = document.getElementById(overId);
+      if (columnContainer && columnContainer.hasAttribute('data-droppable-column')) {
+        const newStatus = columnContainer.getAttribute('data-droppable-column') as Task['status'];
+        console.log(`Moving task ${taskId} to column ${newStatus}`);
         onUpdateTaskStatus(taskId, newStatus);
       } else {
-        // If dropped on a task, check which column that task belongs to
-        const targetTask = tasks.find(task => task.id === overElementId);
-        if (targetTask) {
-          console.log(`Updating task ${taskId} status to ${targetTask.status} (dropped on another task)`);
-          onUpdateTaskStatus(taskId, targetTask.status);
-        } else if (activeColumn) {
-          // Use the last active column if we tracked it during drag over
-          console.log(`Updating task ${taskId} status to ${activeColumn} (fallback to active column)`);
-          onUpdateTaskStatus(taskId, activeColumn as Task['status']);
+        // Check if dropped over another task
+        const taskElement = document.querySelector(`[data-task-id="${overId}"]`);
+        if (taskElement) {
+          const columnId = taskElement.closest('[data-droppable-column]')?.getAttribute('data-droppable-column');
+          if (columnId) {
+            console.log(`Moving task ${taskId} to column ${columnId} (via task)`);
+            onUpdateTaskStatus(taskId, columnId as Task['status']);
+          }
         }
       }
-    } else if (activeColumn) {
-      // If we have an active column but no direct over target, use the active column
-      const taskId = String(active.id);
-      console.log(`Updating task ${taskId} status to ${activeColumn} (dropped outside but had active column)`);
-      onUpdateTaskStatus(taskId, activeColumn as Task['status']);
     }
     
-    // Reset state
     setActiveTask(null);
-    setActiveColumn(null);
   };
 
   // Group tasks by column and sort pinned tasks to the top
@@ -148,7 +114,6 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       sensors={sensors}
       collisionDetection={rectIntersection}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -173,17 +138,15 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 
               <div 
                 id={column.id}
-                className={cn(
-                  "bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3",
-                  activeColumn === column.id ? "ring-2 ring-primary ring-opacity-50" : ""
-                )}
+                data-droppable-column={column.id}
+                className="bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3"
               >
                 <SortableContext 
                   items={columnTasks.map(task => task.id)} 
                   strategy={verticalListSortingStrategy}
                 >
                   {columnTasks.map(task => (
-                    <div key={task.id} className="touch-none">
+                    <div key={task.id} data-task-id={task.id} className="touch-none">
                       <TaskCard 
                         task={task} 
                         onRateTask={onRateTask} 
