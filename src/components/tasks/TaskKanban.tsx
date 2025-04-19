@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Task } from '@/pages/Tasks';
 import TaskCard from './TaskCard';
@@ -16,6 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { createPortal } from 'react-dom';
+import { Plus } from 'lucide-react';
 
 interface KanbanColumn {
   id: Task['status'];
@@ -129,22 +129,33 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-1">
         {columns.map((column) => {
           const columnTasks = getColumnTasks(column.id);
           return (
             <div 
               key={column.id} 
-              className="space-y-4"
+              className="space-y-4 transition-colors duration-200 hover:bg-accent/5 rounded-lg p-2"
             >
               <div 
                 className={cn(
-                  "py-2 border-t-4 rounded-t bg-background flex justify-between items-center px-4",
+                  "py-3 border-t-4 rounded-t bg-background flex justify-between items-center px-4 shadow-sm",
                   column.color
                 )}
               >
-                <h3 className="font-medium">{column.title}</h3>
-                <span className="text-sm text-muted-foreground">
+                <div>
+                  <h3 className="font-semibold text-foreground/90">{column.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {columnTasks.length} {columnTasks.length === 1 ? 'task' : 'tasks'}
+                  </p>
+                </div>
+                <span className={cn(
+                  "flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium",
+                  column.id === 'todo' ? "bg-blue-100 text-blue-600" :
+                  column.id === 'in-progress' ? "bg-amber-100 text-amber-600" :
+                  column.id === 'in-review' ? "bg-purple-100 text-purple-600" :
+                  "bg-green-100 text-green-600"
+                )}>
                   {columnTasks.length}
                 </span>
               </div>
@@ -152,25 +163,43 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
               <div 
                 id={`column-${column.id}`}
                 data-column-id={column.id}
-                className="bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3"
+                className={cn(
+                  "bg-muted/40 rounded-lg min-h-[70vh] p-3 space-y-3 transition-colors duration-200",
+                  "hover:bg-muted/50 border border-border/50",
+                  activeTask ? "ring-2 ring-offset-2 ring-primary/20" : ""
+                )}
               >
                 <SortableContext 
                   items={columnTasks.map(task => task.id)} 
                   strategy={verticalListSortingStrategy}
                 >
-                  {columnTasks.map(task => (
-                    <div key={task.id} data-task-id={task.id} className="touch-none">
-                      <TaskCard 
-                        task={task} 
-                        onRateTask={onRateTask} 
-                        isDraggable={true}
-                        onStartTimer={onStartTimer}
-                        formatTime={formatTime}
-                        onViewTask={onViewTask}
-                        onTogglePin={onTogglePin}
-                      />
+                  {columnTasks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg border-border/50 text-muted-foreground">
+                      <Plus className="w-6 h-6 mb-2" />
+                      <p className="text-sm">Drop tasks here</p>
                     </div>
-                  ))}
+                  ) : (
+                    columnTasks.map(task => (
+                      <div 
+                        key={task.id} 
+                        data-task-id={task.id} 
+                        className={cn(
+                          "touch-none transition-transform duration-200",
+                          activeTask?.id === task.id ? "opacity-50 scale-95" : ""
+                        )}
+                      >
+                        <TaskCard 
+                          task={task} 
+                          onRateTask={onRateTask} 
+                          isDraggable={true}
+                          onStartTimer={onStartTimer}
+                          formatTime={formatTime}
+                          onViewTask={onViewTask}
+                          onTogglePin={onTogglePin}
+                        />
+                      </div>
+                    ))
+                  )}
                 </SortableContext>
               </div>
             </div>
@@ -180,7 +209,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 
       {activeTask && createPortal(
         <DragOverlay>
-          <div className="w-full max-w-[350px] opacity-80">
+          <div className="w-full max-w-[350px] opacity-90 rotate-2 scale-105">
             <TaskCard 
               task={activeTask} 
               onRateTask={onRateTask} 
