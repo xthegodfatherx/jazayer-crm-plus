@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { 
   DndContext, 
   DragEndEvent, 
-  DragOverlay, 
+  DragOverlay,
   DragStartEvent, 
   PointerSensor, 
   useSensor, 
@@ -51,6 +51,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 
   // Improved drag and drop functionality with DndKit
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -62,32 +63,42 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 
   const handleDragStart = (event: DragStartEvent) => {
     const taskId = event.active.id as string;
+    setActiveId(taskId);
     const task = tasks.find(t => t.id === taskId);
     if (task) {
       setActiveTask(task);
     }
   };
 
+  const handleDragOver = (event: DragOverEvent) => {
+    // Optional - can be used for visual feedback when dragging over columns
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (over && active) {
+    if (active && over) {
       const taskId = String(active.id);
       const overId = String(over.id);
       
-      // Check if dropped over a column container
-      const columnContainer = document.getElementById(overId);
-      if (columnContainer && columnContainer.hasAttribute('data-droppable-column')) {
-        const newStatus = columnContainer.getAttribute('data-droppable-column') as Task['status'];
-        console.log(`Moving task ${taskId} to column ${newStatus}`);
-        onUpdateTaskStatus(taskId, newStatus);
-      } else {
-        // Check if dropped over another task
-        const taskElement = document.querySelector(`[data-task-id="${overId}"]`);
-        if (taskElement) {
-          const columnId = taskElement.closest('[data-droppable-column]')?.getAttribute('data-droppable-column');
-          if (columnId) {
-            console.log(`Moving task ${taskId} to column ${columnId} (via task)`);
+      // First check if the over element is a column
+      if (columns.some(col => col.id === overId)) {
+        console.log(`Moving task ${taskId} to column ${overId} (direct column drop)`);
+        onUpdateTaskStatus(taskId, overId as Task['status']);
+      } 
+      // If not a column, check if it's a task or a column container
+      else {
+        // Try to find the task
+        const dropTask = tasks.find(t => t.id === overId);
+        if (dropTask) {
+          // If we found a task, update to its status
+          console.log(`Moving task ${taskId} to column ${dropTask.status} (via task)`);
+          onUpdateTaskStatus(taskId, dropTask.status);
+        } else {
+          // Check if it's a column container by checking the id prefix
+          if (overId.startsWith('column-')) {
+            const columnId = overId.replace('column-', '');
+            console.log(`Moving task ${taskId} to column ${columnId} (via container)`);
             onUpdateTaskStatus(taskId, columnId as Task['status']);
           }
         }
@@ -95,6 +106,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     }
     
     setActiveTask(null);
+    setActiveId(null);
   };
 
   // Group tasks by column and sort pinned tasks to the top
@@ -114,6 +126,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       sensors={sensors}
       collisionDetection={rectIntersection}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -137,8 +150,8 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
               </div>
 
               <div 
-                id={column.id}
-                data-droppable-column={column.id}
+                id={`column-${column.id}`}
+                data-column-id={column.id}
                 className="bg-muted/40 rounded-md min-h-[70vh] p-3 space-y-3"
               >
                 <SortableContext 
