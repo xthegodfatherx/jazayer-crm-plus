@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { createPortal } from 'react-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Award } from 'lucide-react';
 
 interface KanbanColumn {
   id: Task['status'];
@@ -204,7 +204,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       {topPerformer.user && (
         <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-yellow-100 border border-amber-200 rounded-lg shadow-sm">
           <h3 className="text-lg font-semibold flex items-center mb-2">
-            <span className="text-amber-500 mr-2">⭐</span> 
+            <Award className="h-5 w-5 mr-2 text-amber-500" />
             VIP - Top Performer of the Month
           </h3>
           <div className="flex justify-between items-center">
@@ -232,6 +232,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
             <div 
               key={column.id} 
               className="space-y-4 transition-colors duration-200 hover:bg-accent/5 rounded-lg p-2"
+              id={column.id}
             >
               <div 
                 className={cn(

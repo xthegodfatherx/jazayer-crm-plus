@@ -21,6 +21,7 @@ import {
 import TeamTimeReport from '@/components/reports/TeamTimeReport';
 import TaskCompletionReport from '@/components/reports/TaskCompletionReport';
 import ProjectPerformanceReport from '@/components/reports/ProjectPerformanceReport';
+import TeamPerformanceDashboard from '@/components/team/TeamPerformance';
 
 const Reports: React.FC = () => {
   const [dateRange, setDateRange] = useState('This Month');
@@ -154,7 +155,7 @@ const Reports: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p>Coming soon...</p>
+              <TeamPerformanceDashboard />
             </CardContent>
           </Card>
         </TabsContent>

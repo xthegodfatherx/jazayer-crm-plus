@@ -6,6 +6,7 @@ import TaskCompletionReport from '@/components/reports/TaskCompletionReport';
 import TeamTimeReport from '@/components/reports/TeamTimeReport';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BadgeCheck, Clock, Award, TrendingUp } from 'lucide-react';
+import TeamPerformanceDashboard from '@/components/team/TeamPerformance';
 
 const AdminReports = () => {
   const [dateRange, setDateRange] = useState('this-month');
