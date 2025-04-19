@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Task } from '@/pages/Tasks';
 import TaskCard from './TaskCard';
@@ -52,6 +53,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   // Improved drag and drop functionality with DndKit
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [hoveredColumnId, setHoveredColumnId] = useState<string | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -71,7 +73,27 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    // Optional - can be used for visual feedback when dragging over columns
+    if (event.over) {
+      const overId = String(event.over.id);
+      
+      // Check if hovering over a column
+      if (columns.some(col => col.id === overId)) {
+        setHoveredColumnId(overId);
+      } 
+      // Check if hovering over a column container
+      else if (overId.startsWith('column-')) {
+        setHoveredColumnId(overId.replace('column-', ''));
+      }
+      // If hovering over a task, find its column
+      else {
+        const taskInColumn = tasks.find(t => t.id === overId);
+        if (taskInColumn) {
+          setHoveredColumnId(taskInColumn.status);
+        }
+      }
+    } else {
+      setHoveredColumnId(null);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -81,32 +103,27 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       const taskId = String(active.id);
       const overId = String(over.id);
       
-      // First check if the over element is a column
+      // Direct column drop
       if (columns.some(col => col.id === overId)) {
-        console.log(`Moving task ${taskId} to column ${overId} (direct column drop)`);
         onUpdateTaskStatus(taskId, overId as Task['status']);
       } 
-      // If not a column, check if it's a task or a column container
+      // Column container drop
+      else if (overId.startsWith('column-')) {
+        const columnId = overId.replace('column-', '');
+        onUpdateTaskStatus(taskId, columnId as Task['status']);
+      }
+      // Drop over another task (use that task's status)
       else {
-        // Try to find the task
         const dropTask = tasks.find(t => t.id === overId);
         if (dropTask) {
-          // If we found a task, update to its status
-          console.log(`Moving task ${taskId} to column ${dropTask.status} (via task)`);
           onUpdateTaskStatus(taskId, dropTask.status);
-        } else {
-          // Check if it's a column container by checking the id prefix
-          if (overId.startsWith('column-')) {
-            const columnId = overId.replace('column-', '');
-            console.log(`Moving task ${taskId} to column ${columnId} (via container)`);
-            onUpdateTaskStatus(taskId, columnId as Task['status']);
-          }
         }
       }
     }
     
     setActiveTask(null);
     setActiveId(null);
+    setHoveredColumnId(null);
   };
 
   // Group tasks by column and sort pinned tasks to the top
@@ -120,6 +137,60 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
         return 0;
       });
   };
+  
+  // Get column statistics for VIP display
+  const getCompletedTasksByUser = () => {
+    const userStats: Record<string, { completed: number, totalTime: number, avgRating: number, taskCount: number }> = {};
+    
+    tasks.forEach(task => {
+      const user = task.assignee;
+      
+      if (!userStats[user]) {
+        userStats[user] = { completed: 0, totalTime: 0, avgRating: 0, taskCount: 0 };
+      }
+      
+      if (task.status === 'done') {
+        userStats[user].completed += 1;
+      }
+      
+      if (task.timeTracked) {
+        userStats[user].totalTime += task.timeTracked;
+      }
+      
+      if (task.rating) {
+        const currentTotal = userStats[user].avgRating * userStats[user].taskCount;
+        userStats[user].taskCount += 1;
+        userStats[user].avgRating = (currentTotal + task.rating) / userStats[user].taskCount;
+      }
+    });
+    
+    return userStats;
+  };
+  
+  // Find the top performer based on weighted score
+  const getTopPerformer = () => {
+    const userStats = getCompletedTasksByUser();
+    let topUser = '';
+    let topScore = -1;
+    
+    Object.entries(userStats).forEach(([user, stats]) => {
+      // Calculate weighted score: 50% completed tasks, 30% time tracked, 20% rating
+      const score = (
+        (stats.completed * 0.5) + 
+        ((stats.totalTime / 3600) * 0.3) + 
+        (stats.avgRating * 0.2)
+      );
+      
+      if (score > topScore) {
+        topScore = score;
+        topUser = user;
+      }
+    });
+    
+    return { user: topUser, score: topScore };
+  };
+
+  const topPerformer = getTopPerformer();
 
   return (
     <DndContext
@@ -129,9 +200,34 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
+      {/* VIP Section - Top Performer */}
+      {topPerformer.user && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-yellow-100 border border-amber-200 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold flex items-center mb-2">
+            <span className="text-amber-500 mr-2">⭐</span> 
+            VIP - Top Performer of the Month
+          </h3>
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-medium text-amber-900">{topPerformer.user}</p>
+              <p className="text-sm text-amber-700">
+                Excelling in task completion, time management, and quality
+              </p>
+            </div>
+            <div className="bg-white p-2 rounded-md border border-amber-200">
+              <span className="text-lg font-semibold text-amber-600">
+                {topPerformer.score.toFixed(1)} points
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-1">
         {columns.map((column) => {
           const columnTasks = getColumnTasks(column.id);
+          const isColumnHovered = hoveredColumnId === column.id;
+          
           return (
             <div 
               key={column.id} 
@@ -166,7 +262,8 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                 className={cn(
                   "bg-muted/40 rounded-lg min-h-[70vh] p-3 space-y-3 transition-colors duration-200",
                   "hover:bg-muted/50 border border-border/50",
-                  activeTask ? "ring-2 ring-offset-2 ring-primary/20" : ""
+                  isColumnHovered ? "bg-accent/10 ring-2 ring-offset-2 ring-primary/20" : "",
+                  activeTask && !isColumnHovered ? "opacity-80" : ""
                 )}
               >
                 <SortableContext 
@@ -174,7 +271,10 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                   strategy={verticalListSortingStrategy}
                 >
                   {columnTasks.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg border-border/50 text-muted-foreground">
+                    <div className={cn(
+                      "flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg border-border/50 text-muted-foreground",
+                      isColumnHovered ? "bg-accent/20 border-primary/30" : ""
+                    )}>
                       <Plus className="w-6 h-6 mb-2" />
                       <p className="text-sm">Drop tasks here</p>
                     </div>
