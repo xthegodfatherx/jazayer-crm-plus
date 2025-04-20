@@ -53,11 +53,13 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeColumn, setActiveColumn] = useState<string | null>(null);
   
-  // Configure sensors with looser constraints for easier dragging
+  // Configure sensors with better activation constraints
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 3, // Lower threshold for easier drag activation
+        distance: 5, // Slightly increase threshold for better control
+        tolerance: 5, // Add tolerance for better control
+        delay: 150, // Short delay to avoid accidental drags
       },
     })
   );
@@ -78,27 +80,40 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     const { over } = event;
     if (!over) return;
 
+    // Extract the overId more safely
     const overId = String(over.id);
     
-    // Determine if we're over a column
-    const isColumn = columns.some(col => 
-      col.id === overId || `column-${col.id}` === overId
-    );
+    // Identify column more reliably
+    const targetColumn = getTargetColumn(overId);
     
-    if (isColumn && activeColumn !== overId.replace('column-', '')) {
+    if (targetColumn && activeColumn !== targetColumn) {
       // Highlight the column being dragged over
-      setActiveColumn(overId.replace('column-', ''));
+      setActiveColumn(targetColumn);
     }
   };
 
-  const handleDragMove = (event: DragMoveEvent) => {
-    // Optional: Add visual feedback during drag
+  // Helper function to reliably identify the target column
+  const getTargetColumn = (id: string): string | null => {
+    // Direct column match
+    if (columns.some(col => col.id === id)) {
+      return id;
+    }
+    
+    // Column prefix match (for "column-todo" etc.)
+    if (id.startsWith('column-')) {
+      const columnId = id.replace('column-', '');
+      if (columns.some(col => col.id === columnId)) {
+        return columnId;
+      }
+    }
+    
+    return null;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (!over) {
+    if (!over || !active) {
       setActiveTask(null);
       setActiveColumn(null);
       return;
@@ -107,25 +122,23 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     const taskId = active.id as string;
     const overId = String(over.id);
     
-    // Find the target column status more robustly
-    const targetStatus = columns.find(col => 
-      col.id === overId || `column-${col.id}` === overId
-    )?.id;
+    // Find the target column more reliably
+    const targetColumn = getTargetColumn(overId);
     
-    if (targetStatus) {
+    if (targetColumn) {
       const task = tasks.find(t => t.id === taskId);
-      if (task && task.status !== targetStatus) {
-        onUpdateTaskStatus(taskId, targetStatus);
+      if (task && task.status !== targetColumn) {
+        // Update the task status
+        onUpdateTaskStatus(taskId, targetColumn as Task['status']);
         
-        // Enhanced toast notification with more context
+        // Show toast notification
         toast({
           title: "Task Updated",
-          description: `"${task.title}" moved from ${task.status} to ${targetStatus}`,
+          description: `"${task.title}" moved from ${task.status} to ${targetColumn}`,
           variant: "default"
         });
         
-        // Optional: Log task movement for audit trail
-        console.log(`Task ${taskId} moved from ${task.status} to ${targetStatus}`);
+        console.log(`Task ${taskId} moved from ${task.status} to ${targetColumn}`);
       }
     }
     
@@ -198,7 +211,6 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
-      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
     >
       {/* VIP Section - Top Performer */}
@@ -288,6 +300,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                         formatTime={formatTime}
                         onViewTask={onViewTask}
                         onTogglePin={onTogglePin}
+                        onToggleSubtask={undefined}
                       />
                     </div>
                   ))
@@ -299,7 +312,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       </div>
 
       {activeTask && createPortal(
-        <DragOverlay>
+        <DragOverlay adjustScale={false}>
           <div className="w-full max-w-[350px] opacity-80">
             <TaskCard 
               task={activeTask} 
