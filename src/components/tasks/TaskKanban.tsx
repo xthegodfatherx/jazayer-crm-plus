@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task } from '@/pages/Tasks';
 import TaskCard from './TaskCard';
 import { cn } from '@/lib/utils';
@@ -12,9 +12,12 @@ import {
   useSensor, 
   useSensors,
   DragOverEvent,
+  closestCorners,
+  DragMoveEvent,
 } from '@dnd-kit/core';
 import { createPortal } from 'react-dom';
-import { Award } from 'lucide-react';
+import { Award, Trophy } from 'lucide-react';
+import { toast } from "@/hooks/use-toast";
 
 interface KanbanColumn {
   id: Task['status'];
@@ -49,6 +52,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   ];
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [activeColumn, setActiveColumn] = useState<string | null>(null);
   
   // Configure sensors with looser constraints for easier dragging
   const sensors = useSensors(
@@ -65,48 +69,78 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     if (task) {
       setActiveTask(task);
       console.log('Drag started:', task.title);
+      
+      // Find which column the task is in
+      setActiveColumn(task.status);
     }
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    // This event is used for highlighting the drop target
-    console.log('Drag over:', event.over?.id);
+    const { over } = event;
+    if (!over) return;
+
+    const overId = String(over.id);
+    
+    // Determine if we're over a column
+    const isColumn = columns.some(col => 
+      col.id === overId || `column-${col.id}` === overId
+    );
+    
+    if (isColumn && activeColumn !== overId.replace('column-', '')) {
+      // Highlight the column being dragged over
+      setActiveColumn(overId.replace('column-', ''));
+    }
+  };
+
+  const handleDragMove = (event: DragMoveEvent) => {
+    // Optional: Add visual feedback during drag
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (active && over) {
-      const taskId = active.id as string;
-      const overId = over.id as string;
-      
-      console.log('Drag end - Task:', taskId, 'Over:', overId);
-      
-      // Find the column where the task was dropped
-      let targetColumn: Task['status'] | null = null;
-      
-      // Check if dropped directly on a column
-      const matchingColumn = columns.find(col => col.id === overId);
-      if (matchingColumn) {
-        targetColumn = matchingColumn.id;
-        console.log(`Dropped directly on column: ${targetColumn}`);
-      } 
-      // Check if dropped on a column container
-      else if (typeof overId === 'string' && overId.startsWith('column-')) {
-        targetColumn = overId.replace('column-', '') as Task['status'];
-        console.log(`Dropped on column container: ${targetColumn}`);
+    if (!over) {
+      setActiveTask(null);
+      setActiveColumn(null);
+      return;
+    }
+    
+    const taskId = active.id as string;
+    const overId = String(over.id);
+    
+    console.log('Drag end - Task:', taskId, 'Over:', overId);
+    
+    // Find the target column status
+    let targetStatus: Task['status'] | null = null;
+    
+    // Check if dropped directly on a column
+    const matchingColumn = columns.find(col => col.id === overId);
+    if (matchingColumn) {
+      targetStatus = matchingColumn.id;
+    } 
+    // Check if dropped on a column container
+    else if (overId.startsWith('column-')) {
+      targetStatus = overId.replace('column-', '') as Task['status'];
+    }
+    
+    if (targetStatus) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task && task.status !== targetStatus) {
+        console.log(`Moving task from ${task.status} to ${targetStatus}`);
+        onUpdateTaskStatus(taskId, targetStatus);
+        
+        // Show a success notification
+        toast({
+          title: "Task updated",
+          description: `"${task.title}" moved to ${columns.find(c => c.id === targetStatus)?.title}`,
+        });
       }
-      
-      // Update task status if a valid target column was found
-      if (targetColumn) {
-        console.log(`Updating task status to: ${targetColumn}`);
-        onUpdateTaskStatus(taskId, targetColumn);
-      } else {
-        console.log('No valid target column found');
-      }
+    } else {
+      console.log('No valid target column found');
     }
     
     setActiveTask(null);
+    setActiveColumn(null);
   };
 
   // Group tasks by column and sort pinned tasks to the top
@@ -171,15 +205,17 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={closestCorners}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
     >
       {/* VIP Section - Top Performer */}
       {topPerformer.user && (
         <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-yellow-100 border border-amber-200 rounded-lg shadow-sm">
           <h3 className="text-lg font-semibold flex items-center mb-2">
-            <Award className="h-5 w-5 mr-2 text-amber-500" />
+            <Trophy className="h-5 w-5 mr-2 text-amber-500" />
             VIP - Top Performer of the Month
           </h3>
           <div className="flex justify-between items-center">
@@ -201,13 +237,18 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-1">
         {columns.map((column) => {
           const columnTasks = getColumnTasks(column.id);
+          const isActiveColumn = activeColumn === column.id;
           
           return (
             <div 
               key={column.id} 
-              className="space-y-4 transition-colors duration-200 hover:bg-accent/5 rounded-lg p-2"
+              className={cn(
+                "space-y-4 transition-colors duration-200",
+                isActiveColumn ? "bg-accent/20 rounded-lg" : "hover:bg-accent/5 rounded-lg"
+              )}
             >
               <div 
+                id={column.id}
                 className={cn(
                   "py-3 border-t-4 rounded-t bg-background flex justify-between items-center px-4 shadow-sm",
                   column.color
@@ -235,7 +276,8 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                 data-column-id={column.id}
                 className={cn(
                   "bg-muted/40 rounded-lg min-h-[70vh] p-3 space-y-3 transition-colors duration-200",
-                  "hover:bg-muted/50 border border-border/50"
+                  "hover:bg-muted/50 border border-border/50",
+                  isActiveColumn && "ring-2 ring-primary/20 bg-muted/60"
                 )}
               >
                 {columnTasks.length === 0 ? (

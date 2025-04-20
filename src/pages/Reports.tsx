@@ -109,7 +109,7 @@ const Reports: React.FC = () => {
       </div>
 
       <div className="mt-4">
-        {activeTab === 'time-tracking' && (
+        <TabsContent value="time-tracking" className={activeTab === "time-tracking" ? "block" : "hidden"}>
           <Card>
             <CardHeader>
               <CardTitle>Time Tracking Report</CardTitle>
@@ -121,9 +121,9 @@ const Reports: React.FC = () => {
               <TeamTimeReport dateRange={dateRange} />
             </CardContent>
           </Card>
-        )}
+        </TabsContent>
         
-        {activeTab === 'task-completion' && (
+        <TabsContent value="task-completion" className={activeTab === "task-completion" ? "block" : "hidden"}>
           <Card>
             <CardHeader>
               <CardTitle>Task Completion Report</CardTitle>
@@ -135,9 +135,9 @@ const Reports: React.FC = () => {
               <TaskCompletionReport dateRange={dateRange} />
             </CardContent>
           </Card>
-        )}
+        </TabsContent>
         
-        {activeTab === 'project-performance' && (
+        <TabsContent value="project-performance" className={activeTab === "project-performance" ? "block" : "hidden"}>
           <Card>
             <CardHeader>
               <CardTitle>Project Performance Report</CardTitle>
@@ -149,9 +149,9 @@ const Reports: React.FC = () => {
               <ProjectPerformanceReport dateRange={dateRange} />
             </CardContent>
           </Card>
-        )}
+        </TabsContent>
         
-        {activeTab === 'team-analysis' && (
+        <TabsContent value="team-analysis" className={activeTab === "team-analysis" ? "block" : "hidden"}>
           <Card>
             <CardHeader>
               <CardTitle>Team Analysis Report</CardTitle>
@@ -163,7 +163,7 @@ const Reports: React.FC = () => {
               <TeamPerformanceDashboard />
             </CardContent>
           </Card>
-        )}
+        </TabsContent>
       </div>
     </div>
   );
