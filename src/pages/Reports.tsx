@@ -50,10 +50,9 @@ const Reports: React.FC = () => {
 
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <Tabs 
-          defaultValue="time-tracking" 
-          className="w-full"
           value={activeTab}
           onValueChange={setActiveTab}
+          className="w-full"
         >
           <TabsList className="w-full border-b mb-6">
             <TabsTrigger value="time-tracking" className="flex items-center">
@@ -109,8 +108,8 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsContent value="time-tracking">
+      <div className="mt-4">
+        {activeTab === 'time-tracking' && (
           <Card>
             <CardHeader>
               <CardTitle>Time Tracking Report</CardTitle>
@@ -122,9 +121,9 @@ const Reports: React.FC = () => {
               <TeamTimeReport dateRange={dateRange} />
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
         
-        <TabsContent value="task-completion">
+        {activeTab === 'task-completion' && (
           <Card>
             <CardHeader>
               <CardTitle>Task Completion Report</CardTitle>
@@ -136,9 +135,9 @@ const Reports: React.FC = () => {
               <TaskCompletionReport dateRange={dateRange} />
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
         
-        <TabsContent value="project-performance">
+        {activeTab === 'project-performance' && (
           <Card>
             <CardHeader>
               <CardTitle>Project Performance Report</CardTitle>
@@ -150,9 +149,9 @@ const Reports: React.FC = () => {
               <ProjectPerformanceReport dateRange={dateRange} />
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
         
-        <TabsContent value="team-analysis">
+        {activeTab === 'team-analysis' && (
           <Card>
             <CardHeader>
               <CardTitle>Team Analysis Report</CardTitle>
@@ -164,8 +163,8 @@ const Reports: React.FC = () => {
               <TeamPerformanceDashboard />
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 };
