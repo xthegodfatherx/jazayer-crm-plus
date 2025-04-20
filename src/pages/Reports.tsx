@@ -25,6 +25,7 @@ import TeamPerformanceDashboard from '@/components/team/TeamPerformance';
 
 const Reports: React.FC = () => {
   const [dateRange, setDateRange] = useState('This Month');
+  const [activeTab, setActiveTab] = useState('time-tracking');
 
   return (
     <div className="space-y-6">
@@ -48,7 +49,12 @@ const Reports: React.FC = () => {
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <Tabs defaultValue="time-tracking" className="w-full">
+        <Tabs 
+          defaultValue="time-tracking" 
+          className="w-full"
+          value={activeTab}
+          onValueChange={setActiveTab}
+        >
           <TabsList className="w-full border-b mb-6">
             <TabsTrigger value="time-tracking" className="flex items-center">
               <Clock className="h-4 w-4 mr-2" />
@@ -103,7 +109,7 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="time-tracking">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsContent value="time-tracking">
           <Card>
             <CardHeader>

@@ -50,15 +50,13 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     { id: 'done', title: 'Done', color: 'border-green-500' },
   ];
 
-  // Improved drag and drop functionality with DndKit
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [hoveredColumnId, setHoveredColumnId] = useState<string | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // Reduced distance for easier dragging activation
+        distance: 3, // Lower threshold for easier drag activation
       },
     })
   );
@@ -69,31 +67,13 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     const task = tasks.find(t => t.id === taskId);
     if (task) {
       setActiveTask(task);
+      console.log('Drag started:', task.title);
     }
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    if (event.over) {
-      const overId = String(event.over.id);
-      
-      // Check if hovering over a column
-      if (columns.some(col => col.id === overId)) {
-        setHoveredColumnId(overId);
-      } 
-      // Check if hovering over a column container
-      else if (overId.startsWith('column-')) {
-        setHoveredColumnId(overId.replace('column-', ''));
-      }
-      // If hovering over a task, find its column
-      else {
-        const taskInColumn = tasks.find(t => t.id === overId);
-        if (taskInColumn) {
-          setHoveredColumnId(taskInColumn.status);
-        }
-      }
-    } else {
-      setHoveredColumnId(null);
-    }
+    // This is intentionally empty because we're not doing anything on drag over
+    // but we need the event handler to ensure proper drag behavior
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -103,27 +83,36 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       const taskId = String(active.id);
       const overId = String(over.id);
       
-      // Direct column drop
+      console.log('Drag end - Task:', taskId, 'Over:', overId);
+      
+      // Find the target column
+      let targetColumn: Task['status'] | null = null;
+      
+      // Direct column ID match
       if (columns.some(col => col.id === overId)) {
-        onUpdateTaskStatus(taskId, overId as Task['status']);
+        targetColumn = overId as Task['status'];
       } 
-      // Column container drop
+      // Column container match
       else if (overId.startsWith('column-')) {
-        const columnId = overId.replace('column-', '');
-        onUpdateTaskStatus(taskId, columnId as Task['status']);
+        targetColumn = overId.replace('column-', '') as Task['status'];
       }
-      // Drop over another task (use that task's status)
+      // Drop over a task (use that task's column)
       else {
-        const dropTask = tasks.find(t => t.id === overId);
-        if (dropTask) {
-          onUpdateTaskStatus(taskId, dropTask.status);
+        const targetTask = tasks.find(t => t.id === overId);
+        if (targetTask) {
+          targetColumn = targetTask.status;
         }
+      }
+      
+      // Update the task status if we found a valid target column
+      if (targetColumn) {
+        console.log('Updating task status to:', targetColumn);
+        onUpdateTaskStatus(taskId, targetColumn);
       }
     }
     
     setActiveTask(null);
     setActiveId(null);
-    setHoveredColumnId(null);
   };
 
   // Group tasks by column and sort pinned tasks to the top
@@ -226,7 +215,6 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-1">
         {columns.map((column) => {
           const columnTasks = getColumnTasks(column.id);
-          const isColumnHovered = hoveredColumnId === column.id;
           
           return (
             <div 
@@ -262,9 +250,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                 data-column-id={column.id}
                 className={cn(
                   "bg-muted/40 rounded-lg min-h-[70vh] p-3 space-y-3 transition-colors duration-200",
-                  "hover:bg-muted/50 border border-border/50",
-                  isColumnHovered ? "bg-accent/10 ring-2 ring-offset-2 ring-primary/20" : "",
-                  activeTask && !isColumnHovered ? "opacity-80" : ""
+                  "hover:bg-muted/50 border border-border/50"
                 )}
               >
                 <SortableContext 
@@ -272,10 +258,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                   strategy={verticalListSortingStrategy}
                 >
                   {columnTasks.length === 0 ? (
-                    <div className={cn(
-                      "flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg border-border/50 text-muted-foreground",
-                      isColumnHovered ? "bg-accent/20 border-primary/30" : ""
-                    )}>
+                    <div className="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg border-border/50 text-muted-foreground">
                       <Plus className="w-6 h-6 mb-2" />
                       <p className="text-sm">Drop tasks here</p>
                     </div>
@@ -284,10 +267,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                       <div 
                         key={task.id} 
                         data-task-id={task.id} 
-                        className={cn(
-                          "touch-none transition-transform duration-200",
-                          activeTask?.id === task.id ? "opacity-50 scale-95" : ""
-                        )}
+                        className={activeId === task.id ? "opacity-50" : ""}
                       >
                         <TaskCard 
                           task={task} 
@@ -310,7 +290,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 
       {activeTask && createPortal(
         <DragOverlay>
-          <div className="w-full max-w-[350px] opacity-90 rotate-2 scale-105">
+          <div className="w-full max-w-[350px] opacity-80">
             <TaskCard 
               task={activeTask} 
               onRateTask={onRateTask} 
