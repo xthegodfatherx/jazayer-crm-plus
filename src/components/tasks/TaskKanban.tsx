@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Task } from '@/pages/Tasks';
 import TaskCard from './TaskCard';
@@ -108,35 +107,26 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
     const taskId = active.id as string;
     const overId = String(over.id);
     
-    console.log('Drag end - Task:', taskId, 'Over:', overId);
-    
-    // Find the target column status
-    let targetStatus: Task['status'] | null = null;
-    
-    // Check if dropped directly on a column
-    const matchingColumn = columns.find(col => col.id === overId);
-    if (matchingColumn) {
-      targetStatus = matchingColumn.id;
-    } 
-    // Check if dropped on a column container
-    else if (overId.startsWith('column-')) {
-      targetStatus = overId.replace('column-', '') as Task['status'];
-    }
+    // Find the target column status more robustly
+    const targetStatus = columns.find(col => 
+      col.id === overId || `column-${col.id}` === overId
+    )?.id;
     
     if (targetStatus) {
       const task = tasks.find(t => t.id === taskId);
       if (task && task.status !== targetStatus) {
-        console.log(`Moving task from ${task.status} to ${targetStatus}`);
         onUpdateTaskStatus(taskId, targetStatus);
         
-        // Show a success notification
+        // Enhanced toast notification with more context
         toast({
-          title: "Task updated",
-          description: `"${task.title}" moved to ${columns.find(c => c.id === targetStatus)?.title}`,
+          title: "Task Updated",
+          description: `"${task.title}" moved from ${task.status} to ${targetStatus}`,
+          variant: "default"
         });
+        
+        // Optional: Log task movement for audit trail
+        console.log(`Task ${taskId} moved from ${task.status} to ${targetStatus}`);
       }
-    } else {
-      console.log('No valid target column found');
     }
     
     setActiveTask(null);

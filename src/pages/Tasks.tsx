@@ -311,9 +311,35 @@ const Tasks = () => {
   };
 
   const handleUpdateTaskStatus = (taskId: string, newStatus: Task['status']) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, status: newStatus } : task
-    ));
+    const updatedTasks = tasks.map(task => 
+      task.id === taskId 
+        ? { 
+            ...task, 
+            status: newStatus, 
+            // Optional: Track status change history
+            statusHistory: [
+              ...(task.statusHistory || []), 
+              { 
+                status: newStatus, 
+                changedAt: new Date().toISOString(), 
+                changedBy: currentUser 
+              }
+            ] 
+          } 
+        : task
+    );
+
+    setTasks(updatedTasks);
+
+    // Enhanced notification
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      toast({
+        title: "Task Status Updated",
+        description: `"${task.title}" is now ${newStatus}`,
+        variant: "default"
+      });
+    }
   };
 
   const handleStartTimer = (task: Task) => {
