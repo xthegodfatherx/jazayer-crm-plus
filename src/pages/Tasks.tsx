@@ -26,6 +26,12 @@ export interface Comment {
   createdAt: string;
 }
 
+export interface StatusHistoryEntry {
+  status: 'todo' | 'in-progress' | 'in-review' | 'done';
+  changedAt: string;
+  changedBy: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -41,6 +47,7 @@ export interface Task {
   comments?: Comment[];
   pinned?: boolean; // New property for pinned tasks
   project?: string; // New property for project
+  statusHistory?: StatusHistoryEntry[]; // Added statusHistory property
 }
 
 interface FilterOptions {
