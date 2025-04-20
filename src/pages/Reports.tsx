@@ -49,30 +49,84 @@ const Reports: React.FC = () => {
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <Tabs 
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full"
-        >
-          <TabsList className="w-full border-b mb-6">
-            <TabsTrigger value="time-tracking" className="flex items-center">
-              <Clock className="h-4 w-4 mr-2" />
-              Time Tracking
-            </TabsTrigger>
-            <TabsTrigger value="task-completion" className="flex items-center">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Task Completion
-            </TabsTrigger>
-            <TabsTrigger value="project-performance" className="flex items-center">
-              <PieChart className="h-4 w-4 mr-2" />
-              Project Performance
-            </TabsTrigger>
-            <TabsTrigger value="team-analysis" className="flex items-center">
-              <LineChart className="h-4 w-4 mr-2" />
-              Team Analysis
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full border-b mb-6">
+              <TabsTrigger value="time-tracking" className="flex items-center">
+                <Clock className="h-4 w-4 mr-2" />
+                Time Tracking
+              </TabsTrigger>
+              <TabsTrigger value="task-completion" className="flex items-center">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Task Completion
+              </TabsTrigger>
+              <TabsTrigger value="project-performance" className="flex items-center">
+                <PieChart className="h-4 w-4 mr-2" />
+                Project Performance
+              </TabsTrigger>
+              <TabsTrigger value="team-analysis" className="flex items-center">
+                <LineChart className="h-4 w-4 mr-2" />
+                Team Analysis
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="time-tracking">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Time Tracking Report</CardTitle>
+                  <CardDescription>
+                    Analyze how team members are spending their time across projects and tasks
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TeamTimeReport dateRange={dateRange} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="task-completion">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Task Completion Report</CardTitle>
+                  <CardDescription>
+                    Analyze task completion rates, quality ratings, and performance metrics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TaskCompletionReport dateRange={dateRange} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="project-performance">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Project Performance Report</CardTitle>
+                  <CardDescription>
+                    Track progress, budget utilization, and time management for projects
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ProjectPerformanceReport dateRange={dateRange} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="team-analysis">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Team Analysis Report</CardTitle>
+                  <CardDescription>
+                    Comprehensive performance analysis of the team and individual members
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TeamPerformanceDashboard />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -106,64 +160,6 @@ const Reports: React.FC = () => {
             Filters
           </Button>
         </div>
-      </div>
-
-      <div className="mt-4">
-        <TabsContent value="time-tracking" className={activeTab === "time-tracking" ? "block" : "hidden"}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Time Tracking Report</CardTitle>
-              <CardDescription>
-                Analyze how team members are spending their time across projects and tasks
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TeamTimeReport dateRange={dateRange} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="task-completion" className={activeTab === "task-completion" ? "block" : "hidden"}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Task Completion Report</CardTitle>
-              <CardDescription>
-                Analyze task completion rates, quality ratings, and performance metrics
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TaskCompletionReport dateRange={dateRange} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="project-performance" className={activeTab === "project-performance" ? "block" : "hidden"}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Performance Report</CardTitle>
-              <CardDescription>
-                Track progress, budget utilization, and time management for projects
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ProjectPerformanceReport dateRange={dateRange} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="team-analysis" className={activeTab === "team-analysis" ? "block" : "hidden"}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Analysis Report</CardTitle>
-              <CardDescription>
-                Comprehensive performance analysis of the team and individual members
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TeamPerformanceDashboard />
-            </CardContent>
-          </Card>
-        </TabsContent>
       </div>
     </div>
   );
