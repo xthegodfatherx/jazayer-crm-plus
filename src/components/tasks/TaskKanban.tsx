@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Task } from '@/pages/Tasks';
 import TaskCard from './TaskCard';
@@ -157,7 +158,6 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       });
   };
   
-
   return (
     <DndContext
       sensors={sensors}
