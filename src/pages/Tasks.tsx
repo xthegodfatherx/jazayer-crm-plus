@@ -32,6 +32,16 @@ export interface StatusHistoryEntry {
   changedBy: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  pricing: {
+    oneStar: number;
+    twoStar: number;
+    threeStar: number;
+  };
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -42,13 +52,13 @@ export interface Task {
   priority: 'low' | 'medium' | 'high';
   rating?: number;
   tags: string[];
-  category?: string;
+  category?: Category;
   subtasks?: { id: string; title: string; completed: boolean }[];
-  timeTracked?: number; // Total time tracked in seconds
+  timeTracked?: number;
   comments?: Comment[];
-  pinned?: boolean; // New property for pinned tasks
-  project?: string; // New property for project
-  statusHistory?: StatusHistoryEntry[]; // Added statusHistory property
+  pinned?: boolean;
+  project?: string;
+  statusHistory?: StatusHistoryEntry[];
 }
 
 interface FilterOptions {
@@ -88,7 +98,11 @@ const Tasks = () => {
       timeTracked: 7200, // 2 hours
       pinned: true,
       project: 'Client Website Redesign',
-      category: 'Web Design',
+      category: {
+        id: 'web-design',
+        name: 'Web Design',
+        pricing: { oneStar: 10, twoStar: 20, threeStar: 30 }
+      },
       subtasks: [
         { id: '1-1', title: 'Create wireframes', completed: true },
         { id: '1-2', title: 'Design mockups', completed: false },
@@ -119,7 +133,11 @@ const Tasks = () => {
       priority: 'medium',
       tags: ['Backend', 'Security'],
       project: 'API Development',
-      category: 'Backend Dev',
+      category: {
+        id: 'backend-dev',
+        name: 'Backend Dev',
+        pricing: { oneStar: 15, twoStar: 25, threeStar: 35 }
+      },
       timeTracked: 3600, // 1 hour
       comments: [
         {
@@ -141,7 +159,11 @@ const Tasks = () => {
       rating: 1,
       tags: ['Frontend', 'Mobile'],
       project: 'Client Website Redesign',
-      category: 'Frontend Dev',
+      category: {
+        id: 'frontend-dev',
+        name: 'Frontend Dev',
+        pricing: { oneStar: 12, twoStar: 22, threeStar: 32 }
+      },
       timeTracked: 10800, // 3 hours
       comments: []
     },
@@ -155,7 +177,11 @@ const Tasks = () => {
       priority: 'low',
       tags: ['Documentation'],
       project: 'API Development',
-      category: 'Documentation',
+      category: {
+        id: 'documentation',
+        name: 'Documentation',
+        pricing: { oneStar: 8, twoStar: 18, threeStar: 28 }
+      },
       comments: []
     },
     {
@@ -169,7 +195,11 @@ const Tasks = () => {
       rating: 3,
       tags: ['Payment', 'Integration'],
       project: 'E-commerce Platform',
-      category: 'Integration',
+      category: {
+        id: 'integration',
+        name: 'Integration',
+        pricing: { oneStar: 14, twoStar: 24, threeStar: 34 }
+      },
       timeTracked: 18000, // 5 hours
       comments: [
         {
@@ -531,6 +561,7 @@ const Tasks = () => {
                   onViewTask={handleViewTask}
                   onTogglePin={handleTogglePin}
                   onToggleSubtask={handleToggleSubtask}
+                  onUpdateTaskStatus={handleUpdateTaskStatus}
                 />
               ))}
             </div>

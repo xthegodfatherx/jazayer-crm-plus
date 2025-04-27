@@ -11,8 +11,15 @@ import {
   Timer,
   MessageSquare,
   Pin,
-  PinOff
+  PinOff,
+  ChevronDown
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Task } from '@/pages/Tasks';
 import StarRating from './StarRating';
@@ -32,17 +39,19 @@ interface TaskCardProps {
   onViewTask?: (task: Task) => void;
   onTogglePin?: (taskId: string) => void;
   onToggleSubtask?: (taskId: string, subtaskId: string) => void;
+  onUpdateTaskStatus?: (taskId: string, newStatus: Task['status']) => void;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ 
   task, 
-  onRateTask, 
+  onRateTask,
   isDraggable = false,
   onStartTimer,
   formatTime,
   onViewTask,
   onTogglePin,
-  onToggleSubtask
+  onToggleSubtask,
+  onUpdateTaskStatus
 }) => {
   // Setup draggable functionality
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -113,6 +122,19 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   const isPastDue = new Date(task.dueDate) < new Date() && task.status !== 'done';
 
+  const statusColors = {
+    'todo': 'bg-blue-500/10 text-blue-500',
+    'in-progress': 'bg-amber-500/10 text-amber-500',
+    'in-review': 'bg-purple-500/10 text-purple-500',
+    'done': 'bg-green-500/10 text-green-500',
+  };
+
+  const handleStatusChange = (newStatus: Task['status']) => {
+    if (onUpdateTaskStatus) {
+      onUpdateTaskStatus(task.id, newStatus);
+    }
+  };
+
   return (
     <Card 
       ref={setNodeRef}
@@ -139,12 +161,45 @@ const TaskCard: React.FC<TaskCardProps> = ({
             </h3>
             {task.category && (
               <Badge variant="outline" className="mt-1">
-                {task.category}
+                {task.category.name}
               </Badge>
             )}
           </div>
           <div className="flex items-center gap-2">
             {getPriorityIcon()}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className={cn(
+                    "h-7 px-2 text-xs flex items-center gap-1",
+                    statusColors[task.status]
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {task.status.replace('-', ' ')}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-32">
+                {['todo', 'in-progress', 'in-review', 'done'].map((status) => (
+                  <DropdownMenuItem
+                    key={status}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusChange(status as Task['status']);
+                    }}
+                    className={cn(
+                      "capitalize",
+                      task.status === status && "bg-accent"
+                    )}
+                  >
+                    {status.replace('-', ' ')}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {onTogglePin && (
               <Button 
                 variant="ghost" 

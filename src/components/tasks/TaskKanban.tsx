@@ -231,6 +231,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                         onViewTask={onViewTask}
                         onTogglePin={onTogglePin}
                         onToggleSubtask={undefined}
+                        onUpdateTaskStatus={onUpdateTaskStatus}
                       />
                     </div>
                   ))
@@ -253,6 +254,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
               onViewTask={onViewTask}
               onTogglePin={onTogglePin}
               onToggleSubtask={undefined}
+              onUpdateTaskStatus={onUpdateTaskStatus}
             />
           </div>
         </DragOverlay>,
