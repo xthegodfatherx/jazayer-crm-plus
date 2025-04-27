@@ -56,9 +56,9 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // Slightly increase threshold for better control
-        tolerance: 5, // Add tolerance for better control
-        delay: 150, // Short delay to avoid accidental drags
+        distance: 8,
+        tolerance: 5,
+        delay: 150,
       },
     })
   );

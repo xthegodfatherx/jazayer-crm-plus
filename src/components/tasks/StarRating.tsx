@@ -50,7 +50,7 @@ const StarRating: React.FC<StarRatingProps> = ({
       className="star-rating" 
       onMouseLeave={handleMouseLeave}
     >
-      {[1, 2, 3, 4, 5].map((star) => (
+      {[1, 2, 3].map((star) => (
         <Star
           key={star}
           className={cn(

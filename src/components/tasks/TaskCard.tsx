@@ -21,6 +21,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useDraggable } from '@dnd-kit/core';
+import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
   task: Task;
@@ -117,11 +118,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
       ref={setNodeRef}
       {...(isDraggable ? attributes : {})}
       {...(isDraggable ? listeners : {})}
-      className={`${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''} 
-                ${task.pinned ? 'border-primary' : ''} 
-                ${isPastDue ? 'border-red-300' : ''} 
-                ${isDragging ? 'opacity-50' : 'opacity-100'} 
-                touch-none`}
+      className={cn(
+        isDraggable ? 'cursor-grab active:cursor-grabbing' : '',
+        task.pinned ? 'border-primary' : '',
+        isPastDue ? 'border-red-300' : '',
+        isDragging ? 'opacity-50' : 'opacity-100',
+        'touch-none'
+      )}
       style={{
         transform: isDragging ? 'scale(1.02)' : undefined,
         transition: 'transform 0.1s ease-in-out',
@@ -129,10 +132,17 @@ const TaskCard: React.FC<TaskCardProps> = ({
     >
       <CardHeader className="p-4 pb-2">
         <div className="flex justify-between items-start">
-          <h3 className="font-medium flex items-center gap-2">
-            {task.pinned && <Pin className="h-4 w-4 text-primary" fill="currentColor" />}
-            {task.title}
-          </h3>
+          <div>
+            <h3 className="font-medium flex items-center gap-2">
+              {task.pinned && <Pin className="h-4 w-4 text-primary" fill="currentColor" />}
+              {task.title}
+            </h3>
+            {task.category && (
+              <Badge variant="outline" className="mt-1">
+                {task.category}
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {getPriorityIcon()}
             {onTogglePin && (

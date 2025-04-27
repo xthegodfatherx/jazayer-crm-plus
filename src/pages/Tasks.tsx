@@ -42,6 +42,7 @@ export interface Task {
   priority: 'low' | 'medium' | 'high';
   rating?: number;
   tags: string[];
+  category?: string;
   subtasks?: { id: string; title: string; completed: boolean }[];
   timeTracked?: number; // Total time tracked in seconds
   comments?: Comment[];
@@ -82,11 +83,12 @@ const Tasks = () => {
       dueDate: '2025-04-15',
       status: 'in-progress',
       priority: 'high',
-      rating: 4,
+      rating: 2,
       tags: ['Design', 'Website'],
       timeTracked: 7200, // 2 hours
       pinned: true,
       project: 'Client Website Redesign',
+      category: 'Web Design',
       subtasks: [
         { id: '1-1', title: 'Create wireframes', completed: true },
         { id: '1-2', title: 'Design mockups', completed: false },
@@ -117,6 +119,7 @@ const Tasks = () => {
       priority: 'medium',
       tags: ['Backend', 'Security'],
       project: 'API Development',
+      category: 'Backend Dev',
       timeTracked: 3600, // 1 hour
       comments: [
         {
@@ -135,9 +138,10 @@ const Tasks = () => {
       dueDate: '2025-04-10',
       status: 'in-review',
       priority: 'high',
-      rating: 3,
+      rating: 1,
       tags: ['Frontend', 'Mobile'],
       project: 'Client Website Redesign',
+      category: 'Frontend Dev',
       timeTracked: 10800, // 3 hours
       comments: []
     },
@@ -151,6 +155,7 @@ const Tasks = () => {
       priority: 'low',
       tags: ['Documentation'],
       project: 'API Development',
+      category: 'Documentation',
       comments: []
     },
     {
@@ -161,9 +166,10 @@ const Tasks = () => {
       dueDate: '2025-04-18',
       status: 'done',
       priority: 'high',
-      rating: 5,
+      rating: 3,
       tags: ['Payment', 'Integration'],
       project: 'E-commerce Platform',
+      category: 'Integration',
       timeTracked: 18000, // 5 hours
       comments: [
         {
