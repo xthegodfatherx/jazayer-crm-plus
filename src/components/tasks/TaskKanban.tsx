@@ -15,7 +15,6 @@ import {
   DragMoveEvent,
 } from '@dnd-kit/core';
 import { createPortal } from 'react-dom';
-import { Award, Trophy } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
 
 interface KanbanColumn {
@@ -158,52 +157,6 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       });
   };
   
-  // Calculate VIP performance metrics
-  const getTopPerformer = () => {
-    const userStats: Record<string, { completed: number, totalTime: number, avgRating: number, taskCount: number }> = {};
-    
-    tasks.forEach(task => {
-      const user = task.assignee;
-      
-      if (!userStats[user]) {
-        userStats[user] = { completed: 0, totalTime: 0, avgRating: 0, taskCount: 0 };
-      }
-      
-      if (task.status === 'done') {
-        userStats[user].completed += 1;
-      }
-      
-      if (task.timeTracked) {
-        userStats[user].totalTime += task.timeTracked;
-      }
-      
-      if (task.rating) {
-        const currentTotal = userStats[user].avgRating * userStats[user].taskCount;
-        userStats[user].taskCount += 1;
-        userStats[user].avgRating = (currentTotal + task.rating) / userStats[user].taskCount;
-      }
-    });
-    
-    let topUser = '';
-    let topScore = -1;
-    
-    Object.entries(userStats).forEach(([user, stats]) => {
-      const score = (
-        (stats.completed * 0.5) + 
-        ((stats.totalTime / 3600) * 0.3) + 
-        (stats.avgRating * 0.2)
-      );
-      
-      if (score > topScore) {
-        topScore = score;
-        topUser = user;
-      }
-    });
-    
-    return { user: topUser, score: topScore };
-  };
-
-  const topPerformer = getTopPerformer();
 
   return (
     <DndContext
@@ -213,29 +166,6 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      {/* VIP Section - Top Performer */}
-      {topPerformer.user && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-yellow-100 border border-amber-200 rounded-lg shadow-sm">
-          <h3 className="text-lg font-semibold flex items-center mb-2">
-            <Trophy className="h-5 w-5 mr-2 text-amber-500" />
-            VIP - Top Performer of the Month
-          </h3>
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-amber-900">{topPerformer.user}</p>
-              <p className="text-sm text-amber-700">
-                Excelling in task completion, time management, and quality
-              </p>
-            </div>
-            <div className="bg-white p-2 rounded-md border border-amber-200">
-              <span className="text-lg font-semibold text-amber-600">
-                {topPerformer.score.toFixed(1)} points
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-1">
         {columns.map((column) => {
           const columnTasks = getColumnTasks(column.id);
@@ -322,6 +252,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
               formatTime={formatTime}
               onViewTask={onViewTask}
               onTogglePin={onTogglePin}
+              onToggleSubtask={undefined}
             />
           </div>
         </DragOverlay>,
