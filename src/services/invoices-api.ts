@@ -2,8 +2,15 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
+// Define simpler types explicitly
 type Invoice = Database['public']['Tables']['invoices']['Row'];
-type InvoiceFilter = Partial<Pick<Invoice, 'status' | 'client_id' | 'project_id'>>;
+type InvoiceInsert = Omit<Invoice, 'id' | 'created_at' | 'updated_at'>;
+type InvoiceUpdate = Partial<InvoiceInsert>;
+type InvoiceFilter = {
+  status?: string;
+  client_id?: string;
+  project_id?: string;
+};
 
 export const invoicesApi = {
   getAll: async (params?: { filters?: InvoiceFilter }) => {
@@ -22,12 +29,12 @@ export const invoicesApi = {
     if (error) throw error;
     return { data };
   },
-  create: async (data: Omit<Invoice, 'id' | 'created_at' | 'updated_at'>) => {
+  create: async (data: InvoiceInsert) => {
     const { data: result, error } = await supabase.from('invoices').insert(data).select().single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: Partial<Omit<Invoice, 'id' | 'created_at' | 'updated_at'>>) => {
+  update: async (id: string, data: InvoiceUpdate) => {
     const { data: result, error } = await supabase.from('invoices').update(data).eq('id', id).select().single();
     if (error) throw error;
     return { data: result };

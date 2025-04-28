@@ -2,8 +2,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
+// Define simpler types explicitly
 type Report = Database['public']['Tables']['reports']['Row'];
-type ReportFilter = Partial<Pick<Report, 'type' | 'created_by'>>;
+type ReportInsert = Omit<Report, 'id' | 'created_at' | 'updated_at'>;
+type ReportUpdate = Partial<ReportInsert>;
+type ReportFilter = {
+  type?: string;
+  created_by?: string;
+};
 
 export const reportsApi = {
   getAll: async (params?: { filters?: ReportFilter }) => {
@@ -22,12 +28,12 @@ export const reportsApi = {
     if (error) throw error;
     return { data };
   },
-  create: async (data: Omit<Report, 'id' | 'created_at' | 'updated_at'>) => {
+  create: async (data: ReportInsert) => {
     const { data: result, error } = await supabase.from('reports').insert(data).select().single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: Partial<Omit<Report, 'id' | 'created_at' | 'updated_at'>>) => {
+  update: async (id: string, data: ReportUpdate) => {
     const { data: result, error } = await supabase.from('reports').update(data).eq('id', id).select().single();
     if (error) throw error;
     return { data: result };

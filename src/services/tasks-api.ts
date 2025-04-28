@@ -2,8 +2,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
+// Define simpler types explicitly
 type Task = Database['public']['Tables']['tasks']['Row'];
-type TaskFilter = Partial<Pick<Task, 'status' | 'priority' | 'assigned_to' | 'category_id'>>;
+type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at'>;
+type TaskUpdate = Partial<TaskInsert>;
+type TaskFilter = {
+  status?: string;
+  priority?: string;
+  assigned_to?: string;
+  category_id?: string;
+};
 
 export const tasksApi = {
   getAll: async (params?: { filters?: TaskFilter }) => {
@@ -23,12 +31,12 @@ export const tasksApi = {
     if (error) throw error;
     return { data };
   },
-  create: async (data: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
+  create: async (data: TaskInsert) => {
     const { data: result, error } = await supabase.from('tasks').insert(data).select().single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: Partial<Omit<Task, 'id' | 'created_at' | 'updated_at'>>) => {
+  update: async (id: string, data: TaskUpdate) => {
     const { data: result, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
     if (error) throw error;
     return { data: result };

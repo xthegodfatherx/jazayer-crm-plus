@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -98,14 +97,16 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
 
       const endTime = new Date();
       
-      // Save to database
+      // Save to database with required fields
       const timeEntryData = {
         task_id: taskId,
         start_time: startTimestamp.toISOString(),
         end_time: endTime.toISOString(),
         duration: seconds,
         description: `Time entry for task: ${taskTitle}`,
-        billable: true
+        billable: true,
+        user_id: null, // This is nullable in the schema, so we can set it to null
+        project_id: null // This is nullable in the schema, so we can set it to null
       };
       
       await timeEntriesApi.create(timeEntryData);

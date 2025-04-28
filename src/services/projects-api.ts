@@ -2,8 +2,15 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
+// Define simpler types explicitly
 type Project = Database['public']['Tables']['projects']['Row'];
-type ProjectFilter = Partial<Pick<Project, 'status' | 'client_id' | 'name'>>;
+type ProjectInsert = Omit<Project, 'id' | 'created_at' | 'updated_at'>;
+type ProjectUpdate = Partial<ProjectInsert>;
+type ProjectFilter = {
+  status?: string;
+  client_id?: string;
+  name?: string;
+};
 
 export const projectsApi = {
   getAll: async (params?: { filters?: ProjectFilter }) => {
@@ -22,12 +29,12 @@ export const projectsApi = {
     if (error) throw error;
     return { data };
   },
-  create: async (data: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
+  create: async (data: ProjectInsert) => {
     const { data: result, error } = await supabase.from('projects').insert(data).select().single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: Partial<Omit<Project, 'id' | 'created_at' | 'updated_at'>>) => {
+  update: async (id: string, data: ProjectUpdate) => {
     const { data: result, error } = await supabase.from('projects').update(data).eq('id', id).select().single();
     if (error) throw error;
     return { data: result };

@@ -2,8 +2,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
+// Define simpler types explicitly
 type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
-type TimeEntryFilter = Partial<Pick<TimeEntry, 'user_id' | 'project_id' | 'task_id' | 'billable'>>;
+type TimeEntryInsert = Omit<TimeEntry, 'id' | 'created_at' | 'updated_at'>;
+type TimeEntryUpdate = Partial<TimeEntryInsert>;
+type TimeEntryFilter = {
+  user_id?: string;
+  project_id?: string;
+  task_id?: string;
+  billable?: boolean;
+};
 
 export const timeEntriesApi = {
   getAll: async (params?: { filters?: TimeEntryFilter }) => {
@@ -22,12 +30,12 @@ export const timeEntriesApi = {
     if (error) throw error;
     return { data };
   },
-  create: async (data: Omit<TimeEntry, 'id' | 'created_at' | 'updated_at'>) => {
+  create: async (data: TimeEntryInsert) => {
     const { data: result, error } = await supabase.from('time_entries').insert(data).select().single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: Partial<Omit<TimeEntry, 'id' | 'created_at' | 'updated_at'>>) => {
+  update: async (id: string, data: TimeEntryUpdate) => {
     const { data: result, error } = await supabase.from('time_entries').update(data).eq('id', id).select().single();
     if (error) throw error;
     return { data: result };
