@@ -1,5 +1,8 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
+
+type TeamMember = Database['public']['Tables']['team_members']['Row'];
 
 export const teamApi = {
   getMembers: async () => {
@@ -12,12 +15,12 @@ export const teamApi = {
     if (error) throw error;
     return { data };
   },
-  create: async (data: any) => {
+  create: async (data: Omit<TeamMember, 'id' | 'created_at' | 'updated_at'>) => {
     const { data: result, error } = await supabase.from('team_members').insert(data).select().single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: any) => {
+  update: async (id: string, data: Partial<Omit<TeamMember, 'id' | 'created_at' | 'updated_at'>>) => {
     const { data: result, error } = await supabase.from('team_members').update(data).eq('id', id).select().single();
     if (error) throw error;
     return { data: result };

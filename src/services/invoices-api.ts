@@ -1,8 +1,11 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
+
+type Invoice = Database['public']['Tables']['invoices']['Row'];
 
 export const invoicesApi = {
-  getAll: async (params?: any) => {
+  getAll: async (params?: { filters?: Record<string, any> }) => {
     let query = supabase.from('invoices').select('*');
     if (params?.filters) {
       Object.entries(params.filters).forEach(([key, value]) => {
@@ -18,12 +21,12 @@ export const invoicesApi = {
     if (error) throw error;
     return { data };
   },
-  create: async (data: any) => {
+  create: async (data: Omit<Invoice, 'id' | 'created_at' | 'updated_at'>) => {
     const { data: result, error } = await supabase.from('invoices').insert(data).select().single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: any) => {
+  update: async (id: string, data: Partial<Omit<Invoice, 'id' | 'created_at' | 'updated_at'>>) => {
     const { data: result, error } = await supabase.from('invoices').update(data).eq('id', id).select().single();
     if (error) throw error;
     return { data: result };

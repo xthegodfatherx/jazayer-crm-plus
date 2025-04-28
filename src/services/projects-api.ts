@@ -1,8 +1,11 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
+
+type Project = Database['public']['Tables']['projects']['Row'];
 
 export const projectsApi = {
-  getAll: async (params?: any) => {
+  getAll: async (params?: { filters?: Record<string, any> }) => {
     let query = supabase.from('projects').select('*');
     if (params?.filters) {
       Object.entries(params.filters).forEach(([key, value]) => {
@@ -18,12 +21,12 @@ export const projectsApi = {
     if (error) throw error;
     return { data };
   },
-  create: async (data: any) => {
+  create: async (data: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
     const { data: result, error } = await supabase.from('projects').insert(data).select().single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: any) => {
+  update: async (id: string, data: Partial<Omit<Project, 'id' | 'created_at' | 'updated_at'>>) => {
     const { data: result, error } = await supabase.from('projects').update(data).eq('id', id).select().single();
     if (error) throw error;
     return { data: result };
