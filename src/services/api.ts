@@ -1,107 +1,221 @@
 
-import axios from 'axios';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-// Define base API URL - would come from environment in production
-const API_URL = 'http://localhost:8000/api';
-
-// Create axios instance with credentials support
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  },
-  withCredentials: true, // Important for cookies/authentication
-});
-
 // Add response interceptor for global error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const message = error.response?.data?.message || 'Something went wrong';
-    
-    // Handle authentication errors
-    if (error.response?.status === 401) {
-      toast({
-        title: "Authentication Error",
-        description: "Please log in again",
-        variant: "destructive"
-      });
-      // You could redirect to login page here
-    } else if (error.response?.status === 403) {
-      toast({
-        title: "Permission Denied",
-        description: message,
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive"
-      });
-    }
-    
-    return Promise.reject(error);
+const handleError = (error: any) => {
+  const message = error.message || 'Something went wrong';
+  
+  // Handle authentication errors
+  if (error.status === 401) {
+    toast({
+      title: "Authentication Error",
+      description: "Please log in again",
+      variant: "destructive"
+    });
+  } else if (error.status === 403) {
+    toast({
+      title: "Permission Denied",
+      description: message,
+      variant: "destructive"
+    });
+  } else {
+    toast({
+      title: "Error",
+      description: message,
+      variant: "destructive"
+    });
   }
-);
+  
+  return Promise.reject(error);
+};
 
 // Auth API service
 export const authApi = {
-  login: (credentials: { email: string; password: string }) => 
-    api.post('/auth/login', credentials),
-  register: (userData: { name: string; email: string; password: string; password_confirmation: string }) => 
-    api.post('/auth/register', userData),
-  logout: () => api.post('/auth/logout'),
-  getUser: () => api.get('/auth/user'),
+  login: async ({ email, password }: { email: string; password: string }) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return { data };
+  },
+  register: async ({ name, email, password }: { name: string; email: string; password: string }) => {
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        data: { name }
+      }
+    });
+    if (error) throw error;
+    return { data };
+  },
+  logout: async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+  getUser: async () => {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return { data: user };
+  },
 };
 
 // Task Categories API service
 export const taskCategoriesApi = {
-  getAll: () => api.get('/task-categories'),
-  get: (id: string) => api.get(`/task-categories/${id}`),
-  create: (data: any) => api.post('/task-categories', data),
-  update: (id: string, data: any) => api.put(`/task-categories/${id}`, data),
-  delete: (id: string) => api.delete(`/task-categories/${id}`),
+  getAll: async () => {
+    const { data, error } = await supabase.from('task_categories').select('*');
+    if (error) throw error;
+    return { data };
+  },
+  get: async (id: string) => {
+    const { data, error } = await supabase.from('task_categories').select('*').eq('id', id).single();
+    if (error) throw error;
+    return { data };
+  },
+  create: async (data: any) => {
+    const { data: result, error } = await supabase.from('task_categories').insert(data).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  update: async (id: string, data: any) => {
+    const { data: result, error } = await supabase.from('task_categories').update(data).eq('id', id).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  delete: async (id: string) => {
+    const { error } = await supabase.from('task_categories').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
 
 // Tasks API service
 export const tasksApi = {
-  getAll: (params?: any) => api.get('/tasks', { params }),
-  get: (id: string) => api.get(`/tasks/${id}`),
-  create: (data: any) => api.post('/tasks', data),
-  update: (id: string, data: any) => api.put(`/tasks/${id}`, data),
-  delete: (id: string) => api.delete(`/tasks/${id}`),
-  updatePositions: (data: any) => api.post('/tasks/positions', data),
+  getAll: async (params?: any) => {
+    let query = supabase.from('tasks').select('*');
+    if (params?.filters) {
+      // Add filters based on params
+      Object.entries(params.filters).forEach(([key, value]) => {
+        if (value) query = query.eq(key, value);
+      });
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return { data };
+  },
+  get: async (id: string) => {
+    const { data, error } = await supabase.from('tasks').select('*').eq('id', id).single();
+    if (error) throw error;
+    return { data };
+  },
+  create: async (data: any) => {
+    const { data: result, error } = await supabase.from('tasks').insert(data).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  update: async (id: string, data: any) => {
+    const { data: result, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  delete: async (id: string) => {
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
 
 // Projects API service
 export const projectsApi = {
-  getAll: (params?: any) => api.get('/projects', { params }),
-  get: (id: string) => api.get(`/projects/${id}`),
-  create: (data: any) => api.post('/projects', data),
-  update: (id: string, data: any) => api.put(`/projects/${id}`, data),
-  delete: (id: string) => api.delete(`/projects/${id}`),
+  getAll: async (params?: any) => {
+    let query = supabase.from('projects').select('*');
+    if (params?.filters) {
+      Object.entries(params.filters).forEach(([key, value]) => {
+        if (value) query = query.eq(key, value);
+      });
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return { data };
+  },
+  get: async (id: string) => {
+    const { data, error } = await supabase.from('projects').select('*').eq('id', id).single();
+    if (error) throw error;
+    return { data };
+  },
+  create: async (data: any) => {
+    const { data: result, error } = await supabase.from('projects').insert(data).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  update: async (id: string, data: any) => {
+    const { data: result, error } = await supabase.from('projects').update(data).eq('id', id).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  delete: async (id: string) => {
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
 
 // Team API service
 export const teamApi = {
-  getMembers: () => api.get('/team'),
-  getMember: (id: string) => api.get(`/team/${id}`),
-  create: (data: any) => api.post('/team', data),
-  update: (id: string, data: any) => api.put(`/team/${id}`, data),
-  delete: (id: string) => api.delete(`/team/${id}`),
+  getMembers: async () => {
+    const { data, error } = await supabase.from('team_members').select('*');
+    if (error) throw error;
+    return { data };
+  },
+  getMember: async (id: string) => {
+    const { data, error } = await supabase.from('team_members').select('*').eq('id', id).single();
+    if (error) throw error;
+    return { data };
+  },
+  create: async (data: any) => {
+    const { data: result, error } = await supabase.from('team_members').insert(data).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  update: async (id: string, data: any) => {
+    const { data: result, error } = await supabase.from('team_members').update(data).eq('id', id).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  delete: async (id: string) => {
+    const { error } = await supabase.from('team_members').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
 
 // Invoices API service
 export const invoicesApi = {
-  getAll: (params?: any) => api.get('/invoices', { params }),
-  get: (id: string) => api.get(`/invoices/${id}`),
-  create: (data: any) => api.post('/invoices', data),
-  update: (id: string, data: any) => api.put(`/invoices/${id}`, data),
-  delete: (id: string) => api.delete(`/invoices/${id}`),
+  getAll: async (params?: any) => {
+    let query = supabase.from('invoices').select('*');
+    if (params?.filters) {
+      Object.entries(params.filters).forEach(([key, value]) => {
+        if (value) query = query.eq(key, value);
+      });
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return { data };
+  },
+  get: async (id: string) => {
+    const { data, error } = await supabase.from('invoices').select('*').eq('id', id).single();
+    if (error) throw error;
+    return { data };
+  },
+  create: async (data: any) => {
+    const { data: result, error } = await supabase.from('invoices').insert(data).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  update: async (id: string, data: any) => {
+    const { data: result, error } = await supabase.from('invoices').update(data).eq('id', id).select().single();
+    if (error) throw error;
+    return { data: result };
+  },
+  delete: async (id: string) => {
+    const { error } = await supabase.from('invoices').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
 
-// Export the API instance as default
-export default api;
+// Remove axios export since we're not using it anymore
