@@ -3,9 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 type Invoice = Database['public']['Tables']['invoices']['Row'];
+type InvoiceFilter = Partial<Pick<Invoice, 'status' | 'client_id' | 'project_id'>>;
 
 export const invoicesApi = {
-  getAll: async (params?: { filters?: Record<string, any> }) => {
+  getAll: async (params?: { filters?: InvoiceFilter }) => {
     let query = supabase.from('invoices').select('*');
     if (params?.filters) {
       Object.entries(params.filters).forEach(([key, value]) => {

@@ -7,6 +7,10 @@ import { tasksApi } from './tasks-api';
 import { projectsApi } from './projects-api';
 import { teamApi } from './team-api';
 import { invoicesApi } from './invoices-api';
+import { clientsApi } from './clients-api';
+import { expensesApi } from './expenses-api';
+import { timeEntriesApi } from './time-entries-api';
+import { reportsApi } from './reports-api';
 
 const handleError = (error: any) => {
   const message = error.message || 'Something went wrong';
@@ -41,5 +45,9 @@ export {
   projectsApi,
   teamApi,
   invoicesApi,
+  clientsApi,
+  expensesApi,
+  timeEntriesApi,
+  reportsApi,
   handleError
 };

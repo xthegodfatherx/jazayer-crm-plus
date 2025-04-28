@@ -3,9 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 type Task = Database['public']['Tables']['tasks']['Row'];
+type TaskFilter = Partial<Pick<Task, 'status' | 'priority' | 'assigned_to' | 'category_id'>>;
 
 export const tasksApi = {
-  getAll: async (params?: { filters?: Record<string, any> }) => {
+  getAll: async (params?: { filters?: TaskFilter }) => {
     let query = supabase.from('tasks').select('*');
     if (params?.filters) {
       // Add filters based on params
