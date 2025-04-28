@@ -3,14 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 // Define simpler types explicitly
-type Invoice = Database['public']['Tables']['invoices']['Row'];
-type InvoiceInsert = Omit<Invoice, 'id' | 'created_at' | 'updated_at'>;
-type InvoiceUpdate = Partial<InvoiceInsert>;
-type InvoiceFilter = {
+export type Invoice = Database['public']['Tables']['invoices']['Row'];
+export type InvoiceInsert = Database['public']['Tables']['invoices']['Insert'];
+export type InvoiceUpdate = Database['public']['Tables']['invoices']['Update'];
+
+export interface InvoiceFilter {
   status?: string;
   client_id?: string;
   project_id?: string;
-};
+}
 
 export const invoicesApi = {
   getAll: async (params?: { filters?: InvoiceFilter }) => {

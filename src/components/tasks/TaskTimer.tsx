@@ -12,6 +12,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { timeEntriesApi } from '@/services/api';
+import { TimeEntryInsert } from '@/services/time-entries-api';
 
 interface TaskTimerProps {
   taskId: string;
@@ -97,16 +98,16 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
 
       const endTime = new Date();
       
-      // Save to database with required fields
-      const timeEntryData = {
+      // Create time entry data with proper types
+      const timeEntryData: TimeEntryInsert = {
         task_id: taskId,
         start_time: startTimestamp.toISOString(),
         end_time: endTime.toISOString(),
         duration: seconds,
         description: `Time entry for task: ${taskTitle}`,
         billable: true,
-        user_id: null, // This is nullable in the schema, so we can set it to null
-        project_id: null // This is nullable in the schema, so we can set it to null
+        user_id: null, // This is nullable in the schema
+        project_id: null // This is nullable in the schema
       };
       
       await timeEntriesApi.create(timeEntryData);

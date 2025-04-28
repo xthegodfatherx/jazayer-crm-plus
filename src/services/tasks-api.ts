@@ -3,15 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 // Define simpler types explicitly
-type Task = Database['public']['Tables']['tasks']['Row'];
-type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at'>;
-type TaskUpdate = Partial<TaskInsert>;
-type TaskFilter = {
+export type Task = Database['public']['Tables']['tasks']['Row'];
+export type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
+export type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
+
+export interface TaskFilter {
   status?: string;
   priority?: string;
   assigned_to?: string;
   category_id?: string;
-};
+}
 
 export const tasksApi = {
   getAll: async (params?: { filters?: TaskFilter }) => {

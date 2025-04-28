@@ -3,14 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 // Define simpler types explicitly
-type Expense = Database['public']['Tables']['expenses']['Row'];
-type ExpenseInsert = Omit<Expense, 'id' | 'created_at' | 'updated_at'>;
-type ExpenseUpdate = Partial<ExpenseInsert>;
-type ExpenseFilter = {
+export type Expense = Database['public']['Tables']['expenses']['Row'];
+export type ExpenseInsert = Database['public']['Tables']['expenses']['Insert'];
+export type ExpenseUpdate = Database['public']['Tables']['expenses']['Update'];
+
+export interface ExpenseFilter {
   status?: string;
   category?: string;
   project_id?: string;
-};
+}
 
 export const expensesApi = {
   getAll: async (params?: { filters?: ExpenseFilter }) => {

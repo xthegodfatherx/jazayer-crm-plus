@@ -3,15 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 // Define simpler types explicitly
-type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
-type TimeEntryInsert = Omit<TimeEntry, 'id' | 'created_at' | 'updated_at'>;
-type TimeEntryUpdate = Partial<TimeEntryInsert>;
-type TimeEntryFilter = {
+export type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
+export type TimeEntryInsert = Database['public']['Tables']['time_entries']['Insert'];
+export type TimeEntryUpdate = Database['public']['Tables']['time_entries']['Update'];
+
+export interface TimeEntryFilter {
   user_id?: string;
   project_id?: string;
   task_id?: string;
   billable?: boolean;
-};
+}
 
 export const timeEntriesApi = {
   getAll: async (params?: { filters?: TimeEntryFilter }) => {

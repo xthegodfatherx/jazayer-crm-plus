@@ -3,14 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 // Define simpler types explicitly
-type Project = Database['public']['Tables']['projects']['Row'];
-type ProjectInsert = Omit<Project, 'id' | 'created_at' | 'updated_at'>;
-type ProjectUpdate = Partial<ProjectInsert>;
-type ProjectFilter = {
+export type Project = Database['public']['Tables']['projects']['Row'];
+export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
+export type ProjectUpdate = Database['public']['Tables']['projects']['Update'];
+
+export interface ProjectFilter {
   status?: string;
   client_id?: string;
   name?: string;
-};
+}
 
 export const projectsApi = {
   getAll: async (params?: { filters?: ProjectFilter }) => {

@@ -3,13 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 // Define simpler types explicitly
-type Client = Database['public']['Tables']['clients']['Row'];
-type ClientInsert = Omit<Client, 'id' | 'created_at' | 'updated_at'>;
-type ClientUpdate = Partial<ClientInsert>;
-type ClientFilter = {
+export type Client = Database['public']['Tables']['clients']['Row'];
+export type ClientInsert = Database['public']['Tables']['clients']['Insert'];
+export type ClientUpdate = Database['public']['Tables']['clients']['Update'];
+
+export interface ClientFilter {
   status?: string;
   name?: string;
-};
+}
 
 export const clientsApi = {
   getAll: async (params?: { filters?: ClientFilter }) => {
