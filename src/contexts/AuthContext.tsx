@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Session } from '@supabase/supabase-js';
 import { authApi } from '@/services/api';
 import { UserProfile } from '@/types/auth';
 
@@ -30,7 +29,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const checkAuth = async () => {
       try {
         const response = await authApi.getUser();
-        setUser(response.data as UserProfile);
+        if (response.data) {
+          // Convert Supabase User to our UserProfile type
+          const userProfile: UserProfile = {
+            ...response.data,
+            name: response.data.user_metadata?.name || '',
+            role: response.data.user_metadata?.role || ''
+          };
+          setUser(userProfile);
+        }
       } catch (error) {
         setUser(null);
       } finally {
@@ -45,7 +52,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       const response = await authApi.login({ email, password });
-      setUser(response.data.user as UserProfile);
+      if (response.data.user) {
+        // Convert Supabase User to our UserProfile type
+        const userProfile: UserProfile = {
+          ...response.data.user,
+          name: response.data.user.user_metadata?.name || '',
+          role: response.data.user.user_metadata?.role || ''
+        };
+        setUser(userProfile);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +70,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       const response = await authApi.register({ name, email, password });
-      setUser(response.data.user as UserProfile);
+      if (response.data.user) {
+        // Convert Supabase User to our UserProfile type
+        const userProfile: UserProfile = {
+          ...response.data.user,
+          name: response.data.user.user_metadata?.name || '',
+          role: response.data.user.user_metadata?.role || ''
+        };
+        setUser(userProfile);
+      }
     } finally {
       setIsLoading(false);
     }
