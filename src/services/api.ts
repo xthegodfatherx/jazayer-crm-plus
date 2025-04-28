@@ -1,12 +1,12 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
 
-// Add response interceptor for global error handling
+type Tables = Database['public']['Tables'];
+
 const handleError = (error: any) => {
   const message = error.message || 'Something went wrong';
   
-  // Handle authentication errors
   if (error.status === 401) {
     toast({
       title: "Authentication Error",
@@ -30,7 +30,6 @@ const handleError = (error: any) => {
   return Promise.reject(error);
 };
 
-// Auth API service
 export const authApi = {
   login: async ({ email, password }: { email: string; password: string }) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -59,30 +58,47 @@ export const authApi = {
   },
 };
 
-// Task Categories API service
 export const taskCategoriesApi = {
   getAll: async () => {
-    const { data, error } = await supabase.from('task_categories').select('*');
+    const { data, error } = await supabase
+      .from('task_categories')
+      .select<'*', Tables['task_categories']['Row']>('*');
     if (error) throw error;
     return { data };
   },
   get: async (id: string) => {
-    const { data, error } = await supabase.from('task_categories').select('*').eq('id', id).single();
+    const { data, error } = await supabase
+      .from('task_categories')
+      .select<'*', Tables['task_categories']['Row']>('*')
+      .eq('id', id)
+      .single();
     if (error) throw error;
     return { data };
   },
-  create: async (data: any) => {
-    const { data: result, error } = await supabase.from('task_categories').insert(data).select().single();
+  create: async (data: Tables['task_categories']['Insert']) => {
+    const { data: result, error } = await supabase
+      .from('task_categories')
+      .insert(data)
+      .select()
+      .single();
     if (error) throw error;
     return { data: result };
   },
-  update: async (id: string, data: any) => {
-    const { data: result, error } = await supabase.from('task_categories').update(data).eq('id', id).select().single();
+  update: async (id: string, data: Tables['task_categories']['Update']) => {
+    const { data: result, error } = await supabase
+      .from('task_categories')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
     if (error) throw error;
     return { data: result };
   },
   delete: async (id: string) => {
-    const { error } = await supabase.from('task_categories').delete().eq('id', id);
+    const { error } = await supabase
+      .from('task_categories')
+      .delete()
+      .eq('id', id);
     if (error) throw error;
   },
 };

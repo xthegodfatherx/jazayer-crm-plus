@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { 
@@ -28,16 +27,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { taskCategoriesApi } from '@/services/api';
+import type { Database } from '@/integrations/supabase/types';
 
-interface TaskCategory {
-  id: string;
-  name: string;
-  pricing: {
-    oneStar: number;
-    twoStar: number;
-    threeStar: number;
-  };
-}
+type TaskCategory = Database['public']['Tables']['task_categories']['Row'];
 
 const TaskCategoryManagement = () => {
   const { userRole } = usePermissions();
@@ -47,9 +39,9 @@ const TaskCategoryManagement = () => {
   const [editingCategory, setEditingCategory] = useState<TaskCategory | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    oneStar: '',
-    twoStar: '',
-    threeStar: ''
+    price_1_star: '',
+    price_2_star: '',
+    price_3_star: ''
   });
 
   const canManageCategories = userRole === 'admin' || userRole === 'manager';
@@ -62,20 +54,9 @@ const TaskCategoryManagement = () => {
       setIsLoading(true);
       try {
         const response = await taskCategoriesApi.getAll();
-        // Transform response data to match our frontend model if needed
-        const transformedData = response.data.map((item: any) => ({
-          id: item.id.toString(),
-          name: item.name,
-          pricing: {
-            oneStar: item.price_1_star,
-            twoStar: item.price_2_star,
-            threeStar: item.price_3_star
-          }
-        }));
-        setCategories(transformedData);
+        setCategories(response.data);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
-        // Toast error is handled by API interceptor
       } finally {
         setIsLoading(false);
       }
@@ -89,58 +70,41 @@ const TaskCategoryManagement = () => {
     
     const categoryData = {
       name: formData.name,
-      price_1_star: Number(formData.oneStar),
-      price_2_star: Number(formData.twoStar),
-      price_3_star: Number(formData.threeStar),
+      price_1_star: Number(formData.price_1_star),
+      price_2_star: Number(formData.price_2_star),
+      price_3_star: Number(formData.price_3_star),
     };
     
     try {
       if (editingCategory) {
-        const response = await taskCategoriesApi.update(editingCategory.id, categoryData);
-        const updatedCategory = {
-          id: response.data.id.toString(),
-          name: response.data.name,
-          pricing: {
-            oneStar: response.data.price_1_star,
-            twoStar: response.data.price_2_star,
-            threeStar: response.data.price_3_star
-          }
-        };
-        
-        setCategories(categories.map(cat => 
-          cat.id === editingCategory.id ? updatedCategory : cat
-        ));
-        
-        toast({
-          title: "Category Updated",
-          description: `${response.data.name} has been updated successfully.`
-        });
+        const { data } = await taskCategoriesApi.update(editingCategory.id, categoryData);
+        if (data) {
+          setCategories(categories.map(cat => 
+            cat.id === editingCategory.id ? data : cat
+          ));
+          
+          toast({
+            title: "Category Updated",
+            description: `${data.name} has been updated successfully.`
+          });
+        }
       } else {
-        const response = await taskCategoriesApi.create(categoryData);
-        const newCategory = {
-          id: response.data.id.toString(),
-          name: response.data.name,
-          pricing: {
-            oneStar: response.data.price_1_star,
-            twoStar: response.data.price_2_star,
-            threeStar: response.data.price_3_star
-          }
-        };
-        
-        setCategories([...categories, newCategory]);
-        
-        toast({
-          title: "Category Created",
-          description: `${response.data.name} has been added successfully.`
-        });
+        const { data } = await taskCategoriesApi.create(categoryData);
+        if (data) {
+          setCategories([...categories, data]);
+          
+          toast({
+            title: "Category Created",
+            description: `${data.name} has been added successfully.`
+          });
+        }
       }
 
       setIsDialogOpen(false);
       setEditingCategory(null);
-      setFormData({ name: '', oneStar: '', twoStar: '', threeStar: '' });
+      setFormData({ name: '', price_1_star: '', price_2_star: '', price_3_star: '' });
     } catch (error) {
       console.error('Error saving category:', error);
-      // Toast error is handled by API interceptor
     }
   };
 
@@ -148,9 +112,9 @@ const TaskCategoryManagement = () => {
     setEditingCategory(category);
     setFormData({
       name: category.name,
-      oneStar: category.pricing.oneStar.toString(),
-      twoStar: category.pricing.twoStar.toString(),
-      threeStar: category.pricing.threeStar.toString()
+      price_1_star: category.price_1_star?.toString() || '',
+      price_2_star: category.price_2_star?.toString() || '',
+      price_3_star: category.price_3_star?.toString() || ''
     });
     setIsDialogOpen(true);
   };
@@ -165,7 +129,6 @@ const TaskCategoryManagement = () => {
       });
     } catch (error) {
       console.error('Error deleting category:', error);
-      // Toast error is handled by API interceptor
     }
   };
 
@@ -183,7 +146,7 @@ const TaskCategoryManagement = () => {
           <DialogTrigger asChild>
             <Button onClick={() => {
               setEditingCategory(null);
-              setFormData({ name: '', oneStar: '', twoStar: '', threeStar: '' });
+              setFormData({ name: '', price_1_star: '', price_2_star: '', price_3_star: '' });
             }}>
               <Plus className="h-4 w-4 mr-2" />
               Add Category
@@ -207,34 +170,34 @@ const TaskCategoryManagement = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="oneStar">1-Star Price</Label>
+                <Label htmlFor="price_1_star">1-Star Price</Label>
                 <Input
-                  id="oneStar"
+                  id="price_1_star"
                   type="number"
-                  value={formData.oneStar}
-                  onChange={e => setFormData({...formData, oneStar: e.target.value})}
+                  value={formData.price_1_star}
+                  onChange={e => setFormData({...formData, price_1_star: e.target.value})}
                   placeholder="Price for 1-star rating"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="twoStar">2-Star Price</Label>
+                <Label htmlFor="price_2_star">2-Star Price</Label>
                 <Input
-                  id="twoStar"
+                  id="price_2_star"
                   type="number"
-                  value={formData.twoStar}
-                  onChange={e => setFormData({...formData, twoStar: e.target.value})}
+                  value={formData.price_2_star}
+                  onChange={e => setFormData({...formData, price_2_star: e.target.value})}
                   placeholder="Price for 2-star rating"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="threeStar">3-Star Price</Label>
+                <Label htmlFor="price_3_star">3-Star Price</Label>
                 <Input
-                  id="threeStar"
+                  id="price_3_star"
                   type="number"
-                  value={formData.threeStar}
-                  onChange={e => setFormData({...formData, threeStar: e.target.value})}
+                  value={formData.price_3_star}
+                  onChange={e => setFormData({...formData, price_3_star: e.target.value})}
                   placeholder="Price for 3-star rating"
                   required
                 />
@@ -269,9 +232,9 @@ const TaskCategoryManagement = () => {
                 categories.map(category => (
                   <TableRow key={category.id}>
                     <TableCell>{category.name}</TableCell>
-                    <TableCell>${category.pricing.oneStar}</TableCell>
-                    <TableCell>${category.pricing.twoStar}</TableCell>
-                    <TableCell>${category.pricing.threeStar}</TableCell>
+                    <TableCell>${category.price_1_star}</TableCell>
+                    <TableCell>${category.price_2_star}</TableCell>
+                    <TableCell>${category.price_3_star}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button
