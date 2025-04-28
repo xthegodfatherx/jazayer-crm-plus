@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { timeEntriesApi } from '@/services/api';
 
 interface TaskTimerProps {
   taskId: string;
@@ -31,10 +32,15 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
   const [seconds, setSeconds] = useState(initialSeconds);
   const [isActive, setIsActive] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [startTimestamp, setStartTimestamp] = useState<Date | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
+    if (isActive && !startTimestamp) {
+      setStartTimestamp(new Date());
+    }
+
     if (isActive) {
       timerRef.current = setInterval(() => {
         setSeconds(prev => prev + 1);
@@ -48,7 +54,7 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
         clearInterval(timerRef.current);
       }
     };
-  }, [isActive]);
+  }, [isActive, startTimestamp]);
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -59,11 +65,14 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
   };
 
   const toggleTimer = () => {
+    if (!isActive && !startTimestamp) {
+      setStartTimestamp(new Date());
+    }
     setIsActive(!isActive);
     toast({
       title: isActive ? "Timer paused" : "Timer started",
       description: `Task: ${taskTitle}`,
-      variant: isActive ? "destructive" : "default" // Fixed variant
+      variant: isActive ? "destructive" : "default"
     });
   };
 
@@ -72,20 +81,56 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
     toast({
       title: "Timer stopped",
       description: `Total time: ${formatTime(seconds)}`,
-      variant: "default" // Fixed variant
+      variant: "default"
     });
   };
 
-  const saveTime = () => {
-    if (onSaveTime) {
-      onSaveTime(taskId, seconds);
+  const saveTime = async () => {
+    try {
+      if (!startTimestamp) {
+        toast({
+          title: "Error",
+          description: "Invalid start time",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const endTime = new Date();
+      
+      // Save to database
+      const timeEntryData = {
+        task_id: taskId,
+        start_time: startTimestamp.toISOString(),
+        end_time: endTime.toISOString(),
+        duration: seconds,
+        description: `Time entry for task: ${taskTitle}`,
+        billable: true
+      };
+      
+      await timeEntriesApi.create(timeEntryData);
+
+      if (onSaveTime) {
+        onSaveTime(taskId, seconds);
+      }
+      
       toast({
         title: "Time saved",
         description: `${formatTime(seconds)} recorded for task "${taskTitle}"`,
-        variant: "default" // Removed "success" variant
+        variant: "default"
+      });
+      
+      setIsActive(false);
+      setSeconds(0);
+      setStartTimestamp(null);
+    } catch (error) {
+      console.error("Failed to save time entry:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save time entry",
+        variant: "destructive"
       });
     }
-    setIsActive(false);
   };
 
   const toggleMinimize = () => {

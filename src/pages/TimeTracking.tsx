@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,91 +9,74 @@ import TaskTimer from '@/components/tasks/TaskTimer';
 import TeamTimeReport from '@/components/reports/TeamTimeReport';
 import { Task } from './Tasks';
 import { useToast } from '@/hooks/use-toast';
+import { tasksApi, timeEntriesApi } from '@/services/api';
+import { Database } from '@/integrations/supabase/types';
 
-interface TimeEntry {
-  id: string;
-  taskId: string;
-  startTime: string;
-  endTime?: string;
-  duration: number; // in seconds
-  status: 'ongoing' | 'paused' | 'completed';
-  notes?: string;
-}
+type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
+type TaskType = Database['public']['Tables']['tasks']['Row'];
 
 const TimeTracking: React.FC = () => {
   const [activeTimer, setActiveTimer] = useState<Task | null>(null);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
-  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<TaskType[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Sample tasks (in a real app, these would come from a context or API)
-  const tasks: Task[] = [
-    {
-      id: '1',
-      title: 'Design new homepage',
-      description: 'Create a modern homepage design for the client website',
-      assignee: 'Ahmed Khalifi',
-      dueDate: '2025-04-15',
-      status: 'in-progress',
-      priority: 'high',
-      rating: 4,
-      tags: ['Design', 'Website'],
-      subtasks: [
-        { id: '1-1', title: 'Create wireframes', completed: true },
-        { id: '1-2', title: 'Design mockups', completed: false },
-        { id: '1-3', title: 'Get client approval', completed: false },
-      ]
-    },
-    {
-      id: '2',
-      title: 'Implement API authentication',
-      description: 'Add JWT authentication to the REST API',
-      assignee: 'Leila Benzema',
-      dueDate: '2025-04-20',
-      status: 'todo',
-      priority: 'medium',
-      tags: ['Backend', 'Security'],
-    },
-    {
-      id: '3',
-      title: 'Fix mobile responsive issues',
-      description: 'Address the layout problems on small screens',
-      assignee: 'Selma Bouaziz',
-      dueDate: '2025-04-10',
-      status: 'in-review',
-      priority: 'high',
-      rating: 3,
-      tags: ['Frontend', 'Mobile'],
-    },
-  ];
+  useEffect(() => {
+    loadTimeEntries();
+    loadTasks();
+  }, []);
+
+  const loadTimeEntries = async () => {
+    try {
+      setLoading(true);
+      const { data } = await timeEntriesApi.getAll();
+      if (data) {
+        setTimeEntries(data);
+      }
+    } catch (error) {
+      console.error("Error loading time entries:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load time entries",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTasks = async () => {
+    try {
+      const { data } = await tasksApi.getAll();
+      if (data) {
+        setTasks(data);
+      }
+    } catch (error) {
+      console.error("Error loading tasks:", error);
+    }
+  };
   
-  const handleSaveTime = (taskId: string, seconds: number) => {
-    const timeEntry: TimeEntry = {
-      id: Date.now().toString(),
-      taskId,
-      startTime: new Date(Date.now() - seconds * 1000).toISOString(),
-      endTime: new Date().toISOString(),
-      duration: seconds,
-      status: 'completed',
-    };
-    
-    setTimeEntries(prev => [...prev, timeEntry]);
+  const handleSaveTime = async (taskId: string, seconds: number) => {
+    // Time entry has already been saved in the TaskTimer component
+    // We just need to refresh the list
+    loadTimeEntries();
     setActiveTimer(null);
   };
 
-  const startTimerForTask = (task: Task) => {
-    setActiveTimer(task);
-    
-    // Create a new ongoing time entry
-    const timeEntry: TimeEntry = {
-      id: Date.now().toString(),
-      taskId: task.id,
-      startTime: new Date().toISOString(),
-      duration: 0,
-      status: 'ongoing',
+  const startTimerForTask = (task: TaskType) => {
+    const taskForTimer: Task = {
+      id: task.id,
+      title: task.title,
+      description: task.description || '',
+      assignee: task.assigned_to || '',
+      dueDate: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
+      status: task.status as Task['status'],
+      priority: task.priority as Task['priority'],
+      tags: [],
     };
     
-    setTimeEntries(prev => [...prev, timeEntry]);
+    setActiveTimer(taskForTimer);
   };
 
   const formatDuration = (seconds: number) => {
@@ -104,7 +87,7 @@ const TimeTracking: React.FC = () => {
   };
 
   const calculateTotalTime = () => {
-    const totalSeconds = timeEntries.reduce((sum, entry) => sum + entry.duration, 0);
+    const totalSeconds = timeEntries.reduce((sum, entry) => sum + (entry.duration || 0), 0);
     return formatDuration(totalSeconds);
   };
 
@@ -141,7 +124,7 @@ const TimeTracking: React.FC = () => {
                       <div className="flex justify-between items-center">
                         <div>
                           <h3 className="font-medium">{task.title}</h3>
-                          <p className="text-sm text-muted-foreground">Assigned to: {task.assignee}</p>
+                          <p className="text-sm text-muted-foreground">Assigned to: {task.assigned_to || 'Unassigned'}</p>
                         </div>
                         <Button size="sm" variant="outline">
                           <Timer className="h-4 w-4" />
@@ -150,6 +133,12 @@ const TimeTracking: React.FC = () => {
                     </CardContent>
                   </Card>
                 ))}
+                
+                {tasks.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No tasks available. Create a task first.</p>
+                  </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -171,29 +160,36 @@ const TimeTracking: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {timeEntries.length > 0 ? (
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Loading time entries...</p>
+                </div>
+              ) : timeEntries.length > 0 ? (
                 <div className="space-y-4">
                   {timeEntries.map((timeEntry) => {
-                    const task = getTaskById(timeEntry.taskId);
-                    if (!task) return null;
+                    const task = getTaskById(timeEntry.task_id || '');
                     
                     return (
                       <div key={timeEntry.id} className="flex justify-between items-center p-3 border rounded-md group">
                         <div>
-                          <h3 className="font-medium">{task.title}</h3>
+                          <h3 className="font-medium">{task?.title || 'Unknown Task'}</h3>
                           <div className="flex flex-col space-y-1 text-sm text-muted-foreground">
                             <span className="flex items-center">
                               <Clock className="h-3 w-3 mr-1" />
-                              Started: {formatDate(timeEntry.startTime)}
+                              Started: {formatDate(timeEntry.start_time)}
                             </span>
-                            {timeEntry.endTime && (
-                              <span>Ended: {formatDate(timeEntry.endTime)}</span>
+                            {timeEntry.end_time && (
+                              <span>Ended: {formatDate(timeEntry.end_time)}</span>
                             )}
-                            <span className="text-xs">Status: {timeEntry.status}</span>
+                            <span className="text-xs">
+                              Status: {timeEntry.end_time ? 'Completed' : 'Ongoing'}
+                            </span>
                           </div>
                         </div>
                         <div className="text-right flex flex-col items-end">
-                          <p className="font-mono font-medium">{formatDuration(timeEntry.duration)}</p>
+                          <p className="font-mono font-medium">
+                            {formatDuration(timeEntry.duration || 0)}
+                          </p>
                           <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Edit className="h-3 w-3" />
                           </Button>
@@ -221,7 +217,7 @@ const TimeTracking: React.FC = () => {
             <Card>
               <CardContent className="p-6">
                 <div className="text-3xl font-bold text-center">
-                  {formatDuration(timeEntries.filter(entry => entry.status === 'completed').reduce((sum, entry) => sum + entry.duration, 0))}
+                  {formatDuration(timeEntries.filter(entry => entry.end_time).reduce((sum, entry) => sum + (entry.duration || 0), 0))}
                 </div>
                 <p className="text-center text-sm text-muted-foreground mt-2">Completed Time</p>
               </CardContent>
@@ -229,7 +225,9 @@ const TimeTracking: React.FC = () => {
             <Card>
               <CardContent className="p-6">
                 <div className="text-3xl font-bold text-center">
-                  {timeEntries.length > 0 ? (timeEntries.reduce((sum, entry) => sum + entry.duration, 0) / timeEntries.length / 60 / 60).toFixed(1) + 'h' : '0h'}
+                  {timeEntries.length > 0 ? 
+                    (timeEntries.reduce((sum, entry) => sum + (entry.duration || 0), 0) / timeEntries.length / 60 / 60).toFixed(1) + 'h' 
+                    : '0h'}
                 </div>
                 <p className="text-center text-sm text-muted-foreground mt-2">Average Entry</p>
               </CardContent>
