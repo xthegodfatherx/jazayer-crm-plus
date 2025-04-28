@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { 
   Card, 
@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { taskCategoriesApi } from '@/services/api';
 
 interface TaskCategory {
   id: string;
@@ -42,6 +43,7 @@ const TaskCategoryManagement = () => {
   const { userRole } = usePermissions();
   const [categories, setCategories] = useState<TaskCategory[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState<TaskCategory | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -51,39 +53,95 @@ const TaskCategoryManagement = () => {
   });
 
   const canManageCategories = userRole === 'admin' || userRole === 'manager';
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newCategory: TaskCategory = {
-      id: editingCategory?.id || Date.now().toString(),
-      name: formData.name,
-      pricing: {
-        oneStar: Number(formData.oneStar),
-        twoStar: Number(formData.twoStar),
-        threeStar: Number(formData.threeStar)
+  
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!canManageCategories) return;
+      
+      setIsLoading(true);
+      try {
+        const response = await taskCategoriesApi.getAll();
+        // Transform response data to match our frontend model if needed
+        const transformedData = response.data.map((item: any) => ({
+          id: item.id.toString(),
+          name: item.name,
+          pricing: {
+            oneStar: item.price_1_star,
+            twoStar: item.price_2_star,
+            threeStar: item.price_3_star
+          }
+        }));
+        setCategories(transformedData);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        // Toast error is handled by API interceptor
+      } finally {
+        setIsLoading(false);
       }
     };
+    
+    fetchCategories();
+  }, [canManageCategories]);
 
-    if (editingCategory) {
-      setCategories(categories.map(cat => 
-        cat.id === editingCategory.id ? newCategory : cat
-      ));
-      toast({
-        title: "Category Updated",
-        description: `${newCategory.name} has been updated successfully.`
-      });
-    } else {
-      setCategories([...categories, newCategory]);
-      toast({
-        title: "Category Created",
-        description: `${newCategory.name} has been added successfully.`
-      });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const categoryData = {
+      name: formData.name,
+      price_1_star: Number(formData.oneStar),
+      price_2_star: Number(formData.twoStar),
+      price_3_star: Number(formData.threeStar),
+    };
+    
+    try {
+      if (editingCategory) {
+        const response = await taskCategoriesApi.update(editingCategory.id, categoryData);
+        const updatedCategory = {
+          id: response.data.id.toString(),
+          name: response.data.name,
+          pricing: {
+            oneStar: response.data.price_1_star,
+            twoStar: response.data.price_2_star,
+            threeStar: response.data.price_3_star
+          }
+        };
+        
+        setCategories(categories.map(cat => 
+          cat.id === editingCategory.id ? updatedCategory : cat
+        ));
+        
+        toast({
+          title: "Category Updated",
+          description: `${response.data.name} has been updated successfully.`
+        });
+      } else {
+        const response = await taskCategoriesApi.create(categoryData);
+        const newCategory = {
+          id: response.data.id.toString(),
+          name: response.data.name,
+          pricing: {
+            oneStar: response.data.price_1_star,
+            twoStar: response.data.price_2_star,
+            threeStar: response.data.price_3_star
+          }
+        };
+        
+        setCategories([...categories, newCategory]);
+        
+        toast({
+          title: "Category Created",
+          description: `${response.data.name} has been added successfully.`
+        });
+      }
+
+      setIsDialogOpen(false);
+      setEditingCategory(null);
+      setFormData({ name: '', oneStar: '', twoStar: '', threeStar: '' });
+    } catch (error) {
+      console.error('Error saving category:', error);
+      // Toast error is handled by API interceptor
     }
-
-    setIsDialogOpen(false);
-    setEditingCategory(null);
-    setFormData({ name: '', oneStar: '', twoStar: '', threeStar: '' });
   };
 
   const handleEdit = (category: TaskCategory) => {
@@ -97,12 +155,18 @@ const TaskCategoryManagement = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (categoryId: string) => {
-    setCategories(categories.filter(cat => cat.id !== categoryId));
-    toast({
-      title: "Category Deleted",
-      description: "The category has been removed successfully."
-    });
+  const handleDelete = async (categoryId: string) => {
+    try {
+      await taskCategoriesApi.delete(categoryId);
+      setCategories(categories.filter(cat => cat.id !== categoryId));
+      toast({
+        title: "Category Deleted",
+        description: "The category has been removed successfully."
+      });
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      // Toast error is handled by API interceptor
+    }
   };
 
   if (!canManageCategories) {
@@ -183,45 +247,55 @@ const TaskCategoryManagement = () => {
         </Dialog>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Category</TableHead>
-              <TableHead>1-Star Price</TableHead>
-              <TableHead>2-Star Price</TableHead>
-              <TableHead>3-Star Price</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {categories.map(category => (
-              <TableRow key={category.id}>
-                <TableCell>{category.name}</TableCell>
-                <TableCell>${category.pricing.oneStar}</TableCell>
-                <TableCell>${category.pricing.twoStar}</TableCell>
-                <TableCell>${category.pricing.threeStar}</TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(category)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(category.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        {isLoading ? (
+          <div className="text-center py-4">Loading categories...</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead>1-Star Price</TableHead>
+                <TableHead>2-Star Price</TableHead>
+                <TableHead>3-Star Price</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {categories.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">No categories found. Add your first category!</TableCell>
+                </TableRow>
+              ) : (
+                categories.map(category => (
+                  <TableRow key={category.id}>
+                    <TableCell>{category.name}</TableCell>
+                    <TableCell>${category.pricing.oneStar}</TableCell>
+                    <TableCell>${category.pricing.twoStar}</TableCell>
+                    <TableCell>${category.pricing.threeStar}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(category)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(category.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );

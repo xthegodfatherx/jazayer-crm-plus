@@ -24,42 +24,52 @@ import Subscriptions from "./pages/Subscriptions";
 import Products from "./pages/Products";
 import Expenses from "./pages/Expenses";
 import AdminDashboard from "./pages/AdminDashboard";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 import { PermissionsProvider } from "./contexts/PermissionsContext";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <PermissionsProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/team" element={<Team />} />
-              <Route path="/clients" element={<Clients />} />
-              <Route path="/invoices" element={<Invoices />} />
-              <Route path="/payments" element={<Payments />} />
-              <Route path="/estimates" element={<Estimates />} />
-              <Route path="/subscriptions" element={<Subscriptions />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/expenses" element={<Expenses />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:id" element={<ProjectDetail />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/time-tracking" element={<TimeTracking />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </PermissionsProvider>
+    <AuthProvider>
+      <PermissionsProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Auth routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              
+              {/* Protected routes */}
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/tasks" element={<Tasks />} />
+                <Route path="/team" element={<Team />} />
+                <Route path="/clients" element={<Clients />} />
+                <Route path="/invoices" element={<Invoices />} />
+                <Route path="/payments" element={<Payments />} />
+                <Route path="/estimates" element={<Estimates />} />
+                <Route path="/subscriptions" element={<Subscriptions />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/expenses" element={<Expenses />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/projects/:id" element={<ProjectDetail />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/time-tracking" element={<TimeTracking />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </PermissionsProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
