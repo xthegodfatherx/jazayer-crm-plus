@@ -1,8 +1,8 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Database } from '@/integrations/supabase/types';
+import type { Database } from '@/integrations/supabase/types';
 
-// Define simpler types explicitly
+// Define simpler types explicitly using the base Database types
 export type Client = Database['public']['Tables']['clients']['Row'];
 export type ClientInsert = Database['public']['Tables']['clients']['Insert'];
 export type ClientUpdate = Database['public']['Tables']['clients']['Update'];
