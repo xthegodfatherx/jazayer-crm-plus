@@ -113,8 +113,8 @@ const ProjectDetail: React.FC = () => {
       const task = projectTasks.find(t => t.id === taskId);
       if (!task) return;
       
-      // Create time entry via API
-      const timeEntryData = {
+      // Create time entry via API with corrected types
+      const timeEntryData: TimeEntryInsert = {
         task_id: taskId,
         project_id: id || null,
         start_time: new Date(Date.now() - seconds * 1000).toISOString(),
@@ -122,7 +122,7 @@ const ProjectDetail: React.FC = () => {
         duration: seconds,
         description: `Time entry for task: ${task.title}`,
         billable: true,
-        user_id: null, // This would be the current user's ID in a real app
+        user_id: null // This would be the current user's ID in a real app
       };
       
       await timeEntriesApi.create(timeEntryData);

@@ -10,9 +10,9 @@ import TeamTimeReport from '@/components/reports/TeamTimeReport';
 import { Task } from './Tasks';
 import { useToast } from '@/hooks/use-toast';
 import { tasksApi, timeEntriesApi } from '@/services/api';
+import { TimeEntry } from '@/services/time-entries-api';
 import { Database } from '@/integrations/supabase/types';
 
-type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
 type TaskType = Database['public']['Tables']['tasks']['Row'];
 
 const TimeTracking: React.FC = () => {
