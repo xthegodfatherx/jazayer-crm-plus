@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Task } from './Tasks';
 import { Project } from '@/services/projects-api';
 import { timeEntriesApi, projectsApi, tasksApi, handleError } from '@/services/api';
+import { TimeEntryInsert } from '@/services/time-entries-api';
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
