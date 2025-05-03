@@ -10,6 +10,7 @@ import { clientsApi } from './clients-api';
 import { expensesApi } from './expenses-api';
 import { timeEntriesApi } from './time-entries-api';
 import { reportsApi } from './reports-api';
+import { paymentsApi } from './payments-api';
 import apiClient from './api-client';
 
 const handleError = (error: any) => {
@@ -55,6 +56,7 @@ export type { Client } from './clients-api';
 export type { Expense } from './expenses-api';
 export type { TimeEntry } from './time-entries-api';
 export type { Report } from './reports-api';
+export type { Payment } from './payments-api';
 
 export {
   authApi,
@@ -67,6 +69,7 @@ export {
   expensesApi,
   timeEntriesApi,
   reportsApi,
+  paymentsApi,
   handleError,
   csrfCookie,
   apiClient
