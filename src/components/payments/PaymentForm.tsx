@@ -33,6 +33,7 @@ import { CalendarIcon, CreditCard, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { paymentsApi, invoicesApi, clientsApi, handleError } from '@/services/api';
+import { Invoice as ApiInvoice } from '@/services/invoices-api';
 
 // Form schema
 const formSchema = z.object({
@@ -57,7 +58,8 @@ interface Client {
   name: string;
 }
 
-interface Invoice {
+// Create a local invoice interface that matches what the component uses
+interface FormattedInvoice {
   id: string;
   invoice_number: string;
   amount: number;
@@ -67,7 +69,7 @@ interface Invoice {
 
 const PaymentForm: React.FC<PaymentFormProps> = ({ onSuccess, onCancel }) => {
   const [clients, setClients] = useState<Client[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<FormattedInvoice[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const { toast } = useToast();
@@ -99,7 +101,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onSuccess, onCancel }) => {
         const { data: invoicesData } = await invoicesApi.getAll({ 
           filters: { status: 'issued,overdue' } 
         });
-        setInvoices(invoicesData);
+        
+        // Map API invoices to the format the component expects
+        const formattedInvoices = invoicesData.map((invoice: ApiInvoice) => ({
+          id: invoice.id,
+          invoice_number: invoice.id, // Using id as invoice_number if actual number not available
+          amount: invoice.total || 0,  // Using total as amount
+          client_id: invoice.client_id || '',
+          status: invoice.status,
+        }));
+        
+        setInvoices(formattedInvoices);
       } catch (error) {
         handleError(error);
       } finally {
