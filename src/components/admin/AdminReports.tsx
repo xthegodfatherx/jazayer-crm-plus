@@ -1,15 +1,48 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import TaskCompletionReport from '@/components/reports/TaskCompletionReport';
 import TeamTimeReport from '@/components/reports/TeamTimeReport';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BadgeCheck, Clock, Award, TrendingUp } from 'lucide-react';
-import TeamPerformanceDashboard from '@/components/team/TeamPerformance';
+import { BadgeCheck, Clock, Award, TrendingUp, Loader2 } from 'lucide-react';
+import TeamPerformance from '@/components/team/TeamPerformance';
+import { reportsApi } from '@/services/reports-api';
+import { teamApi, TeamPerformance as TeamPerformanceType } from '@/services/team-api';
+import { useToast } from '@/hooks/use-toast';
+import { handleError } from '@/services/api';
 
 const AdminReports = () => {
   const [dateRange, setDateRange] = useState('this-month');
+  const [topPerformers, setTopPerformers] = useState<TeamPerformanceType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchTopPerformers = async () => {
+      try {
+        setLoading(true);
+        const { data } = await teamApi.getPerformance(dateRange);
+        // Sort by average rating descending to get top performers
+        setTopPerformers(data.sort((a, b) => b.average_rating - a.average_rating).slice(0, 3));
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error loading performance data",
+          description: "Failed to load team performance data. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTopPerformers();
+  }, [dateRange, toast]);
+
+  const formatPerformanceScore = (score: number) => {
+    return score.toFixed(1);
+  };
 
   return (
     <Card>
@@ -71,77 +104,73 @@ const AdminReports = () => {
               </p>
             </div>
             
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center">
-                    <TrendingUp className="h-4 w-4 mr-2 text-amber-500" />
-                    Top Performers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <div className="font-medium">Ahmed Khalifi</div>
-                      <div className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-sm font-medium">
-                        Score: 32.5
-                      </div>
+            {loading ? (
+              <div className="flex justify-center items-center p-8">
+                <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+                <p>Loading performance data...</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center">
+                      <TrendingUp className="h-4 w-4 mr-2 text-amber-500" />
+                      Top Performers
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {topPerformers.length > 0 ? (
+                        topPerformers.map((performer, index) => (
+                          <div key={performer.id} className="flex justify-between items-center pb-2 border-b">
+                            <div className="font-medium">{performer.member_name}</div>
+                            <div className={`px-2 py-1 rounded-full text-sm font-medium ${
+                              index === 0 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-800"
+                            }`}>
+                              Score: {formatPerformanceScore(performer.average_rating)}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-4 text-muted-foreground">
+                          No performance data available
+                        </div>
+                      )}
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <div className="font-medium">Selma Bouaziz</div>
-                      <div className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-sm font-medium">
-                        Score: 29.8
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Performance Breakdown</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {topPerformers.length > 0 ? (
+                      <div className="space-y-3">
+                        {topPerformers.map((performer) => (
+                          <div key={performer.id}>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-sm font-medium">{performer.member_name}</span>
+                              <span className="text-sm text-muted-foreground">{performer.completed_tasks} tasks</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-amber-500 rounded-full" 
+                                style={{ width: `${(performer.completed_tasks / Math.max(performer.total_tasks, 1)) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <div className="font-medium">Karim Mansouri</div>
-                      <div className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-sm font-medium">
-                        Score: 24.1
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground">
+                        No performance data available
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Performance Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Ahmed Khalifi</span>
-                        <span className="text-sm text-muted-foreground">32 tasks</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-500 rounded-full" style={{ width: '85%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Selma Bouaziz</span>
-                        <span className="text-sm text-muted-foreground">28 tasks</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-500 rounded-full" style={{ width: '75%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Karim Mansouri</span>
-                        <span className="text-sm text-muted-foreground">22 tasks</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-500 rounded-full" style={{ width: '60%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>

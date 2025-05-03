@@ -3,10 +3,11 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Plus, Download, Calendar } from 'lucide-react';
+import { Plus, Download, Calendar, ChartBar } from 'lucide-react';
 import TeamMembers from '@/components/team/TeamMembers';
 import TeamPerformance from '@/components/team/TeamPerformance';
 import ActivityLog from '@/components/team/ActivityLog';
+import SalaryCalculator from '@/components/team/SalaryCalculator';
 
 const Team = () => {
   return (
@@ -29,6 +30,7 @@ const Team = () => {
         <TabsList>
           <TabsTrigger value="members">Team Members</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="salary">Salary</TabsTrigger>
           <TabsTrigger value="activity">Activity Log</TabsTrigger>
         </TabsList>
 
@@ -60,6 +62,18 @@ const Team = () => {
             </CardHeader>
             <CardContent>
               <TeamPerformance />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="salary" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Salary Management</CardTitle>
+              <CardDescription>Calculate and view team member salaries</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SalaryCalculator />
             </CardContent>
           </Card>
         </TabsContent>

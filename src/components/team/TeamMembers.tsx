@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -21,92 +21,44 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { 
   MoreHorizontal, 
-  Star, 
   ChevronUp, 
   ChevronDown,
   Edit,
   Trash,
   Mail,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
 import StarRating from '@/components/tasks/StarRating';
-
-interface TeamMember {
-  id: number;
-  name: string;
-  avatar: string;
-  email: string;
-  role: string;
-  department: string;
-  status: 'active' | 'inactive' | 'vacation';
-  rating: number;
-  tasksCompleted: number;
-  tasksInProgress: number;
-}
+import { teamApi, TeamMember } from '@/services/team-api';
+import { useToast } from '@/hooks/use-toast';
+import { handleError } from '@/services/api';
 
 const TeamMembers: React.FC = () => {
-  const members: TeamMember[] = [
-    {
-      id: 1,
-      name: 'Ahmed Khalifi',
-      avatar: '',
-      email: 'ahmed@jazayer-crm.dz',
-      role: 'UI Designer',
-      department: 'Design',
-      status: 'active',
-      rating: 4.8,
-      tasksCompleted: 24,
-      tasksInProgress: 3,
-    },
-    {
-      id: 2,
-      name: 'Selma Bouaziz',
-      avatar: '',
-      email: 'selma@jazayer-crm.dz',
-      role: 'Frontend Developer',
-      department: 'Development',
-      status: 'active',
-      rating: 4.5,
-      tasksCompleted: 18,
-      tasksInProgress: 5,
-    },
-    {
-      id: 3,
-      name: 'Karim Mansouri',
-      avatar: '',
-      email: 'karim@jazayer-crm.dz',
-      role: 'Project Manager',
-      department: 'Management',
-      status: 'active',
-      rating: 4.2,
-      tasksCompleted: 12,
-      tasksInProgress: 2,
-    },
-    {
-      id: 4,
-      name: 'Leila Benzema',
-      avatar: '',
-      email: 'leila@jazayer-crm.dz',
-      role: 'Backend Developer',
-      department: 'Development',
-      status: 'vacation',
-      rating: 3.9,
-      tasksCompleted: 15,
-      tasksInProgress: 0,
-    },
-    {
-      id: 5,
-      name: 'Mohammed Ali',
-      avatar: '',
-      email: 'mohammed@jazayer-crm.dz',
-      role: 'Sales Manager',
-      department: 'Sales',
-      status: 'active',
-      rating: 4.0,
-      tasksCompleted: 8,
-      tasksInProgress: 4,
-    },
-  ];
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        setLoading(true);
+        const { data } = await teamApi.getMembers();
+        setMembers(data);
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error loading team members",
+          description: "Failed to load team members data. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeamMembers();
+  }, [toast]);
 
   const getStatusBadge = (status: TeamMember['status']) => {
     switch (status) {
@@ -121,6 +73,15 @@ const TeamMembers: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <p>Loading team members...</p>
+      </div>
+    );
+  }
+
   return (
     <Table>
       <TableHeader>
@@ -134,73 +95,81 @@ const TeamMembers: React.FC = () => {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {members.map((member) => (
-          <TableRow key={member.id}>
-            <TableCell className="font-medium">
-              <div className="flex items-center">
-                <Avatar className="h-10 w-10 mr-3">
-                  <AvatarImage src={member.avatar} alt={member.name} />
-                  <AvatarFallback>{member.name.slice(0, 2)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p>{member.name}</p>
-                  <p className="text-sm text-muted-foreground">{member.role}</p>
-                </div>
-              </div>
-            </TableCell>
-            <TableCell>{member.department}</TableCell>
-            <TableCell>{getStatusBadge(member.status)}</TableCell>
-            <TableCell>
-              <div className="flex items-center">
-                <StarRating rating={member.rating} readOnly size="sm" />
-                <span className="ml-2 text-sm">{member.rating}</span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center">
-                <span className="text-green-600 flex items-center mr-3">
-                  <ChevronUp className="h-4 w-4 mr-1" />
-                  {member.tasksCompleted}
-                </span>
-                <span className="text-amber-600 flex items-center">
-                  <ChevronDown className="h-4 w-4 mr-1" />
-                  {member.tasksInProgress}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell className="text-right">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-8 w-8 p-0">
-                    <span className="sr-only">Open menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Contact
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    Change Role
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-red-600">
-                    <Trash className="mr-2 h-4 w-4" />
-                    Remove
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+        {members.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+              No team members found
             </TableCell>
           </TableRow>
-        ))}
+        ) : (
+          members.map((member) => (
+            <TableRow key={member.id}>
+              <TableCell className="font-medium">
+                <div className="flex items-center">
+                  <Avatar className="h-10 w-10 mr-3">
+                    <AvatarImage src={member.avatar || ''} alt={member.name} />
+                    <AvatarFallback>{member.name.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p>{member.name}</p>
+                    <p className="text-sm text-muted-foreground">{member.role}</p>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>{member.department}</TableCell>
+              <TableCell>{getStatusBadge(member.status)}</TableCell>
+              <TableCell>
+                <div className="flex items-center">
+                  <StarRating rating={member.rating} readOnly size="sm" />
+                  <span className="ml-2 text-sm">{member.rating}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center">
+                  <span className="text-green-600 flex items-center mr-3">
+                    <ChevronUp className="h-4 w-4 mr-1" />
+                    {member.tasks_completed}
+                  </span>
+                  <span className="text-amber-600 flex items-center">
+                    <ChevronDown className="h-4 w-4 mr-1" />
+                    {member.tasks_in_progress}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell className="text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <span className="sr-only">Open menu</span>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Contact
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Change Role
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-red-600">
+                      <Trash className="mr-2 h-4 w-4" />
+                      Remove
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))
+        )}
       </TableBody>
     </Table>
   );

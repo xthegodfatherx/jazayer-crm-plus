@@ -1,125 +1,101 @@
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import React, { useState, useEffect } from 'react';
+import { Star, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
-import StarRating from '../tasks/StarRating';
+import { teamApi, TeamPerformance as TeamPerformanceType } from '@/services/team-api';
+import { useToast } from '@/hooks/use-toast';
+import { handleError } from '@/services/api';
 
-const teamPerformanceData = [
-  { name: 'Ahmed', tasks: 24, rating: 4.8, onTime: 96 },
-  { name: 'Selma', tasks: 18, rating: 4.5, onTime: 92 },
-  { name: 'Karim', tasks: 12, rating: 4.2, onTime: 90 },
-  { name: 'Leila', tasks: 15, rating: 3.9, onTime: 86 },
-  { name: 'Mohammed', tasks: 8, rating: 4.0, onTime: 88 },
-];
+const TeamPerformance: React.FC = () => {
+  const [teamMembers, setTeamMembers] = useState<TeamPerformanceType[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const { toast } = useToast();
 
-const averageRating = teamPerformanceData.reduce((sum, member) => sum + member.rating, 0) / teamPerformanceData.length;
-const totalTasks = teamPerformanceData.reduce((sum, member) => sum + member.tasks, 0);
-const averageOnTime = teamPerformanceData.reduce((sum, member) => sum + member.onTime, 0) / teamPerformanceData.length;
+  useEffect(() => {
+    const fetchTeamPerformance = async () => {
+      try {
+        setLoading(true);
+        const { data } = await teamApi.getPerformance('current-month');
+        setTeamMembers(data);
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error loading team performance",
+          description: "Failed to load team performance data. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-const TeamPerformanceDashboard: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-6 flex flex-col items-center">
-            <div className="text-3xl font-bold">{averageRating.toFixed(1)}</div>
-            <div className="flex mt-2">
-              <StarRating rating={averageRating} readOnly />
+    fetchTeamPerformance();
+  }, [toast]);
+
+  // Function to render stars based on rating
+  const renderStars = (rating: number) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating - fullStars >= 0.5;
+
+    for (let i = 1; i <= 5; i++) {
+      if (i <= fullStars) {
+        stars.push(<Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />);
+      } else if (i === fullStars + 1 && hasHalfStar) {
+        stars.push(
+          <div key={i} className="relative">
+            <Star className="h-4 w-4 text-muted" />
+            <div className="absolute inset-0 overflow-hidden w-1/2">
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
             </div>
-            <p className="text-sm text-muted-foreground mt-3">Average Rating</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6 flex flex-col items-center">
-            <div className="text-3xl font-bold">{totalTasks}</div>
-            <p className="text-sm text-muted-foreground mt-3">Tasks Completed This Month</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6 flex flex-col items-center">
-            <div className="text-3xl font-bold">{averageOnTime.toFixed(0)}%</div>
-            <div className="w-full mt-2">
-              <Progress value={averageOnTime} className="h-2" />
-            </div>
-            <p className="text-sm text-muted-foreground mt-3">On-Time Completion Rate</p>
-          </CardContent>
-        </Card>
+          </div>
+        );
+      } else {
+        stars.push(<Star key={i} className="h-4 w-4 text-muted" />);
+      }
+    }
+    return <div className="flex">{stars}</div>;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+        <p>Loading team performance data...</p>
       </div>
-      
-      {/* Rating Performance Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Team Performance</CardTitle>
-          <CardDescription>Task completion and quality ratings by team member</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={teamPerformanceData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="name" />
-                <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                <Tooltip />
-                <Legend />
-                <Bar yAxisId="left" dataKey="tasks" name="Tasks Completed" fill="#8884d8" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="right" dataKey="rating" name="Rating (out of 5)" fill="#82ca9d" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+    );
+  }
+
+  if (teamMembers.length === 0) {
+    return (
+      <div className="text-center py-6 text-muted-foreground">
+        No team performance data available.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {teamMembers.map((member) => (
+        <div key={member.id} className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Avatar className="h-8 w-8 mr-2">
+              <AvatarImage src="" alt={member.member_name} />
+              <AvatarFallback>{member.member_name.slice(0, 2)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-sm font-medium">{member.member_name}</p>
+              <p className="text-xs text-muted-foreground">Completed: {member.completed_tasks}/{member.total_tasks}</p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-      
-      {/* Top Performers */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Performers</CardTitle>
-          <CardDescription>Team members with the highest ratings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {teamPerformanceData
-              .sort((a, b) => b.rating - a.rating)
-              .map((member, index) => (
-                <div key={member.name} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className={cn(
-                      "flex items-center justify-center w-8 h-8 rounded-full mr-4 text-white font-medium",
-                      index === 0 ? "bg-yellow-500" : 
-                      index === 1 ? "bg-gray-400" : 
-                      index === 2 ? "bg-amber-700" : "bg-gray-200 text-gray-500"
-                    )}>
-                      {index + 1}
-                    </div>
-                    <Avatar className="h-10 w-10 mr-4">
-                      <AvatarImage src="" alt={member.name} />
-                      <AvatarFallback>{member.name.slice(0, 2)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{member.name}</div>
-                      <div className="text-sm text-muted-foreground">{member.tasks} tasks completed</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <StarRating rating={member.rating} readOnly />
-                    <span className="ml-2 font-medium">{member.rating}</span>
-                  </div>
-                </div>
-              ))}
+          <div className="flex items-center">
+            <span className="text-sm font-medium mr-2">{member.average_rating.toFixed(1)}</span>
+            {renderStars(member.average_rating)}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      ))}
     </div>
   );
 };
 
-export default TeamPerformanceDashboard;
+export default TeamPerformance;

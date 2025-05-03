@@ -8,12 +8,15 @@ import {
   StopCircle, 
   Save, 
   X,
-  User
+  User,
+  DollarSign
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { timeEntriesApi, handleError } from '@/services/api';
 import { TimeEntryInsert } from '@/services/time-entries-api';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 interface TaskTimerProps {
   taskId: string;
@@ -21,6 +24,7 @@ interface TaskTimerProps {
   onSaveTime?: (taskId: string, seconds: number) => void;
   initialSeconds?: number;
   assignee?: string;
+  hourlyRate?: number;
 }
 
 const TaskTimer: React.FC<TaskTimerProps> = ({ 
@@ -28,13 +32,15 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
   taskTitle, 
   onSaveTime, 
   initialSeconds = 0,
-  assignee
+  assignee,
+  hourlyRate = 0
 }) => {
   const [seconds, setSeconds] = useState(initialSeconds);
   const [isActive, setIsActive] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [startTimestamp, setStartTimestamp] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isBillable, setIsBillable] = useState(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
@@ -109,9 +115,10 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
         end_time: endTime.toISOString(),
         duration: seconds,
         description: `Time entry for task: ${taskTitle}`,
-        billable: true,
-        user_id: null, // This is nullable in the schema
-        project_id: null // This is nullable in the schema
+        billable: isBillable,
+        user_id: null,
+        project_id: null,
+        hourly_rate: isBillable ? hourlyRate : null
       };
       
       await timeEntriesApi.create(timeEntryData);
@@ -139,6 +146,15 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
   const toggleMinimize = () => {
     setIsMinimized(!isMinimized);
   };
+
+  // Calculate earnings based on hourly rate and time spent
+  const calculateEarnings = () => {
+    if (!hourlyRate || !isBillable) return 0;
+    const hours = seconds / 3600;
+    return hours * hourlyRate;
+  };
+
+  const earnings = calculateEarnings();
 
   if (isMinimized) {
     return (
@@ -180,6 +196,24 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
         
         <div className="text-3xl font-mono text-center my-3 tabular-nums">
           {formatTime(seconds)}
+        </div>
+        
+        {hourlyRate > 0 && isBillable && (
+          <div className="text-sm text-center mb-3 flex items-center justify-center">
+            <DollarSign className="h-3 w-3 mr-1 text-green-600" />
+            <span className="text-green-600">
+              {new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(earnings)}
+            </span>
+          </div>
+        )}
+        
+        <div className="flex items-center space-x-2 mb-3">
+          <Checkbox 
+            id="billable" 
+            checked={isBillable} 
+            onCheckedChange={(checked) => setIsBillable(checked as boolean)} 
+          />
+          <Label htmlFor="billable" className="text-sm">Billable time</Label>
         </div>
         
         <div className="flex justify-between gap-2 mt-4">
