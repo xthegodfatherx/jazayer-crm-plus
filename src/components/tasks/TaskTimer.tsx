@@ -16,15 +16,17 @@ import { Timer, Pause, Play, Check, X, Clock } from 'lucide-react';
 import { timeEntriesApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TaskTimerProps {
   taskId: string;
   taskTitle: string;
   onSaveTime: (taskId: string, seconds: number) => void;
-  assigned_to?: string; // Use the API field name
+  assigned_to?: string;
+  projectId?: string;
 }
 
-const TaskTimer: React.FC<TaskTimerProps> = ({ taskId, taskTitle, onSaveTime, assigned_to }) => {
+const TaskTimer: React.FC<TaskTimerProps> = ({ taskId, taskTitle, onSaveTime, assigned_to, projectId }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
@@ -33,6 +35,7 @@ const TaskTimer: React.FC<TaskTimerProps> = ({ taskId, taskTitle, onSaveTime, as
   const [isBillable, setIsBillable] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Start timer initially
   useEffect(() => {
@@ -95,8 +98,8 @@ const TaskTimer: React.FC<TaskTimerProps> = ({ taskId, taskTitle, onSaveTime, as
         end_time: new Date().toISOString(),
         duration: seconds,
         billable: isBillable,
-        user_id: "current_user", // Add required fields
-        project_id: null // Add required fields, can be null
+        user_id: user?.id || '', // Get from auth context
+        project_id: projectId || null
       });
       
       toast({

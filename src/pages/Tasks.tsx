@@ -1,423 +1,385 @@
 
 import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from "@/components/ui/textarea"
 import { Button } from '@/components/ui/button';
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, List, Grid3X3, Filter } from 'lucide-react';
+import TaskList from '@/components/tasks/TaskList';
+import TaskKanban from '@/components/tasks/TaskKanban';
+import TaskFilters from '@/components/tasks/TaskFilters';
+import CreateTaskForm from '@/components/tasks/CreateTaskForm';
+import TaskDetailDialog from '@/components/tasks/TaskDetailDialog';
+import TaskTimer from '@/components/tasks/TaskTimer';
 import { tasksApi } from '@/services/tasks-api';
 import { Task } from '@/types/task';
-import { formatDateTime } from '@/lib/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
 import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { MoreVertical, Edit, Trash2, ArrowDown, ArrowUp, CheckCheck, AlertTriangle } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 
 const Tasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    status: 'todo' as Task['status'],
-    priority: 'low' as Task['priority'],
-    dueDate: '',
-    assigned_to: '',
-    tags: [] as string[],
-  });
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  const [viewType, setViewType] = useState<'list' | 'kanban'>('list');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [timerTask, setTimerTask] = useState<{
+    id: string;
+    title: string;
+    assigned_to?: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    loadTasks();
+    fetchTasks();
   }, []);
 
-  const loadTasks = async () => {
+  useEffect(() => {
+    setFilteredTasks(tasks);
+  }, [tasks]);
+
+  const fetchTasks = async () => {
     try {
       setLoading(true);
-      const { data } = await tasksApi.getAll();
-      if (data) {
-        setTasks(data);
-      }
-    } catch (error) {
-      console.error("Error loading tasks:", error);
+      const response = await tasksApi.getAll();
+      setTasks(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+      setError('Failed to load tasks. Please try again.');
+      toast({
+        title: 'Error',
+        description: 'Failed to load tasks. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleFilter = (filters: any) => {
+    let filtered = [...tasks];
+
+    if (filters.status && filters.status !== 'all') {
+      filtered = filtered.filter(task => {
+        if (filters.status === 'in-progress') return task.status === 'in_progress';
+        if (filters.status === 'in-review') return task.status === 'review';
+        return task.status === filters.status;
+      });
+    }
+
+    if (filters.priority && filters.priority !== 'all') {
+      filtered = filtered.filter(task => task.priority === filters.priority);
+    }
+
+    if (filters.assignee && filters.assignee !== 'all') {
+      filtered = filtered.filter(task => task.assigned_to === filters.assignee);
+    }
+
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(task => 
+        task.title.toLowerCase().includes(searchLower) || 
+        (task.description && task.description.toLowerCase().includes(searchLower))
+      );
+    }
+
+    setFilteredTasks(filtered);
   };
 
-  const handleCreateTask = async () => {
+  const handleCreateTask = async (taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      // Convert UI format status to API format if needed
-      const apiStatus = formData.status;
-
-      const newTask = {
-        title: formData.title,
-        description: formData.description,
-        assigned_to: formData.assigned_to,
-        due_date: formData.dueDate,
-        status: apiStatus,
-        priority: formData.priority,
-        tags: formData.tags,
-      };
-      
-      await tasksApi.create(newTask);
-      
-      toast({
-        title: "Task Created",
-        description: "Task created successfully.",
-      })
-      loadTasks();
-      setIsDialogOpen(false);
-      setFormData({
-        title: '',
-        description: '',
-        status: 'todo',
-        priority: 'low',
-        dueDate: '',
-        assigned_to: '',
-        tags: [],
+      const response = await tasksApi.create({
+        ...taskData,
+        status: taskData.status as Task['status']
       });
-    } catch (error) {
-      console.error("Error creating task:", error);
+      setTasks([...tasks, response.data]);
+      setIsCreateDialogOpen(false);
       toast({
-        title: "Error",
-        description: "Failed to create task.",
-        variant: "destructive"
-      })
+        title: 'Task Created',
+        description: 'The task has been created successfully.',
+      });
+    } catch (err) {
+      console.error('Error creating task:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to create task. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleEditTask = (task: Task) => {
+  const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
-    setFormData({
-      title: task.title,
-      description: task.description || '',
-      status: task.status,
-      priority: task.priority,
-      dueDate: task.due_date || '',
-      assigned_to: task.assigned_to || '',
-      tags: task.tags || [],
-    });
-    setIsDialogOpen(true);
   };
 
-  const handleUpdateTask = async () => {
-    if (!selectedTask) return;
-
+  const handleTaskStatusChange = async (taskId: string, status: Task['status']) => {
     try {
-      // Convert UI format status to API format
-      const apiStatus = formData.status;
+      const taskToUpdate = tasks.find(t => t.id === taskId);
+      if (!taskToUpdate) return;
 
-      const updatedTask = {
-        title: formData.title,
-        description: formData.description,
-        status: apiStatus,
-        priority: formData.priority,
-        due_date: formData.dueDate,
-        assigned_to: formData.assigned_to,
-        tags: formData.tags,
-      };
-      await tasksApi.update(selectedTask.id, updatedTask);
-      toast({
-        title: "Task Updated",
-        description: "Task updated successfully.",
-      })
-      loadTasks();
-      setIsDialogOpen(false);
-      setSelectedTask(null);
-      setFormData({
-        title: '',
-        description: '',
-        status: 'todo',
-        priority: 'low',
-        dueDate: '',
-        assigned_to: '',
-        tags: [],
+      await tasksApi.update(taskId, { 
+        ...taskToUpdate,
+        status 
       });
-    } catch (error) {
-      console.error("Error updating task:", error);
+
+      setTasks(
+        tasks.map(task => 
+          task.id === taskId ? { ...task, status } : task
+        )
+      );
+
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask({ ...selectedTask, status });
+      }
+
       toast({
-        title: "Error",
-        description: "Failed to update task.",
-        variant: "destructive"
-      })
+        title: 'Task Updated',
+        description: `Task status changed to ${status.replace('_', ' ')}.`,
+      });
+    } catch (err) {
+      console.error('Error updating task status:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to update task status. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleRateTask = async (taskId: string, rating: number) => {
     try {
-      await tasksApi.delete(taskId);
+      await tasksApi.rateTask(taskId, rating);
+      
+      setTasks(
+        tasks.map(task => 
+          task.id === taskId ? { ...task, rating } : task
+        )
+      );
+
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask({ ...selectedTask, rating });
+      }
+
       toast({
-        title: "Task Deleted",
-        description: "Task deleted successfully.",
-      })
-      loadTasks();
-    } catch (error) {
-      console.error("Error deleting task:", error);
+        title: 'Task Rated',
+        description: `You rated this task ${rating} stars.`,
+      });
+    } catch (err) {
+      console.error('Error rating task:', err);
       toast({
-        title: "Error",
-        description: "Failed to delete task.",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to rate the task. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
+  const handleAddComment = async (taskId: string, commentContent: string) => {
     try {
-      await tasksApi.update(taskId, { status: newStatus });
+      // This would typically be handled by an API call
+      // For now, we'll update the state directly
+      const newComment = {
+        id: `comment-${Date.now()}`,
+        author: 'Current User', // In production, get from auth context
+        content: commentContent,
+        createdAt: new Date().toISOString()
+      };
+
+      setTasks(
+        tasks.map(task => 
+          task.id === taskId 
+            ? { 
+                ...task, 
+                comments: [...(task.comments || []), newComment] 
+              } 
+            : task
+        )
+      );
+
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask({ 
+          ...selectedTask, 
+          comments: [...(selectedTask.comments || []), newComment] 
+        });
+      }
+
       toast({
-        title: "Status Updated",
-        description: "Task status updated successfully.",
-      })
-      loadTasks();
-    } catch (error) {
-      console.error("Error updating task status:", error);
+        title: 'Comment Added',
+        description: 'Your comment has been added successfully.',
+      });
+    } catch (err) {
+      console.error('Error adding comment:', err);
       toast({
-        title: "Error",
-        description: "Failed to update task status.",
-        variant: "destructive"
-      })
+        title: 'Error',
+        description: 'Failed to add comment. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const formatDate = (date: Date | undefined): string => {
-    if (!date) return '';
-    return format(date, 'yyyy-MM-dd');
+  const handleToggleSubtask = async (taskId: string, subtaskId: string, completed: boolean) => {
+    try {
+      setTasks(
+        tasks.map(task => 
+          task.id === taskId
+            ? {
+                ...task,
+                subtasks: (task.subtasks || []).map(subtask =>
+                  subtask.id === subtaskId
+                    ? { ...subtask, completed }
+                    : subtask
+                )
+              }
+            : task
+        )
+      );
+
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask({
+          ...selectedTask,
+          subtasks: (selectedTask.subtasks || []).map(subtask =>
+            subtask.id === subtaskId
+              ? { ...subtask, completed }
+              : subtask
+          )
+        });
+      }
+
+      toast({
+        title: completed ? 'Subtask Completed' : 'Subtask Reopened',
+        description: completed 
+          ? 'The subtask has been marked as completed.' 
+          : 'The subtask has been reopened.',
+      });
+    } catch (err) {
+      console.error('Error toggling subtask:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to update subtask. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleStartTimeTracking = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setTimerTask({
+        id: task.id,
+        title: task.title,
+        assigned_to: task.assigned_to
+      });
+      setSelectedTask(null);
+    }
+  };
+
+  const handleSaveTime = async (taskId: string, seconds: number) => {
+    try {
+      // This would be handled by the time entries API
+      // For now, we'll just show a success message
+      toast({
+        title: 'Time Saved',
+        description: `Time tracking saved for this task.`,
+      });
+    } catch (err) {
+      console.error('Error saving time:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to save time tracking. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Tasks</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>Create Task</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{selectedTask ? 'Edit Task' : 'Create Task'}</DialogTitle>
-              <DialogDescription>
-                {selectedTask ? 'Edit the task details.' : 'Enter the details for the new task.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="title" className="text-right">
-                  Title
-                </Label>
-                <Input type="text" id="title" name="title" value={formData.title} onChange={handleInputChange} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="description" className="text-right mt-2">
-                  Description
-                </Label>
-                <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  Status
-                </Label>
-                <Select value={formData.status} onValueChange={(value: Task['status']) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todo">Todo</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="review">In Review</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="priority" className="text-right">
-                  Priority
-                </Label>
-                <Select value={formData.priority} onValueChange={(value: Task['priority']) => setFormData({ ...formData, priority: value })}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="dueDate" className="text-right">
-                  Due Date
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[240px] justify-start text-left font-normal",
-                        !formData.dueDate && "text-muted-foreground"
-                      )}
-                    >
-                      {formData.dueDate ? (
-                        format(new Date(formData.dueDate), "yyyy-MM-dd")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="center" side="bottom">
-                    <Calendar
-                      mode="single"
-                      selected={formData.dueDate ? new Date(formData.dueDate) : undefined}
-                      onSelect={(date) => setFormData({ ...formData, dueDate: formatDate(date) })}
-                      disabled={(date) =>
-                        date < new Date()
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="assignee" className="text-right">
-                  Assignee
-                </Label>
-                <Input type="text" id="assignee" name="assigned_to" value={formData.assigned_to} onChange={handleInputChange} className="col-span-3" />
-              </div>
-            </div>
-            <Button onClick={selectedTask ? handleUpdateTask : handleCreateTask}>
-              {selectedTask ? 'Update Task' : 'Create Task'}
-            </Button>
-          </DialogContent>
-        </Dialog>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold">Tasks</h1>
+        
+        <div className="flex items-center space-x-2">
+          <Tabs value={viewType} onValueChange={(v: 'list' | 'kanban') => setViewType(v)}>
+            <TabsList>
+              <TabsTrigger value="list">
+                <List className="h-4 w-4 mr-2" />
+                List
+              </TabsTrigger>
+              <TabsTrigger value="kanban">
+                <Grid3X3 className="h-4 w-4 mr-2" />
+                Kanban
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Task
+          </Button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[200px]">Task</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Due Date</TableHead>
-              <TableHead>Assignee</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center">Loading...</TableCell>
-              </TableRow>
-            ) : tasks.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center">No tasks found.</TableCell>
-              </TableRow>
-            ) : (
-              tasks.map((task) => (
-                <TableRow key={task.id}>
-                  <TableCell className="font-medium">{task.title}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{task.status}</Badge>
-                  </TableCell>
-                  <TableCell>{task.priority}</TableCell>
-                  <TableCell>{task.due_date ? formatDateTime(task.due_date, 'date') : 'No Due Date'}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Avatar>
-                        <AvatarImage src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${task.assigned_to}`} alt={task.assigned_to || 'Assignee'} />
-                        <AvatarFallback>{task.assigned_to ? task.assigned_to[0].toUpperCase() : '?'}</AvatarFallback>
-                      </Avatar>
-                      <span>{task.assigned_to || 'Unassigned'}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditTask(task)}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteTask(task.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'todo')}>
-                          <AlertTriangle className="mr-2 h-4 w-4" /> Mark as Todo
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'in_progress')}>
-                          <ArrowUp className="mr-2 h-4 w-4" /> Mark as In Progress
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'review')}>
-                          <ArrowDown className="mr-2 h-4 w-4" /> Mark as In Review
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'done')}>
-                          <CheckCheck className="mr-2 h-4 w-4" /> Mark as Done
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <TaskFilters onFilter={handleFilter} />
+        </CardContent>
+      </Card>
+
+      {error && (
+        <div className="bg-destructive/15 text-destructive p-4 rounded-md">
+          {error}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={fetchTasks} 
+            className="ml-4"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {viewType === 'list' ? (
+        <TaskList 
+          tasks={filteredTasks} 
+          onTaskClick={handleTaskClick} 
+          loading={loading}
+        />
+      ) : (
+        <TaskKanban 
+          tasks={filteredTasks}
+          onStatusChange={handleTaskStatusChange}
+          onTaskClick={handleTaskClick}
+          loading={loading}
+        />
+      )}
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+          </DialogHeader>
+          <CreateTaskForm onCreateTask={handleCreateTask} />
+        </DialogContent>
+      </Dialog>
+
+      <TaskDetailDialog
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onStatusChange={handleTaskStatusChange}
+        onRateTask={handleRateTask}
+        onAddComment={handleAddComment}
+        onToggleSubtask={handleToggleSubtask}
+        onStartTimeTracking={handleStartTimeTracking}
+      />
+
+      {timerTask && (
+        <TaskTimer
+          taskId={timerTask.id}
+          taskTitle={timerTask.title}
+          assigned_to={timerTask.assigned_to}
+          onSaveTime={handleSaveTime}
+        />
+      )}
     </div>
   );
 };

@@ -32,16 +32,12 @@ const RegisterForm = () => {
     setIsSubmitting(true);
     
     try {
-      // Fix: Remove passwordConfirmation as the 4th argument
-      await register(name, email, password);
-      toast({
-        title: "Registration successful",
-        description: "Your account has been created"
-      });
-      navigate('/');
+      await register(name, email, password, passwordConfirmation);
+      // Don't navigate immediately, as we expect email confirmation
+      // Instead show the success message from the auth context
     } catch (error) {
       console.error('Registration failed:', error);
-      // Error is handled by the API interceptor
+      // Error is handled by the API interceptor and auth context
     } finally {
       setIsSubmitting(false);
     }

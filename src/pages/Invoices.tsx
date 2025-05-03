@@ -17,8 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import CreateInvoiceForm from '@/components/invoices/CreateInvoiceForm';
 import CreateInvoiceAdvanced from '@/components/invoices/CreateInvoiceAdvanced';
 import { useToast } from '@/hooks/use-toast';
-import { Invoice } from '@/types/invoice';
-import { invoiceApi } from '@/services/invoice-api';
+import { Invoice, invoiceApi } from '@/services/invoice-api';
 import { handleError } from '@/services/api';
 
 const Invoices: React.FC = () => {
@@ -51,24 +50,67 @@ const Invoices: React.FC = () => {
   }, [toast]);
 
   const filteredInvoices = invoices.filter(invoice => 
-    invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.client.name.toLowerCase().includes(searchTerm.toLowerCase())
+    invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    invoice.client.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateInvoice = async (newInvoice: Invoice) => {
+  const handleCreateInvoice = async (newInvoice: Omit<Invoice, 'id'>) => {
     try {
       const { data: createdInvoice } = await invoiceApi.create(newInvoice);
       setInvoices([...invoices, createdInvoice]);
       setIsCreateDialogOpen(false);
       toast({
         title: "Invoice Created",
-        description: `Invoice ${createdInvoice.number} has been created successfully.`,
+        description: `Invoice ${createdInvoice.invoice_number} has been created successfully.`,
       });
     } catch (error) {
       handleError(error);
       toast({
         title: "Error creating invoice",
         description: "Failed to create the invoice. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    if (confirm('Are you sure you want to delete this invoice?')) {
+      try {
+        await invoiceApi.delete(id);
+        setInvoices(invoices.filter(invoice => invoice.id !== id));
+        toast({
+          title: "Invoice Deleted",
+          description: "The invoice has been deleted successfully."
+        });
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error deleting invoice",
+          description: "Failed to delete the invoice. Please try again.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleSendInvoice = async (id: string) => {
+    try {
+      await invoiceApi.sendInvoice(id);
+      // Update the status of the invoice in the UI
+      setInvoices(
+        invoices.map(invoice => 
+          invoice.id === id ? { ...invoice, status: 'unpaid' } : invoice
+        )
+      );
+      toast({
+        title: "Invoice Sent",
+        description: "The invoice has been sent to the client.",
+      });
+    } catch (error) {
+      handleError(error);
+      toast({
+        title: "Error sending invoice",
+        description: "Failed to send the invoice. Please try again.",
         variant: "destructive"
       });
     }
@@ -86,7 +128,10 @@ const Invoices: React.FC = () => {
         return;
       }
       
-      const blob = await invoiceApi.export({ format, invoices: filteredInvoices.map(inv => inv.id) });
+      const blob = await invoiceApi.export({ 
+        format, 
+        invoices: filteredInvoices.map(inv => inv.id) 
+      });
       
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -193,25 +238,48 @@ const Invoices: React.FC = () => {
                   <TabsList>
                     <TabsTrigger value="all">All</TabsTrigger>
                     <TabsTrigger value="draft">Draft</TabsTrigger>
-                    <TabsTrigger value="sent">Sent</TabsTrigger>
+                    <TabsTrigger value="unpaid">Unpaid</TabsTrigger>
                     <TabsTrigger value="paid">Paid</TabsTrigger>
                     <TabsTrigger value="overdue">Overdue</TabsTrigger>
                   </TabsList>
                 </div>
                 <TabsContent value="all" className="m-0">
-                  <InvoiceList invoices={filteredInvoices} loading={loading} />
+                  <InvoiceList 
+                    invoices={filteredInvoices} 
+                    loading={loading} 
+                    onDelete={handleDeleteInvoice}
+                    onSend={handleSendInvoice}
+                  />
                 </TabsContent>
                 <TabsContent value="draft" className="m-0">
-                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'draft')} loading={loading} />
+                  <InvoiceList 
+                    invoices={filteredInvoices.filter(i => i.status === 'draft')} 
+                    loading={loading}
+                    onDelete={handleDeleteInvoice}
+                    onSend={handleSendInvoice}
+                  />
                 </TabsContent>
-                <TabsContent value="sent" className="m-0">
-                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'sent')} loading={loading} />
+                <TabsContent value="unpaid" className="m-0">
+                  <InvoiceList 
+                    invoices={filteredInvoices.filter(i => i.status === 'unpaid')} 
+                    loading={loading}
+                    onDelete={handleDeleteInvoice}
+                  />
                 </TabsContent>
                 <TabsContent value="paid" className="m-0">
-                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'paid')} loading={loading} />
+                  <InvoiceList 
+                    invoices={filteredInvoices.filter(i => i.status === 'paid')} 
+                    loading={loading}
+                    onDelete={handleDeleteInvoice}
+                  />
                 </TabsContent>
                 <TabsContent value="overdue" className="m-0">
-                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'overdue')} loading={loading} />
+                  <InvoiceList 
+                    invoices={filteredInvoices.filter(i => i.status === 'overdue')} 
+                    loading={loading}
+                    onDelete={handleDeleteInvoice}
+                    onSend={handleSendInvoice}
+                  />
                 </TabsContent>
               </Tabs>
             </CardContent>

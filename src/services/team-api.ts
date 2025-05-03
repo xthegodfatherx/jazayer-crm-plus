@@ -2,155 +2,113 @@
 import apiClient from './api-client';
 import { AxiosResponse } from 'axios';
 
-// Define types based on the backend structures
 export interface TeamMember {
   id: string;
   name: string;
   email: string;
   role: string;
-  department: string;
-  avatar: string | null;
-  status: 'active' | 'inactive' | 'vacation';
-  rating: number;
-  tasks_completed: number;
-  tasks_in_progress: number;
-  base_salary: number;
-  hourly_rate: number;
+  avatar_url?: string;
+  rating?: number;
   created_at: string;
   updated_at: string;
 }
 
-export interface SalarySettings {
-  id: string;
+interface TeamStats {
+  total: number;
+  active: number;
+  admins: number;
+  rating_average: number;
+}
+
+interface SalarySettings {
   base_salary: number;
-  rating_1_multiplier: number;
-  rating_2_multiplier: number;
-  rating_3_multiplier: number;
-  rating_4_multiplier: number;
-  rating_5_multiplier: number;
   hourly_rate: number;
-  overtime_multiplier: number;
+  tax_rate: number;
+  bonus_rate: number;
 }
 
-export interface TeamPerformance {
-  id: string;
-  member_id: string;
-  member_name: string;
-  total_tasks: number;
-  completed_tasks: number;
-  average_rating: number;
-  total_hours: number;
-  calculated_salary: number;
-  period: string;
-}
-
-// Define the API response type
 interface ApiResponse<T> {
   data: T;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 export const teamApi = {
   getMembers: async (): Promise<{ data: TeamMember[] }> => {
     try {
-      const response: AxiosResponse<ApiResponse<TeamMember[]>> = await apiClient.get('/team-members');
+      const response: AxiosResponse<ApiResponse<TeamMember[]>> = await apiClient.get(`${API_URL}/team`);
       return { data: response.data.data };
     } catch (error) {
       console.error('Error fetching team members:', error);
       throw error;
     }
   },
-  
+
   getMember: async (id: string): Promise<{ data: TeamMember }> => {
     try {
-      const response: AxiosResponse<ApiResponse<TeamMember>> = await apiClient.get(`/team-members/${id}`);
+      const response: AxiosResponse<ApiResponse<TeamMember>> = await apiClient.get(`${API_URL}/team/${id}`);
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error fetching team member with id ${id}:`, error);
       throw error;
     }
   },
-  
+
   create: async (data: Omit<TeamMember, 'id' | 'created_at' | 'updated_at'>): Promise<{ data: TeamMember }> => {
     try {
-      const response: AxiosResponse<ApiResponse<TeamMember>> = await apiClient.post('/team-members', data);
+      const response: AxiosResponse<ApiResponse<TeamMember>> = await apiClient.post(`${API_URL}/team`, data);
       return { data: response.data.data };
     } catch (error) {
       console.error('Error creating team member:', error);
       throw error;
     }
   },
-  
+
   update: async (id: string, data: Partial<Omit<TeamMember, 'id' | 'created_at' | 'updated_at'>>): Promise<{ data: TeamMember }> => {
     try {
-      const response: AxiosResponse<ApiResponse<TeamMember>> = await apiClient.put(`/team-members/${id}`, data);
+      const response: AxiosResponse<ApiResponse<TeamMember>> = await apiClient.put(`${API_URL}/team/${id}`, data);
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error updating team member with id ${id}:`, error);
       throw error;
     }
   },
-  
+
   delete: async (id: string): Promise<void> => {
     try {
-      await apiClient.delete(`/team-members/${id}`);
+      await apiClient.delete(`${API_URL}/team/${id}`);
     } catch (error) {
       console.error(`Error deleting team member with id ${id}:`, error);
       throw error;
     }
   },
 
-  // Get team performance metrics
-  getPerformance: async (period?: string): Promise<{ data: TeamPerformance[] }> => {
+  getTeamStats: async (): Promise<{ data: TeamStats }> => {
     try {
-      const response: AxiosResponse<ApiResponse<TeamPerformance[]>> = await apiClient.get('/team/performance', {
-        params: { period }
-      });
+      const response: AxiosResponse<ApiResponse<TeamStats>> = await apiClient.get(`${API_URL}/team/stats`);
       return { data: response.data.data };
     } catch (error) {
-      console.error('Error fetching team performance:', error);
+      console.error('Error fetching team stats:', error);
       throw error;
     }
   },
 
-  // Get salary settings
-  getSalarySettings: async (): Promise<{ data: SalarySettings[] }> => {
+  getSalarySettings: async (memberId: string): Promise<{ data: SalarySettings }> => {
     try {
-      const response: AxiosResponse<ApiResponse<SalarySettings[]>> = await apiClient.get('/salary-settings');
+      const response: AxiosResponse<ApiResponse<SalarySettings>> = await apiClient.get(`${API_URL}/team/${memberId}/salary-settings`);
       return { data: response.data.data };
     } catch (error) {
-      console.error('Error fetching salary settings:', error);
+      console.error(`Error fetching salary settings for member with id ${memberId}:`, error);
       throw error;
     }
   },
 
-  // Calculate salary for a team member
-  calculateSalary: async (memberId: string, month?: string, year?: string): Promise<{ data: { 
-    salary: number,
-    details: {
-      base_salary: number,
-      task_bonus: number,
-      hourly_earnings: number,
-      overtime_earnings: number
-    }
-  } }> => {
-    try {
-      const response = await apiClient.get(`/team-members/${memberId}/salary`, {
-        params: { month, year }
-      });
-      return { data: response.data.data };
-    } catch (error) {
-      console.error(`Error calculating salary for team member ${memberId}:`, error);
-      throw error;
-    }
-  },
-
-  // Update team member salary settings
   updateSalarySettings: async (memberId: string, settings: Partial<SalarySettings>): Promise<{ data: SalarySettings }> => {
     try {
-      const response = await apiClient.put(`/team-members/${memberId}/salary-settings`, settings);
+      const response: AxiosResponse<ApiResponse<SalarySettings>> = await apiClient.put(`${API_URL}/team/${memberId}/salary-settings`, settings);
       return { data: response.data.data };
     } catch (error) {
-      console.error(`Error updating salary settings for team member ${memberId}:`, error);
+      console.error(`Error updating salary settings for member with id ${memberId}:`, error);
       throw error;
     }
   }

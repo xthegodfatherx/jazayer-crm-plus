@@ -1,222 +1,114 @@
 
 import React from 'react';
 import { Task } from '@/types/task';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  ArrowUpCircle, 
-  ArrowRightCircle, 
-  ArrowDownCircle, 
-  Check, 
-  Clock,
-  Calendar,
-  Timer,
-  Eye,
-  MessageSquare
-} from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import StarRating from './StarRating';
+import { CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { formatDate } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TaskListProps {
   tasks: Task[];
-  onRateTask: (taskId: string, rating: number) => void;
-  onStartTimer?: (task: Task) => void;
-  formatTime?: (seconds?: number) => string;
-  onViewTask?: (task: Task) => void;
+  onTaskClick?: (task: Task) => void;
+  loading?: boolean;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ 
-  tasks, 
-  onRateTask,
-  onStartTimer,
-  formatTime,
-  onViewTask
-}) => {
-  const getStatusBadge = (status: Task['status']) => {
-    switch (status) {
-      case 'todo':
-        return <Badge variant="outline" className="border-blue-500 text-blue-500">To Do</Badge>;
-      case 'in_progress':
-        return <Badge variant="outline" className="border-amber-500 text-amber-500">In Progress</Badge>;
-      case 'review':
-        return <Badge variant="outline" className="border-purple-500 text-purple-500">In Review</Badge>;
-      case 'done':
-        return <Badge variant="outline" className="border-green-500 text-green-500">Done</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const getPriorityIcon = (priority: Task['priority']) => {
-    switch (priority) {
+const TaskList: React.FC<TaskListProps> = ({ tasks, onTaskClick, loading = false }) => {
+  const getPriorityBadge = (priority: string) => {
+    switch(priority) {
       case 'high':
-        return <ArrowUpCircle className="h-4 w-4 text-red-500" />;
+        return <Badge variant="destructive">High</Badge>;
       case 'medium':
-        return <ArrowRightCircle className="h-4 w-4 text-amber-500" />;
-      case 'low':
-        return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
+        return <Badge variant="default">Medium</Badge>;
       default:
-        return null;
+        return <Badge variant="outline">Low</Badge>;
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('fr-DZ', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }).format(date);
-  };
-
-  const handleStartTimer = (task: Task) => {
-    if (onStartTimer) {
-      onStartTimer(task);
+  const getStatusIndicator = (status: string) => {
+    switch(status) {
+      case 'done':
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case 'in_progress':
+        return <Clock className="h-5 w-5 text-blue-500" />;
+      case 'review':
+        return <AlertCircle className="h-5 w-5 text-amber-500" />;
+      default:
+        return <Clock className="h-5 w-5 text-gray-500" />;
     }
   };
 
-  const handleViewTask = (task: Task) => {
-    if (onViewTask) {
-      onViewTask(task);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="p-4 border rounded-lg">
+            <div className="flex justify-between mb-2">
+              <Skeleton className="h-6 w-1/3" />
+              <Skeleton className="h-6 w-16" />
+            </div>
+            <Skeleton className="h-4 w-full mb-4" />
+            <div className="flex justify-between items-center">
+              <div className="flex space-x-2">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <Skeleton className="h-5 w-24" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <p className="text-muted-foreground">No tasks found</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Task</TableHead>
-            <TableHead>Assignee</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Due Date</TableHead>
-            <TableHead>Priority</TableHead>
-            {formatTime && <TableHead>Time</TableHead>}
-            <TableHead>Comments</TableHead>
-            <TableHead>Rating</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tasks.map((task) => (
-            <TableRow key={task.id}>
-              <TableCell className="font-medium">
-                <div>
-                  {task.title}
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {task.tags?.map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center">
-                  <Avatar className="h-6 w-6 mr-2">
-                    <AvatarImage src="" alt={task.assignee} />
-                    <AvatarFallback>{task.assignee?.charAt(0) || '?'}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm">{task.assignee}</span>
-                </div>
-              </TableCell>
-              <TableCell>{getStatusBadge(task.status)}</TableCell>
-              <TableCell>
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{task.dueDate && formatDate(task.dueDate)}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center">
-                  {getPriorityIcon(task.priority)}
-                  <span className="ml-2 capitalize text-sm">{task.priority}</span>
-                </div>
-              </TableCell>
-              {formatTime && (
-                <TableCell>
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{formatTime(task.timeTracked)}</span>
-                  </div>
-                </TableCell>
+    <div className="space-y-4">
+      {tasks.map(task => (
+        <div 
+          key={task.id}
+          onClick={() => onTaskClick && onTaskClick(task)}
+          className="p-4 border rounded-lg hover:bg-muted transition-colors cursor-pointer"
+        >
+          <div className="flex justify-between mb-2">
+            <h3 className="font-medium">{task.title}</h3>
+            {getPriorityBadge(task.priority)}
+          </div>
+          
+          {task.description && (
+            <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{task.description}</p>
+          )}
+          
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-2 items-center">
+              {task.assigned_to ? (
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>{task.assigned_to[0]}</AvatarFallback>
+                </Avatar>
+              ) : (
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>?</AvatarFallback>
+                </Avatar>
               )}
-              <TableCell>
-                <div className="flex items-center">
-                  <MessageSquare className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{task.comments?.length || 0}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <StarRating 
-                  rating={task.rating || 0} 
-                  readOnly={false}
-                  onRating={(rating) => onRateTask(task.id, rating)}
-                  size="sm"
-                />
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end space-x-2">
-                  {task.subtasks && (
-                    <Button variant="outline" size="sm">
-                      <Check className="h-4 w-4 mr-1" />
-                      <span className="text-xs">{task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}</span>
-                    </Button>
-                  )}
-                  {onStartTimer && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onStartTimer && onStartTimer(task)}
-                    >
-                      <Timer className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {onViewTask && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onViewTask && onViewTask(task)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+              <span className="text-sm text-muted-foreground">{task.assigned_to || 'Unassigned'}</span>
+            </div>
+            
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              {getStatusIndicator(task.status)}
+              {task.due_date && <span>{formatDate(task.due_date)}</span>}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
-};
-
-const formatDate = (dateString: string) => {
-  try {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('fr-DZ', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }).format(date);
-  } catch (e) {
-    return 'Invalid date';
-  }
-};
-
-const getPriorityIcon = (priority: Task['priority']) => {
-  switch (priority) {
-    case "high":
-      return <ArrowUpCircle className="h-4 w-4 text-red-500" />;
-    case "medium":
-      return <ArrowRightCircle className="h-4 w-4 text-amber-500" />;
-    case "low":
-      return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
-    default:
-      return null;
-  }
 };
 
 export default TaskList;
