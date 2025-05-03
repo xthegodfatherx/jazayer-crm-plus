@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Task } from '@/pages/Tasks';
+import { Task } from '@/types/task';
 import TaskCard from './TaskCard';
 import { cn } from '@/lib/utils';
 import { 

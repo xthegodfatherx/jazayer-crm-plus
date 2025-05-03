@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Check, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Task } from '@/pages/Tasks';
+import { Task } from '@/types/task';
 import { Slider } from '@/components/ui/slider';
 
 interface FilterOptions {

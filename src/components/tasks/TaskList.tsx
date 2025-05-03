@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Task } from '@/pages/Tasks';
+import { Task } from '@/types/task';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

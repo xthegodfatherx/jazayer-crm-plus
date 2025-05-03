@@ -1,32 +1,7 @@
 
 import apiClient from './api-client';
 import { AxiosResponse } from 'axios';
-
-// Define types based on the backend structures
-export interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'todo' | 'in_progress' | 'review' | 'done';
-  priority: 'low' | 'medium' | 'high';
-  due_date?: string;
-  assigned_to?: string;
-  project_id?: string;
-  created_at: string;
-  updated_at: string;
-  tags?: string[];
-  rating?: number;
-}
-
-export interface TaskStats {
-  total: number;
-  completed: number;
-  pending: number;
-  in_progress: number;
-  completed_change: number;
-  pending_change: number;
-  rating_change: number;
-}
+import { Task, TaskStats } from '@/types/task';
 
 // Define the API response type
 interface ApiResponse<T> {
@@ -124,3 +99,6 @@ export const tasksApi = {
     }
   }
 };
+
+// Re-export the Task type for convenience
+export type { Task, TaskStats };

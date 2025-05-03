@@ -1,51 +1,73 @@
 
-import React from 'react';
-import { Progress } from '@/components/ui/progress';
+import React, { useEffect, useState } from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { tasksApi, TaskStats } from '@/services/tasks-api';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface TaskStatusItem {
-  status: string;
-  count: number;
-  color: string;
+interface TaskSummaryProps {
+  period: 'day' | 'week' | 'month';
 }
 
-const TaskSummary: React.FC = () => {
-  const taskStatuses: TaskStatusItem[] = [
-    { status: 'Todo', count: 15, color: 'bg-blue-500' },
-    { status: 'In Progress', count: 8, color: 'bg-amber-500' },
-    { status: 'In Review', count: 5, color: 'bg-purple-500' },
-    { status: 'Completed', count: 24, color: 'bg-green-500' },
+const TaskSummary: React.FC<TaskSummaryProps> = ({ period }) => {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<TaskStats | null>(null);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const { data } = await tasksApi.getStats({ period });
+        setStats(data);
+      } catch (error) {
+        console.error('Error fetching task stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [period]);
+  
+  if (loading) {
+    return (
+      <div className="flex flex-col space-y-3">
+        <Skeleton className="h-[200px] w-full" />
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return <div>No data available</div>;
+  }
+
+  const data = [
+    { name: 'To Do', value: stats.pending, color: '#3498db' },
+    { name: 'In Progress', value: stats.in_progress, color: '#f1c40f' },
+    { name: 'Done', value: stats.completed, color: '#2ecc71' }
   ];
 
-  const totalTasks = taskStatuses.reduce((sum, item) => sum + item.count, 0);
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex space-x-6">
-          {taskStatuses.map((item) => (
-            <div key={item.status} className="flex items-center">
-              <div className={`w-3 h-3 rounded-full ${item.color} mr-2`}></div>
-              <span className="text-sm font-medium">{item.status}</span>
-            </div>
+    <ResponsiveContainer width="100%" height={300}>
+      <PieChart>
+        <Pie
+          data={data}
+          cx="50%"
+          cy="50%"
+          labelLine={false}
+          outerRadius={80}
+          fill="#8884d8"
+          dataKey="value"
+          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+        >
+          {data.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.color} />
           ))}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          Total: <span className="font-medium text-foreground">{totalTasks}</span>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {taskStatuses.map((item) => (
-          <div key={item.status} className="space-y-1">
-            <div className="flex justify-between text-sm">
-              <span>{item.status}</span>
-              <span className="font-medium">{Math.round(item.count / totalTasks * 100)}%</span>
-            </div>
-            <Progress value={item.count / totalTasks * 100} className={item.color} />
-          </div>
-        ))}
-      </div>
-    </div>
+        </Pie>
+        <Tooltip formatter={(value) => [`${value} tasks`, 'Count']} />
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
   );
 };
 

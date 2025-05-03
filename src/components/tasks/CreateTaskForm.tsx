@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Task } from '@/pages/Tasks';
+import { Task } from '@/types/task';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,

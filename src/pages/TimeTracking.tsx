@@ -6,7 +6,7 @@ import { Timer, Clock, Plus, Calendar, Edit, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import TeamTimeReport from '@/components/reports/TeamTimeReport';
-import { Task } from '@/services/tasks-api';
+import { Task } from '@/types/task';
 import { useToast } from '@/hooks/use-toast';
 import { tasksApi, timeEntriesApi } from '@/services/api';
 import { TimeEntry } from '@/services/time-entries-api';
@@ -251,7 +251,7 @@ const TimeTracking: React.FC = () => {
           taskId={activeTimer.id} 
           taskTitle={activeTimer.title} 
           onSaveTime={handleSaveTime}
-          assignee={activeTimer.assignee}
+          assigned_to={activeTimer.assigned_to}
         />
       )}
     </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -21,7 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { tasksApi, Task } from '@/services/tasks-api';
+import { tasksApi } from '@/services/tasks-api';
+import { Task } from '@/types/task';
 import { formatDateTime } from '@/lib/utils';
 import {
   Select,
@@ -55,25 +57,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-export interface TaskType {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in_progress' | 'review' | 'done';
-  priority: 'low' | 'medium' | 'high';
-  dueDate: string;
-  assignee: string;
-  tags: string[];
-}
-
 const Tasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    status: 'todo',
-    priority: 'low',
+    status: 'todo' as Task['status'],
+    priority: 'low' as Task['priority'],
     dueDate: '',
     assigned_to: '',
     tags: [] as string[],
@@ -106,13 +97,17 @@ const Tasks: React.FC = () => {
 
   const handleCreateTask = async () => {
     try {
+      // Convert status from UI format to API format if needed
+      const apiStatus = formData.status === 'in-progress' ? 'in_progress' :
+                         formData.status === 'in-review' ? 'review' : 
+                         formData.status;
+
       const newTask = {
         title: formData.title,
         description: formData.description,
         assigned_to: formData.assigned_to,
         due_date: formData.dueDate,
-        status: formData.status === 'in-progress' ? 'in_progress' : 
-                formData.status === 'in-review' ? 'review' : formData.status,
+        status: apiStatus,
         priority: formData.priority,
         tags: formData.tags,
       };
@@ -162,11 +157,15 @@ const Tasks: React.FC = () => {
     if (!selectedTask) return;
 
     try {
+      // Convert status from UI format to API format if needed
+      const apiStatus = formData.status === 'in-progress' ? 'in_progress' :
+                         formData.status === 'in-review' ? 'review' : 
+                         formData.status;
+
       const updatedTask = {
         title: formData.title,
         description: formData.description,
-        status: formData.status === 'in-progress' ? 'in_progress' : 
-                formData.status === 'in-review' ? 'review' : formData.status,
+        status: apiStatus,
         priority: formData.priority,
         due_date: formData.dueDate,
         assigned_to: formData.assigned_to,
@@ -217,7 +216,7 @@ const Tasks: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (taskId: string, newStatus: string) => {
+  const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
     const apiStatus = 
       newStatus === 'in-progress' ? 'in_progress' :
       newStatus === 'in-review' ? 'review' : newStatus;
@@ -250,7 +249,7 @@ const Tasks: React.FC = () => {
         <h1 className="text-2xl font-bold">Tasks</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="primary">Create Task</Button>
+            <Button>Create Task</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -276,7 +275,7 @@ const Tasks: React.FC = () => {
                 <Label htmlFor="status" className="text-right">
                   Status
                 </Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                <Select value={formData.status} onValueChange={(value: Task['status']) => setFormData({ ...formData, status: value })}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a status" />
                   </SelectTrigger>
@@ -292,7 +291,7 @@ const Tasks: React.FC = () => {
                 <Label htmlFor="priority" className="text-right">
                   Priority
                 </Label>
-                <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                <Select value={formData.priority} onValueChange={(value: Task['priority']) => setFormData({ ...formData, priority: value })}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a priority" />
                   </SelectTrigger>

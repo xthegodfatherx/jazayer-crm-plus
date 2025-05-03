@@ -1,192 +1,131 @@
-
-import React from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { Task } from '@/pages/Tasks';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { StarIcon } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, Users, Calendar } from 'lucide-react';
+import { Task } from '@/types/task';
+import { tasksApi } from '@/services/tasks-api';
+import { useToast } from '@/hooks/use-toast';
+import { teamApi } from '@/services/team-api';
+import { Progress } from '@/components/ui/progress';
 
-const AdminOverview = () => {
-  // Sample data - in a real app, this would come from an API
-  const stats = {
-    totalProjects: 12,
-    totalTasks: 147,
-    totalUsers: 24,
-    activeTasks: 76,
-    completedTasks: 71,
-    hoursTracked: 243
-  };
+interface AdminOverviewProps {
+  className?: string;
+}
 
-  const taskStatusData = [
-    { name: 'To Do', value: 34, color: '#3b82f6' },
-    { name: 'In Progress', value: 28, color: '#f59e0b' },
-    { name: 'In Review', value: 14, color: '#8b5cf6' },
-    { name: 'Completed', value: 71, color: '#10b981' }
-  ];
+const AdminOverview: React.FC<AdminOverviewProps> = ({ className }) => {
+  const [totalTasks, setTotalTasks] = useState(0);
+  const [completedTasks, setCompletedTasks] = useState(0);
+  const [teamSize, setTeamSize] = useState(0);
+  const [averageRating, setAverageRating] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const timeData = [
-    { name: 'Mon', hours: 24 },
-    { name: 'Tue', hours: 32 },
-    { name: 'Wed', hours: 38 },
-    { name: 'Thu', hours: 28 },
-    { name: 'Fri', hours: 42 },
-    { name: 'Sat', hours: 8 },
-    { name: 'Sun', hours: 6 }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
 
-  const topPerformers = [
-    { id: 1, name: 'Ahmed Khalifi', tasks: 23, hours: 47, rating: 4.8 },
-    { id: 2, name: 'Leila Benzema', tasks: 19, hours: 42, rating: 4.7 },
-    { id: 3, name: 'Karim Mansouri', tasks: 21, hours: 39, rating: 4.5 },
-    { id: 4, name: 'Selma Bouaziz', tasks: 18, hours: 37, rating: 4.4 },
-    { id: 5, name: 'Amina Kader', tasks: 17, hours: 34, rating: 4.3 }
-  ];
+        // Fetch tasks and team data in parallel
+        const [tasksData, teamData] = await Promise.all([
+          tasksApi.getAll(),
+          teamApi.getAll()
+        ]);
+
+        // Calculate task statistics
+        const total = tasksData.data.length;
+        const completed = tasksData.data.filter(task => task.status === 'done').length;
+        setTotalTasks(total);
+        setCompletedTasks(completed);
+
+        // Calculate team size
+        setTeamSize(teamData.data.length);
+
+        // Calculate average team rating
+        const totalRating = teamData.data.reduce((sum, member) => sum + (member.average_rating || 0), 0);
+        const avgRating = teamSize > 0 ? totalRating / teamSize : 0;
+        setAverageRating(parseFloat(avgRating.toFixed(1)));
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load admin overview data.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [toast]);
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className={className}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Total Tasks</CardTitle>
+            <CardDescription>All tasks in the system</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProjects}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTasks}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              <Badge variant="outline" className="mr-1 border-green-500 text-green-500">
-                {stats.completedTasks} completed
-              </Badge>
-              <Badge variant="outline" className="border-blue-500 text-blue-500">
-                {stats.activeTasks} active
-              </Badge>
+            <div className="text-3xl font-bold">{loading ? 'Loading...' : totalTasks}</div>
+            <div className="flex items-center text-sm text-muted-foreground mt-2">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              <span>{loading ? 'Loading...' : `${(completedTasks / totalTasks * 100).toFixed(1)}% Completed`}</span>
             </div>
+            {loading ? (
+              <Progress value={0} className="mt-2" />
+            ) : (
+              <Progress value={(completedTasks / totalTasks * 100)} className="mt-2" />
+            )}
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Hours Tracked</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.hoursTracked}h</div>
-            <div className="text-xs text-muted-foreground mt-1">This month</div>
-          </CardContent>
-        </Card>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
-            <CardTitle>Time Tracked This Week</CardTitle>
+            <CardTitle className="text-lg font-semibold">Completed Tasks</CardTitle>
+            <CardDescription>Tasks marked as done</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={timeData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="hours" name="Hours" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="text-3xl font-bold">{loading ? 'Loading...' : completedTasks}</div>
+            <div className="flex items-center text-sm text-muted-foreground mt-2">
+              <CheckSquare className="h-4 w-4 mr-2" />
+              <span>{loading ? 'Loading...' : 'View completed tasks'}</span>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
-            <CardTitle>Task Status</CardTitle>
+            <CardTitle className="text-lg font-semibold">Team Size</CardTitle>
+            <CardDescription>Number of active team members</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={taskStatusData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {taskStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="text-3xl font-bold">{loading ? 'Loading...' : teamSize}</div>
+            <div className="flex items-center text-sm text-muted-foreground mt-2">
+              <Users className="h-4 w-4 mr-2" />
+              <span>{loading ? 'Loading...' : 'Manage team members'}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Average Team Rating</CardTitle>
+            <CardDescription>Average rating of all team members</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{loading ? 'Loading...' : averageRating}</div>
+            <div className="flex items-center text-sm text-muted-foreground mt-2">
+              <Star className="h-4 w-4 mr-2" />
+              <span>{loading ? 'Loading...' : 'View team performance'}</span>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Performers</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {topPerformers.map((user) => (
-              <Card key={user.id}>
-                <CardContent className="p-4 flex flex-col items-center text-center">
-                  <Avatar className="h-16 w-16 mb-2">
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <h3 className="font-medium text-sm">{user.name}</h3>
-                  <div className="mt-1 flex items-center">
-                    <StarIcon className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                    <span className="ml-1 text-sm">{user.rating}</span>
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    <div>{user.tasks} tasks completed</div>
-                    <div>{user.hours} hours tracked</div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

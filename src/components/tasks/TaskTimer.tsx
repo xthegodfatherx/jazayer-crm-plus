@@ -1,270 +1,209 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { 
-  Play, 
-  Pause, 
-  Clock, 
-  StopCircle, 
-  Save, 
-  X,
-  User,
-  DollarSign
-} from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { timeEntriesApi, handleError } from '@/services/api';
-import { TimeEntryInsert } from '@/services/time-entries-api';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Timer, Pause, Play, Check, X, Clock } from 'lucide-react';
+import { timeEntriesApi } from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface TaskTimerProps {
   taskId: string;
   taskTitle: string;
-  onSaveTime?: (taskId: string, seconds: number) => void;
-  initialSeconds?: number;
-  assignee?: string;
-  hourlyRate?: number;
+  onSaveTime: (taskId: string, seconds: number) => void;
+  assigned_to?: string; // Use the API field name
 }
 
-const TaskTimer: React.FC<TaskTimerProps> = ({ 
-  taskId, 
-  taskTitle, 
-  onSaveTime, 
-  initialSeconds = 0,
-  assignee,
-  hourlyRate = 0
-}) => {
-  const [seconds, setSeconds] = useState(initialSeconds);
+const TaskTimer: React.FC<TaskTimerProps> = ({ taskId, taskTitle, onSaveTime, assigned_to }) => {
+  const [isOpen, setIsOpen] = useState(true);
+  const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [startTimestamp, setStartTimestamp] = useState<Date | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [description, setDescription] = useState('');
   const [isBillable, setIsBillable] = useState(true);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
+  // Start timer initially
   useEffect(() => {
-    if (isActive && !startTimestamp) {
-      setStartTimestamp(new Date());
-    }
+    startTimer();
+  }, []);
 
-    if (isActive) {
-      timerRef.current = setInterval(() => {
-        setSeconds(prev => prev + 1);
-      }, 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isActive, startTimestamp]);
-
-  const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds - (hours * 3600)) / 60);
-    const remainingSeconds = totalSeconds % 60;
+  useEffect(() => {
+    let interval: number | undefined;
     
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const toggleTimer = () => {
-    if (!isActive && !startTimestamp) {
-      setStartTimestamp(new Date());
+    if (isActive) {
+      interval = window.setInterval(() => {
+        setSeconds(seconds => seconds + 1);
+      }, 1000);
     }
-    setIsActive(!isActive);
-    toast({
-      title: isActive ? "Timer paused" : "Timer started",
-      description: `Task: ${taskTitle}`,
-      variant: isActive ? "destructive" : "default"
-    });
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isActive]);
+
+  const startTimer = () => {
+    if (!isActive) {
+      setIsActive(true);
+      if (!startTime) {
+        setStartTime(new Date());
+      }
+    }
   };
 
-  const stopTimer = () => {
+  const pauseTimer = () => {
     setIsActive(false);
-    toast({
-      title: "Timer stopped",
-      description: `Total time: ${formatTime(seconds)}`,
-      variant: "default"
-    });
   };
 
-  const saveTime = async () => {
-    try {
-      setIsSaving(true);
-      
-      if (!startTimestamp) {
-        toast({
-          title: "Error",
-          description: "Invalid start time",
-          variant: "destructive"
-        });
-        return;
-      }
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
-      const endTime = new Date();
-      
-      // Create time entry data with proper types
-      const timeEntryData: TimeEntryInsert = {
-        task_id: taskId,
-        start_time: startTimestamp.toISOString(),
-        end_time: endTime.toISOString(),
-        duration: seconds,
-        description: `Time entry for task: ${taskTitle}`,
-        billable: isBillable,
-        user_id: null,
-        project_id: null,
-        hourly_rate: isBillable ? hourlyRate : null
-      };
-      
-      await timeEntriesApi.create(timeEntryData);
-
-      if (onSaveTime) {
-        onSaveTime(taskId, seconds);
-      }
-      
+  const handleSaveTime = async () => {
+    if (seconds < 10) {
       toast({
-        title: "Time saved",
-        description: `${formatTime(seconds)} recorded for task "${taskTitle}"`,
-        variant: "default"
+        title: "Time too short",
+        description: "Please track at least 10 seconds before saving.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      
+      // Create a new time entry
+      await timeEntriesApi.create({
+        task_id: taskId,
+        description: description,
+        start_time: startTime?.toISOString() || new Date().toISOString(),
+        end_time: new Date().toISOString(),
+        duration: seconds,
+        billable: isBillable,
       });
       
-      setIsActive(false);
-      setSeconds(0);
-      setStartTimestamp(null);
+      toast({
+        title: "Time Entry Saved",
+        description: `Saved ${formatTime(seconds)} for task "${taskTitle}"`,
+      });
+      
+      onSaveTime(taskId, seconds);
+      setIsOpen(false);
     } catch (error) {
-      handleError(error);
+      console.error("Error saving time entry:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save time entry. Please try again.",
+        variant: "destructive"
+      });
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  const toggleMinimize = () => {
-    setIsMinimized(!isMinimized);
+  const handleCancel = () => {
+    if (seconds > 60) {
+      if (!window.confirm("Are you sure you want to cancel? All tracked time will be lost.")) {
+        return;
+      }
+    }
+    setIsOpen(false);
   };
-
-  // Calculate earnings based on hourly rate and time spent
-  const calculateEarnings = () => {
-    if (!hourlyRate || !isBillable) return 0;
-    const hours = seconds / 3600;
-    return hours * hourlyRate;
-  };
-
-  const earnings = calculateEarnings();
-
-  if (isMinimized) {
-    return (
-      <div 
-        className="fixed bottom-4 right-4 bg-primary text-white p-3 rounded-full shadow-lg cursor-pointer flex items-center z-50 hover:bg-primary/90 transition-colors"
-        onClick={toggleMinimize}
-      >
-        <Clock className="h-5 w-5" />
-        {isActive && <span className="animate-pulse absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>}
-      </div>
-    );
-  }
 
   return (
-    <Card className="fixed bottom-4 right-4 w-80 shadow-lg z-50 border-2 border-primary/20 animate-in fade-in slide-in-from-bottom-10 duration-300">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-medium flex items-center">
-            <Clock className="h-4 w-4 mr-2 text-primary" />
-            Task Timer
-          </h3>
-          <div className="flex gap-1">
-            <Button variant="ghost" size="icon" onClick={toggleMinimize} className="h-6 w-6">
-              <X className="h-4 w-4" />
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center">
+            <Timer className="h-5 w-5 mr-2" />
+            Time Tracking
+          </DialogTitle>
+          <DialogDescription>
+            Task: {taskTitle}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 pt-4">
+          {assigned_to && (
+            <div className="flex items-center space-x-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>{assigned_to[0]?.toUpperCase() || '?'}</AvatarFallback>
+              </Avatar>
+              <span>{assigned_to}</span>
+            </div>
+          )}
+          
+          <div className="flex flex-col items-center py-4">
+            <div className="text-4xl font-mono font-bold mb-4">{formatTime(seconds)}</div>
+            <div className="flex space-x-2">
+              {isActive ? (
+                <Button onClick={pauseTimer} variant="outline" size="icon">
+                  <Pause className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={startTimer} variant="outline" size="icon">
+                  <Play className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="What are you working on?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="isBillable"
+              checked={isBillable}
+              onCheckedChange={(checked) => setIsBillable(!!checked)}
+            />
+            <Label htmlFor="isBillable">Billable time</Label>
+          </div>
+          
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={handleCancel}>
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+            <Button onClick={handleSaveTime} disabled={saving}>
+              {saving ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Save Time Entry
+                </>
+              )}
             </Button>
           </div>
         </div>
-        
-        <div className="truncate text-sm mb-3 font-medium" title={taskTitle}>
-          {taskTitle}
-        </div>
-        
-        {assignee && (
-          <div className="text-xs text-muted-foreground mb-3 flex items-center">
-            <User className="h-3 w-3 mr-1" />
-            {assignee}
-          </div>
-        )}
-        
-        <div className="text-3xl font-mono text-center my-3 tabular-nums">
-          {formatTime(seconds)}
-        </div>
-        
-        {hourlyRate > 0 && isBillable && (
-          <div className="text-sm text-center mb-3 flex items-center justify-center">
-            <DollarSign className="h-3 w-3 mr-1 text-green-600" />
-            <span className="text-green-600">
-              {new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(earnings)}
-            </span>
-          </div>
-        )}
-        
-        <div className="flex items-center space-x-2 mb-3">
-          <Checkbox 
-            id="billable" 
-            checked={isBillable} 
-            onCheckedChange={(checked) => setIsBillable(checked as boolean)} 
-          />
-          <Label htmlFor="billable" className="text-sm">Billable time</Label>
-        </div>
-        
-        <div className="flex justify-between gap-2 mt-4">
-          <Button 
-            variant={isActive ? "destructive" : "default"} 
-            size="sm" 
-            onClick={toggleTimer} 
-            disabled={isSaving}
-            className="flex-1"
-          >
-            {isActive ? (
-              <>
-                <Pause className="h-4 w-4 mr-2" />
-                Pause
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Start
-              </>
-            )}
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={stopTimer} 
-            disabled={!isActive || isSaving}
-            className="flex-1"
-          >
-            <StopCircle className="h-4 w-4 mr-2" />
-            Stop
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={saveTime} 
-            disabled={seconds === 0 || isSaving}
-            className="flex-1"
-          >
-            {isSaving ? (
-              <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 };
 
