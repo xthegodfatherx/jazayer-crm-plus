@@ -1,23 +1,36 @@
 
-import React from 'react';
-import { Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Star, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
-interface TeamMember {
-  id: number;
-  name: string;
-  role: string;
-  avatar: string;
-  rating: number;
-}
+import { teamApi, TeamPerformance as TeamPerformanceType } from '@/services/team-api';
+import { useToast } from '@/hooks/use-toast';
+import { handleError } from '@/services/api';
 
 const TeamPerformance: React.FC = () => {
-  const teamMembers: TeamMember[] = [
-    { id: 1, name: 'Ahmed Khalifi', role: 'UI Designer', avatar: '', rating: 4.8 },
-    { id: 2, name: 'Selma Bouaziz', role: 'Frontend Developer', avatar: '', rating: 4.5 },
-    { id: 3, name: 'Karim Mansouri', role: 'Project Manager', avatar: '', rating: 4.2 },
-    { id: 4, name: 'Leila Benzema', role: 'Backend Developer', avatar: '', rating: 3.9 },
-  ];
+  const [teamMembers, setTeamMembers] = useState<TeamPerformanceType[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchTeamPerformance = async () => {
+      try {
+        setLoading(true);
+        const { data } = await teamApi.getPerformance('current-month');
+        setTeamMembers(data);
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error loading team performance",
+          description: "Failed to load team performance data. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeamPerformance();
+  }, [toast]);
 
   // Function to render stars based on rating
   const renderStars = (rating: number) => {
@@ -44,23 +57,45 @@ const TeamPerformance: React.FC = () => {
     return <div className="flex">{stars}</div>;
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-4">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <p className="text-sm">Loading...</p>
+      </div>
+    );
+  }
+
+  if (teamMembers.length === 0) {
+    return (
+      <div className="text-center py-4 text-sm text-muted-foreground">
+        No data available
+      </div>
+    );
+  }
+
+  // Show only top 4 team members by rating
+  const topMembers = [...teamMembers]
+    .sort((a, b) => b.average_rating - a.average_rating)
+    .slice(0, 4);
+
   return (
     <div className="space-y-4">
-      {teamMembers.map((member) => (
+      {topMembers.map((member) => (
         <div key={member.id} className="flex items-center justify-between">
           <div className="flex items-center">
             <Avatar className="h-8 w-8 mr-2">
-              <AvatarImage src={member.avatar} alt={member.name} />
-              <AvatarFallback>{member.name.slice(0, 2)}</AvatarFallback>
+              <AvatarImage src="" alt={member.member_name} />
+              <AvatarFallback>{member.member_name.slice(0, 2)}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-sm font-medium">{member.name}</p>
-              <p className="text-xs text-muted-foreground">{member.role}</p>
+              <p className="text-sm font-medium">{member.member_name}</p>
+              <p className="text-xs text-muted-foreground">Tasks: {member.completed_tasks}</p>
             </div>
           </div>
           <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">{member.rating}</span>
-            {renderStars(member.rating)}
+            <span className="text-sm font-medium mr-2">{member.average_rating.toFixed(1)}</span>
+            {renderStars(member.average_rating)}
           </div>
         </div>
       ))}

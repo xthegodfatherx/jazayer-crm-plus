@@ -22,7 +22,7 @@ import TeamTimeReport from '@/components/reports/TeamTimeReport';
 import TaskCompletionReport from '@/components/reports/TaskCompletionReport';
 import ProjectPerformanceReport from '@/components/reports/ProjectPerformanceReport';
 import TeamPerformance from '@/components/team/TeamPerformance';
-import { reportsApi } from '@/services/reports-api';
+import { reportsApi, Report, ReportFilter } from '@/services/reports-api';
 import { useToast } from '@/hooks/use-toast';
 import { handleError } from '@/services/api';
 
@@ -30,15 +30,38 @@ const Reports: React.FC = () => {
   const [dateRange, setDateRange] = useState('This Month');
   const [activeTab, setActiveTab] = useState('time-tracking');
   const [loading, setLoading] = useState(false);
+  const [reports, setReports] = useState<Report[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     const loadReportData = async () => {
       try {
         setLoading(true);
-        // This would typically load any initial report metadata or configuration
-        // from the API, but for now we're just setting loading state
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
+        const filter: ReportFilter = {};
+        
+        // Convert UI date range to API filter format
+        switch(dateRange) {
+          case 'This Week':
+            filter.date_from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            break;
+          case 'This Month':
+            const now = new Date();
+            filter.date_from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            break;
+          case 'Last 3 Months':
+            filter.date_from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            break;
+          case 'This Year':
+            filter.date_from = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+            break;
+        }
+        
+        // Add type filter based on active tab
+        filter.type = activeTab;
+        
+        // Fetch reports based on filters
+        const { data } = await reportsApi.getAll({ filters: filter });
+        setReports(data);
       } catch (error) {
         handleError(error);
         toast({
@@ -52,7 +75,7 @@ const Reports: React.FC = () => {
     };
 
     loadReportData();
-  }, [toast]);
+  }, [toast, dateRange, activeTab]);
 
   const handleExport = async (format: 'pdf' | 'excel') => {
     try {
@@ -90,6 +113,11 @@ const Reports: React.FC = () => {
       });
     } catch (error) {
       handleError(error);
+      toast({
+        title: "Export failed",
+        description: "There was a problem generating your report. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }

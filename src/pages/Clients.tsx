@@ -1,121 +1,66 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Filter, Search, Building2 } from 'lucide-react';
+import { Plus, Filter, Search, Building2, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import ClientList from '@/components/clients/ClientList';
 import ClientGrid from '@/components/clients/ClientGrid';
+import { clientsApi, Client as ApiClient } from '@/services/clients-api';
+import { useToast } from '@/hooks/use-toast';
+import { handleError } from '@/services/api';
 
-export interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
-  logo?: string;
-  status: 'active' | 'inactive' | 'lead';
-  address: string;
+// Extend the API client type with additional fields needed for the UI
+export interface Client extends ApiClient {
   contactPerson: string;
+  logo?: string;
   tags: string[];
   totalRevenue: number;
   lastActivity: string;
 }
 
 const Clients: React.FC = () => {
-  const [searchTerm, setSearchTerm] = React.useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const { toast } = useToast();
 
-  const clients: Client[] = [
-    {
-      id: '1',
-      name: 'Sonatrach',
-      email: 'contact@sonatrach.dz',
-      phone: '+213 21 54 70 00',
-      company: 'Sonatrach',
-      logo: '',
-      status: 'active',
-      address: 'Avenue du 1er Novembre, Hydra, Alger',
-      contactPerson: 'Mohammed Hakimi',
-      tags: ['Energy', 'Oil & Gas'],
-      totalRevenue: 250000,
-      lastActivity: '2025-04-05',
-    },
-    {
-      id: '2',
-      name: 'Djezzy',
-      email: 'business@djezzy.dz',
-      phone: '+213 21 54 30 00',
-      company: 'Djezzy',
-      logo: '',
-      status: 'active',
-      address: 'Lotissement du 11 Décembre 1960, Lot 40, Bab Ezzouar, Alger',
-      contactPerson: 'Amina Khelifi',
-      tags: ['Telecom', 'Technology'],
-      totalRevenue: 180000,
-      lastActivity: '2025-04-01',
-    },
-    {
-      id: '3',
-      name: 'Air Algérie',
-      email: 'commercial@airalgerie.dz',
-      phone: '+213 21 98 63 00',
-      company: 'Air Algérie',
-      logo: '',
-      status: 'active',
-      address: '1 Place Maurice Audin, Alger',
-      contactPerson: 'Karim Belhadj',
-      tags: ['Transportation', 'Travel'],
-      totalRevenue: 120000,
-      lastActivity: '2025-03-28',
-    },
-    {
-      id: '4',
-      name: 'Ooredoo Algérie',
-      email: 'business@ooredoo.dz',
-      phone: '+213 23 04 82 82',
-      company: 'Ooredoo Algérie',
-      logo: '',
-      status: 'active',
-      address: 'Lot 07/05, Les Pins, Hydra, Alger',
-      contactPerson: 'Leila Benaouda',
-      tags: ['Telecom', 'Technology'],
-      totalRevenue: 150000,
-      lastActivity: '2025-03-25',
-    },
-    {
-      id: '5',
-      name: 'Cevital',
-      email: 'info@cevital.com',
-      phone: '+213 34 81 19 81',
-      company: 'Cevital',
-      logo: '',
-      status: 'lead',
-      address: 'Route nationale n° 12, Bejaia',
-      contactPerson: 'Salim Othmani',
-      tags: ['Food', 'Agriculture'],
-      totalRevenue: 0,
-      lastActivity: '2025-04-03',
-    },
-    {
-      id: '6',
-      name: 'Mobilis',
-      email: 'commercial@mobilis.dz',
-      phone: '+213 21 82 52 82',
-      company: 'Mobilis',
-      logo: '',
-      status: 'inactive',
-      address: "Quartier d'Affaires d'Alger îlot 05, lots 27, 28, 29 Bab Ezzouar, Alger",
-      contactPerson: 'Ahmed Zeroual',
-      tags: ['Telecom', 'Technology'],
-      totalRevenue: 90000,
-      lastActivity: '2025-02-15',
-    },
-  ];
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        setLoading(true);
+        const { data } = await clientsApi.getAll();
+        
+        // Transform API data to match the Client interface
+        const formattedClients: Client[] = data.map(client => ({
+          ...client,
+          contactPerson: client.name, // Using name as contact person if not available
+          logo: '',  // Default empty logo
+          tags: client.status ? [client.status] : [], // Using status as a tag if available
+          totalRevenue: 0, // Default value, should be fetched from another API endpoint
+          lastActivity: client.updated_at, // Using updated_at as last activity date
+        }));
+        
+        setClients(formattedClients);
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error loading clients",
+          description: "Failed to load client data. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClients();
+  }, [toast]);
 
   const filteredClients = clients.filter(client => 
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -149,7 +94,14 @@ const Clients: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Building2 className="h-5 w-5" />
-            <span>{filteredClients.length} clients found</span>
+            {loading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <span>Loading clients...</span>
+              </div>
+            ) : (
+              <span>{filteredClients.length} clients found</span>
+            )}
           </div>
           <Tabs defaultValue="list">
             <TabsList>
@@ -160,15 +112,22 @@ const Clients: React.FC = () => {
         </div>
       </Card>
 
-      <Tabs defaultValue="list">
-        <TabsContent value="list" className="mt-0">
-          <ClientList clients={filteredClients} />
-        </TabsContent>
-        
-        <TabsContent value="grid" className="mt-0">
-          <ClientGrid clients={filteredClients} />
-        </TabsContent>
-      </Tabs>
+      {loading ? (
+        <div className="flex justify-center items-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin mr-2" />
+          <p>Loading client data...</p>
+        </div>
+      ) : (
+        <Tabs defaultValue="list">
+          <TabsContent value="list" className="mt-0">
+            <ClientList clients={filteredClients} />
+          </TabsContent>
+          
+          <TabsContent value="grid" className="mt-0">
+            <ClientGrid clients={filteredClients} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 };

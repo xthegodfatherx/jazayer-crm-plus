@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { 
   Select, 
   SelectContent, 
@@ -11,7 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Clock, Calendar, BarChart3 } from 'lucide-react';
+import { Clock, Calendar, BarChart3, Loader2 } from 'lucide-react';
+import { teamApi } from '@/services/team-api';
+import { useToast } from '@/hooks/use-toast';
+import { handleError } from '@/services/api';
 
 interface TeamTimeReportProps {
   dateRange: string;
@@ -19,6 +23,7 @@ interface TeamTimeReportProps {
 
 interface TimeEntry {
   user: string;
+  userId: string;
   totalHours: number;
   billableHours: number;
   projects: { name: string; hours: number }[];
@@ -30,103 +35,71 @@ interface TimeEntry {
 
 const TeamTimeReport: React.FC<TeamTimeReportProps> = ({ dateRange }) => {
   const [viewType, setViewType] = useState<'all' | 'byUser' | 'byProject'>('all');
+  const [timeData, setTimeData] = useState<TimeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   
-  const timeData: TimeEntry[] = [
-    {
-      user: 'Ahmed Khalifi',
-      totalHours: 156,
-      billableHours: 142,
-      projects: [
-        { name: 'Sonatrach Web Application', hours: 68 },
-        { name: 'Djezzy Mobile App', hours: 45 },
-        { name: 'Cevital E-commerce Platform', hours: 43 },
-      ],
-      tasks: [
-        { name: 'UI Design', hours: 72 },
-        { name: 'Prototyping', hours: 48 },
-        { name: 'User Testing', hours: 36 },
-      ],
-      averageHoursPerDay: 7.8,
-      mostActiveDay: 'Wednesday',
-      mostActiveProject: 'Sonatrach Web Application',
-    },
-    {
-      user: 'Selma Bouaziz',
-      totalHours: 165,
-      billableHours: 158,
-      projects: [
-        { name: 'Sonatrach Web Application', hours: 72 },
-        { name: 'Air Algérie Booking System', hours: 65 },
-        { name: 'Cevital E-commerce Platform', hours: 28 },
-      ],
-      tasks: [
-        { name: 'Frontend Development', hours: 95 },
-        { name: 'Bug Fixes', hours: 40 },
-        { name: 'Code Reviews', hours: 30 },
-      ],
-      averageHoursPerDay: 8.3,
-      mostActiveDay: 'Tuesday',
-      mostActiveProject: 'Sonatrach Web Application',
-    },
-    {
-      user: 'Karim Mansouri',
-      totalHours: 148,
-      billableHours: 130,
-      projects: [
-        { name: 'Air Algérie Booking System', hours: 82 },
-        { name: 'Sonatrach Web Application', hours: 42 },
-        { name: 'Cevital E-commerce Platform', hours: 24 },
-      ],
-      tasks: [
-        { name: 'Project Management', hours: 68 },
-        { name: 'Client Meetings', hours: 45 },
-        { name: 'Documentation', hours: 35 },
-      ],
-      averageHoursPerDay: 7.4,
-      mostActiveDay: 'Monday',
-      mostActiveProject: 'Air Algérie Booking System',
-    },
-    {
-      user: 'Leila Benzema',
-      totalHours: 172,
-      billableHours: 163,
-      projects: [
-        { name: 'Djezzy Mobile App', hours: 85 },
-        { name: 'Ooredoo Data Analytics Dashboard', hours: 68 },
-        { name: 'Mobilis Internal CRM', hours: 19 },
-      ],
-      tasks: [
-        { name: 'Backend Development', hours: 98 },
-        { name: 'Database Design', hours: 42 },
-        { name: 'API Development', hours: 32 },
-      ],
-      averageHoursPerDay: 8.6,
-      mostActiveDay: 'Thursday',
-      mostActiveProject: 'Djezzy Mobile App',
-    },
-    {
-      user: 'Mohammed Ali',
-      totalHours: 132,
-      billableHours: 120,
-      projects: [
-        { name: 'Ooredoo Data Analytics Dashboard', hours: 55 },
-        { name: 'Djezzy Mobile App', hours: 42 },
-        { name: 'Mobilis Internal CRM', hours: 35 },
-      ],
-      tasks: [
-        { name: 'Sales Management', hours: 58 },
-        { name: 'Market Research', hours: 45 },
-        { name: 'Client Support', hours: 29 },
-      ],
-      averageHoursPerDay: 6.6,
-      mostActiveDay: 'Monday',
-      mostActiveProject: 'Ooredoo Data Analytics Dashboard',
-    },
-  ];
+  useEffect(() => {
+    const fetchTimeData = async () => {
+      try {
+        setLoading(true);
+        
+        // Convert date range to API filter format
+        let period = 'current-month';
+        switch (dateRange) {
+          case 'This Week':
+            period = 'current-week';
+            break;
+          case 'This Month':
+            period = 'current-month';
+            break;
+          case 'Last 3 Months':
+            period = 'last-quarter';
+            break;
+          case 'This Year':
+            period = 'current-year';
+            break;
+          default:
+            period = 'current-month';
+        }
+        
+        // Fetch team performance data which includes time tracking
+        const { data: performanceData } = await teamApi.getPerformance(period);
+        
+        // Transform performance data to time entries format
+        const timeEntries: TimeEntry[] = performanceData.map(member => {
+          return {
+            user: member.member_name,
+            userId: member.member_id,
+            totalHours: member.total_hours || 0,
+            billableHours: member.calculated_salary / (member.hourly_rate || 1),
+            projects: [], // This would come from another API endpoint
+            tasks: [], // This would come from another API endpoint
+            averageHoursPerDay: (member.total_hours || 0) / 20, // assuming ~20 working days per month
+            mostActiveDay: 'Monday', // This would come from another API endpoint
+            mostActiveProject: 'Main Project', // This would come from another API endpoint
+          };
+        });
+        
+        setTimeData(timeEntries);
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error loading time report",
+          description: "Failed to load time report data. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTimeData();
+  }, [dateRange, toast]);
 
   const totalTeamHours = timeData.reduce((sum, entry) => sum + entry.totalHours, 0);
   const totalBillableHours = timeData.reduce((sum, entry) => sum + entry.billableHours, 0);
-  const billablePercentage = (totalBillableHours / totalTeamHours) * 100;
+  const billablePercentage = totalTeamHours > 0 ? (totalBillableHours / totalTeamHours) * 100 : 0;
 
   // Prepare chart data for team members
   const userChartData = timeData.map(entry => ({
@@ -135,7 +108,7 @@ const TeamTimeReport: React.FC<TeamTimeReportProps> = ({ dateRange }) => {
     billableHours: entry.billableHours
   }));
 
-  // Get all unique projects
+  // Get all unique projects from time entries
   const allProjects = new Set<string>();
   timeData.forEach(entry => {
     entry.projects.forEach(project => {
@@ -159,13 +132,30 @@ const TeamTimeReport: React.FC<TeamTimeReportProps> = ({ dateRange }) => {
   // Sort project chart data by hours (descending)
   projectChartData.sort((a, b) => b.hours - a.hours);
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-16">
+        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <p>Loading time tracking data...</p>
+      </div>
+    );
+  }
+
+  if (timeData.length === 0) {
+    return (
+      <div className="text-center py-6 text-muted-foreground">
+        No time tracking data available for the selected period.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6 flex flex-col items-center">
-            <div className="text-3xl font-bold">{totalTeamHours}</div>
+            <div className="text-3xl font-bold">{totalTeamHours.toFixed(1)}</div>
             <div className="flex items-center mt-2">
               <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Total Hours</p>
@@ -175,7 +165,7 @@ const TeamTimeReport: React.FC<TeamTimeReportProps> = ({ dateRange }) => {
         
         <Card>
           <CardContent className="p-6 flex flex-col items-center">
-            <div className="text-3xl font-bold">{totalBillableHours}</div>
+            <div className="text-3xl font-bold">{totalBillableHours.toFixed(1)}</div>
             <div className="flex items-center mt-2">
               <BarChart3 className="h-4 w-4 mr-2 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Billable Hours</p>
@@ -233,9 +223,13 @@ const TeamTimeReport: React.FC<TeamTimeReportProps> = ({ dateRange }) => {
                       <span>{entry.user}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{entry.totalHours}h</TableCell>
-                  <TableCell>{entry.billableHours}h</TableCell>
-                  <TableCell>{((entry.billableHours / entry.totalHours) * 100).toFixed(0)}%</TableCell>
+                  <TableCell>{entry.totalHours.toFixed(1)}h</TableCell>
+                  <TableCell>{entry.billableHours.toFixed(1)}h</TableCell>
+                  <TableCell>
+                    {entry.totalHours > 0 
+                      ? ((entry.billableHours / entry.totalHours) * 100).toFixed(0) 
+                      : 0}%
+                  </TableCell>
                   <TableCell>{entry.averageHoursPerDay.toFixed(1)}h</TableCell>
                   <TableCell>{entry.mostActiveProject}</TableCell>
                 </TableRow>
@@ -277,21 +271,27 @@ const TeamTimeReport: React.FC<TeamTimeReportProps> = ({ dateRange }) => {
             <CardTitle className="text-lg">Hours by Project</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={projectChartData.slice(0, 5)} // Show top 5 projects by hours
-                  margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`${value} hours`, '']} />
-                  <Legend />
-                  <Bar dataKey="hours" name="Total Hours" fill="#f97316" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {projectChartData.length > 0 ? (
+              <div className="h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={projectChartData.slice(0, 5)} // Show top 5 projects by hours
+                    margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`${value} hours`, '']} />
+                    <Legend />
+                    <Bar dataKey="hours" name="Total Hours" fill="#f97316" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                No project data available for the selected period.
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
