@@ -7,20 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Project } from './Projects';
-import { Task } from './Tasks';
-import {
-  Clock,
-  Calendar,
-  Users,
-  Folder,
-  CheckSquare,
-  ArrowLeft,
-  BarChart2,
-  Timer,
-} from 'lucide-react';
+import { Clock, Calendar, Users, Folder, CheckSquare, ArrowLeft, BarChart2, Timer } from 'lucide-react';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Task } from './Tasks';
+import { Project } from '@/services/projects-api';
+import { timeEntriesApi, projectsApi, tasksApi, handleError } from '@/services/api';
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,104 +20,74 @@ const ProjectDetail: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
   const [activeTimer, setActiveTimer] = useState<Task | null>(null);
-
-  // Mock data - in a real app, this would come from an API
-  const allProjects: Project[] = [
-    {
-      id: '1',
-      name: 'Sonatrach Web Application',
-      description: 'Corporate website redesign for Sonatrach with modern UI/UX',
-      client: 'Sonatrach',
-      startDate: '2025-03-01',
-      dueDate: '2025-05-15',
-      status: 'active',
-      progress: 65,
-      budget: 120000,
-      teamMembers: ['Ahmed Khalifi', 'Selma Bouaziz', 'Karim Mansouri'],
-      tags: ['Web Development', 'UI/UX', 'Corporate'],
-      tasks: 24,
-      completedTasks: 16,
-      totalHours: 187,
-    },
-    {
-      id: '2',
-      name: 'Djezzy Mobile App',
-      description: 'Customer service mobile application for Djezzy subscribers',
-      client: 'Djezzy',
-      startDate: '2025-02-15',
-      dueDate: '2025-06-30',
-      status: 'active',
-      progress: 40,
-      budget: 180000,
-      teamMembers: ['Leila Benzema', 'Ahmed Khalifi', 'Mohammed Ali'],
-      tags: ['Mobile App', 'Android', 'iOS'],
-      tasks: 32,
-      completedTasks: 12,
-      totalHours: 145,
-    },
-  ];
-
-  const allTasks: Task[] = [
-    {
-      id: '1',
-      title: 'Design new homepage',
-      description: 'Create a modern homepage design for the client website',
-      assignee: 'Ahmed Khalifi',
-      dueDate: '2025-04-15',
-      status: 'in-progress',
-      priority: 'high',
-      rating: 4,
-      tags: ['Design', 'Website', 'Sonatrach Web Application'],
-      subtasks: [
-        { id: '1-1', title: 'Create wireframes', completed: true },
-        { id: '1-2', title: 'Design mockups', completed: false },
-        { id: '1-3', title: 'Get client approval', completed: false },
-      ]
-    },
-    {
-      id: '2',
-      title: 'Implement API authentication',
-      description: 'Add JWT authentication to the REST API',
-      assignee: 'Leila Benzema',
-      dueDate: '2025-04-20',
-      status: 'todo',
-      priority: 'medium',
-      tags: ['Backend', 'Security', 'Djezzy Mobile App'],
-    },
-    {
-      id: '3',
-      title: 'Fix mobile responsive issues',
-      description: 'Address the layout problems on small screens',
-      assignee: 'Selma Bouaziz',
-      dueDate: '2025-04-10',
-      status: 'in-review',
-      priority: 'high',
-      rating: 3,
-      tags: ['Frontend', 'Mobile', 'Sonatrach Web Application'],
-    },
-  ];
-
-  const teamMembers = [
-    { name: 'Ahmed Khalifi', role: 'UI/UX Designer', hoursLogged: 68, tasksCompleted: 12 },
-    { name: 'Selma Bouaziz', role: 'Frontend Developer', hoursLogged: 43, tasksCompleted: 8 },
-    { name: 'Karim Mansouri', role: 'Project Manager', hoursLogged: 32, tasksCompleted: 4 },
-    { name: 'Leila Benzema', role: 'Backend Developer', hoursLogged: 56, tasksCompleted: 10 },
-    { name: 'Mohammed Ali', role: 'QA Engineer', hoursLogged: 24, tasksCompleted: 6 },
-  ];
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, this would be an API call
-    const projectData = allProjects.find(p => p.id === id);
-    if (projectData) {
-      setProject(projectData);
-      
-      // Filter tasks for this project
-      const tasks = allTasks.filter(task => 
-        task.tags.some(tag => tag === projectData.name)
-      );
-      setProjectTasks(tasks);
-    }
+    const fetchProjectData = async () => {
+      try {
+        setLoading(true);
+        
+        if (!id) {
+          throw new Error('Project ID is missing');
+        }
+        
+        // Fetch project data from API
+        const { data: projectData } = await projectsApi.get(id);
+        setProject(projectData);
+        
+        // Fetch tasks for this project
+        const { data: apiTasks } = await tasksApi.getAll({ 
+          filters: { project_id: id } 
+        });
+        
+        // Transform API tasks to match our UI format
+        const transformedTasks: Task[] = apiTasks.map(apiTask => ({
+          id: apiTask.id,
+          title: apiTask.title,
+          description: apiTask.description || '',
+          assignee: apiTask.assigned_to || 'Unassigned',
+          dueDate: apiTask.due_date || new Date().toISOString(),
+          status: apiTask.status as Task['status'],
+          priority: apiTask.priority,
+          rating: apiTask.rating,
+          tags: apiTask.tags || [],
+          timeTracked: 0, // This would come from time entries in a real app
+          project: projectData.name,
+        }));
+        
+        setProjectTasks(transformedTasks);
+        
+        // In a real app, you'd fetch team members from a team members API
+        // For now, we'll use mock data
+        setTeamMembers([
+          { name: 'Ahmed Khalifi', role: 'UI/UX Designer', hoursLogged: 68, tasksCompleted: 12 },
+          { name: 'Selma Bouaziz', role: 'Frontend Developer', hoursLogged: 43, tasksCompleted: 8 },
+          { name: 'Karim Mansouri', role: 'Project Manager', hoursLogged: 32, tasksCompleted: 4 },
+          { name: 'Leila Benzema', role: 'Backend Developer', hoursLogged: 56, tasksCompleted: 10 },
+          { name: 'Mohammed Ali', role: 'QA Engineer', hoursLogged: 24, tasksCompleted: 6 },
+        ]);
+        
+      } catch (error) {
+        handleError(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProjectData();
   }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p>Loading project data...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!project) {
     return (
@@ -146,10 +108,36 @@ const ProjectDetail: React.FC = () => {
     setActiveTimer(task);
   };
 
-  const handleSaveTime = (taskId: string, seconds: number) => {
-    // In a real app, this would save to a database
-    console.log(`Saved time for task ${taskId}: ${seconds} seconds`);
-    setActiveTimer(null);
+  const handleSaveTime = async (taskId: string, seconds: number) => {
+    try {
+      const task = projectTasks.find(t => t.id === taskId);
+      if (!task) return;
+      
+      // Create time entry via API
+      const timeEntryData = {
+        task_id: taskId,
+        project_id: id || null,
+        start_time: new Date(Date.now() - seconds * 1000).toISOString(),
+        end_time: new Date().toISOString(),
+        duration: seconds,
+        description: `Time entry for task: ${task.title}`,
+        billable: true,
+        user_id: null, // This would be the current user's ID in a real app
+      };
+      
+      await timeEntriesApi.create(timeEntryData);
+      
+      // Update local state
+      setProjectTasks(prevTasks => prevTasks.map(task => 
+        task.id === taskId 
+          ? { ...task, timeTracked: (task.timeTracked || 0) + seconds } 
+          : task
+      ));
+      
+      setActiveTimer(null);
+    } catch (error) {
+      handleError(error);
+    }
   };
 
   const getStatusColor = (status: Project['status']) => {
@@ -177,7 +165,7 @@ const ProjectDetail: React.FC = () => {
             <div className="flex justify-between items-start">
               <div>
                 <div className="flex items-center space-x-2 mb-2">
-                  <Badge variant="outline">{project.client}</Badge>
+                  {project.client_id && <Badge variant="outline">{project.client_id}</Badge>}
                   <div className={`h-2 w-2 rounded-full ${getStatusColor(project.status)}`} />
                   <span className="text-sm capitalize">{project.status}</span>
                 </div>
@@ -185,7 +173,7 @@ const ProjectDetail: React.FC = () => {
               </div>
               <div className="text-right">
                 <div className="text-sm text-muted-foreground mb-1">Budget</div>
-                <div className="text-2xl font-bold">{project.budget.toLocaleString()} DZD</div>
+                <div className="text-2xl font-bold">{project.budget.toLocaleString()} {project.currency}</div>
               </div>
             </div>
             
@@ -201,19 +189,19 @@ const ProjectDetail: React.FC = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Start Date</span>
-                  <span className="font-medium">{new Date(project.startDate).toLocaleDateString()}</span>
+                  <span className="font-medium">{project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Not set'}</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Due Date</span>
-                  <span className="font-medium">{new Date(project.dueDate).toLocaleDateString()}</span>
+                  <span className="font-medium">{project.end_date ? new Date(project.end_date).toLocaleDateString() : 'Not set'}</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Tasks</span>
-                  <span className="font-medium">{project.completedTasks}/{project.tasks}</span>
+                  <span className="font-medium">{projectTasks.filter(t => t.status === 'done').length}/{projectTasks.length}</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Hours Logged</span>
-                  <span className="font-medium">{project.totalHours} hrs</span>
+                  <span className="font-medium">{teamMembers.reduce((sum, member) => sum + member.hoursLogged, 0)} hrs</span>
                 </div>
               </div>
             </div>
@@ -226,17 +214,15 @@ const ProjectDetail: React.FC = () => {
           </CardHeader>
           <CardContent className="p-6 pt-0">
             <div className="space-y-4">
-              {project.teamMembers.map((member, index) => (
+              {teamMembers.map((member, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Avatar className="h-10 w-10 mr-3">
-                      <AvatarFallback>{member.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium">{member}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {teamMembers.find(m => m.name === member)?.role || 'Team Member'}
-                      </p>
+                      <p className="font-medium">{member.name}</p>
+                      <p className="text-sm text-muted-foreground">{member.role}</p>
                     </div>
                   </div>
                 </div>
@@ -331,7 +317,7 @@ const ProjectDetail: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {teamMembers.filter(m => project.teamMembers.includes(m.name)).map((member, index) => (
+                  {teamMembers.map((member, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{member.name}</TableCell>
                       <TableCell>{member.hoursLogged}</TableCell>
@@ -354,9 +340,16 @@ const ProjectDetail: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="font-medium mb-2">Task Completion Rate</h3>
-                  <Progress value={(project.completedTasks / project.tasks) * 100} className="h-2" />
+                  <Progress 
+                    value={projectTasks.length > 0 ? 
+                      (projectTasks.filter(t => t.status === 'done').length / projectTasks.length) * 100 : 0
+                    } 
+                    className="h-2" 
+                  />
                   <p className="text-sm text-muted-foreground mt-2">
-                    {project.completedTasks} of {project.tasks} tasks completed ({((project.completedTasks / project.tasks) * 100).toFixed(0)}%)
+                    {projectTasks.filter(t => t.status === 'done').length} of {projectTasks.length} tasks completed 
+                    ({projectTasks.length > 0 ? 
+                      ((projectTasks.filter(t => t.status === 'done').length / projectTasks.length) * 100).toFixed(0) : 0}%)
                   </p>
                 </div>
                 
@@ -379,19 +372,23 @@ const ProjectDetail: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Card>
                     <CardContent className="p-4 text-center">
-                      <h3 className="text-3xl font-bold">{project.totalHours}</h3>
+                      <h3 className="text-3xl font-bold">{teamMembers.reduce((sum, member) => sum + member.hoursLogged, 0)}</h3>
                       <p className="text-sm text-muted-foreground">Total Hours Spent</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4 text-center">
-                      <h3 className="text-3xl font-bold">{project.teamMembers.length}</h3>
+                      <h3 className="text-3xl font-bold">{teamMembers.length}</h3>
                       <p className="text-sm text-muted-foreground">Team Members</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-4 text-center">
-                      <h3 className="text-3xl font-bold">{(project.totalHours / project.tasks).toFixed(1)}</h3>
+                      <h3 className="text-3xl font-bold">
+                        {projectTasks.length > 0 ? 
+                          (teamMembers.reduce((sum, member) => sum + member.hoursLogged, 0) / projectTasks.length).toFixed(1) : "0.0"
+                        }
+                      </h3>
                       <p className="text-sm text-muted-foreground">Avg Hours/Task</p>
                     </CardContent>
                   </Card>

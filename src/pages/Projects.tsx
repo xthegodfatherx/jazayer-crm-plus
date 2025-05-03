@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter, Search, Folder, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { projectsApi, Project as ApiProject, handleError } from '@/services/api';
 
 export interface Project {
   id: string;
@@ -33,105 +34,68 @@ export interface Project {
 
 const Projects: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const projects: Project[] = [
-    {
-      id: '1',
-      name: 'Sonatrach Web Application',
-      description: 'Corporate website redesign for Sonatrach with modern UI/UX',
-      client: 'Sonatrach',
-      startDate: '2025-03-01',
-      dueDate: '2025-05-15',
-      status: 'active',
-      progress: 65,
-      budget: 120000,
-      teamMembers: ['Ahmed Khalifi', 'Selma Bouaziz', 'Karim Mansouri'],
-      tags: ['Web Development', 'UI/UX', 'Corporate'],
-      tasks: 24,
-      completedTasks: 16,
-      totalHours: 187,
-    },
-    {
-      id: '2',
-      name: 'Djezzy Mobile App',
-      description: 'Customer service mobile application for Djezzy subscribers',
-      client: 'Djezzy',
-      startDate: '2025-02-15',
-      dueDate: '2025-06-30',
-      status: 'active',
-      progress: 40,
-      budget: 180000,
-      teamMembers: ['Leila Benzema', 'Ahmed Khalifi', 'Mohammed Ali'],
-      tags: ['Mobile App', 'Android', 'iOS'],
-      tasks: 32,
-      completedTasks: 12,
-      totalHours: 145,
-    },
-    {
-      id: '3',
-      name: 'Air Algérie Booking System',
-      description: 'Flight booking and management system for Air Algérie',
-      client: 'Air Algérie',
-      startDate: '2025-01-10',
-      dueDate: '2025-04-20',
-      status: 'completed',
-      progress: 100,
-      budget: 90000,
-      teamMembers: ['Karim Mansouri', 'Selma Bouaziz'],
-      tags: ['Web Development', 'Booking System'],
-      tasks: 18,
-      completedTasks: 18,
-      totalHours: 210,
-    },
-    {
-      id: '4',
-      name: 'Ooredoo Data Analytics Dashboard',
-      description: 'Internal analytics dashboard for marketing department',
-      client: 'Ooredoo Algérie',
-      startDate: '2025-03-20',
-      dueDate: '2025-05-30',
-      status: 'active',
-      progress: 25,
-      budget: 75000,
-      teamMembers: ['Leila Benzema', 'Mohammed Ali'],
-      tags: ['Data Analytics', 'Dashboard', 'Marketing'],
-      tasks: 20,
-      completedTasks: 5,
-      totalHours: 68,
-    },
-    {
-      id: '5',
-      name: 'Cevital E-commerce Platform',
-      description: 'Online store for Cevital food products',
-      client: 'Cevital',
-      startDate: '2025-04-01',
-      dueDate: '2025-07-30',
-      status: 'pending',
-      progress: 5,
-      budget: 150000,
-      teamMembers: ['Ahmed Khalifi', 'Karim Mansouri', 'Selma Bouaziz'],
-      tags: ['E-commerce', 'Web Development'],
-      tasks: 28,
-      completedTasks: 1,
-      totalHours: 24,
-    },
-    {
-      id: '6',
-      name: 'Mobilis Internal CRM',
-      description: 'Customer relationship management system for sales team',
-      client: 'Mobilis',
-      startDate: '2025-02-01',
-      dueDate: '2025-04-10',
-      status: 'on-hold',
-      progress: 60,
-      budget: 65000,
-      teamMembers: ['Mohammed Ali', 'Leila Benzema'],
-      tags: ['CRM', 'Web Application'],
-      tasks: 15,
-      completedTasks: 9,
-      totalHours: 112,
-    },
-  ];
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        const { data: apiProjects } = await projectsApi.getAll();
+        
+        // Transform API projects to match our UI format
+        // In a real app, we would fetch related data (tasks, team members) in a more efficient way
+        const transformedProjects: Project[] = await Promise.all(apiProjects.map(async (apiProject) => {
+          // For demonstration, we're making extra API calls to get related data
+          // In a real app, this would be optimized or fetched with relationships in the backend
+          let clientName = "Unknown Client";
+          
+          // Check if we have client information
+          if (apiProject.client_id) {
+            try {
+              const clientResponse = await fetch(`http://localhost:8000/api/clients/${apiProject.client_id}`);
+              const clientData = await clientResponse.json();
+              clientName = clientData.data.name;
+            } catch (error) {
+              console.error(`Failed to fetch client info for ${apiProject.id}:`, error);
+              // Continue with the unknown client name
+            }
+          }
+          
+          return {
+            id: apiProject.id,
+            name: apiProject.name,
+            description: apiProject.description || '',
+            client: clientName,
+            startDate: apiProject.start_date || new Date().toISOString(),
+            dueDate: apiProject.end_date || new Date().toISOString(),
+            status: apiProject.status,
+            progress: apiProject.progress || 0,
+            budget: apiProject.budget,
+            teamMembers: [], // This would come from a related team members API
+            tags: apiProject.tags || [],
+            tasks: 0, // This would be fetched from tasks API
+            completedTasks: 0, // This would be fetched from tasks API
+            totalHours: 0, // This would be calculated from time entries
+          };
+        }));
+        
+        setProjects(transformedProjects);
+      } catch (error) {
+        handleError(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProjects();
+  }, []);
+
+  const handleAddProject = async () => {
+    // This would open a dialog to create a new project
+    // For now, we'll just log a message
+    console.log('Add new project clicked');
+  };
 
   const filteredProjects = projects.filter(project => 
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -143,7 +107,7 @@ const Projects: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Projects</h1>
-        <Button>
+        <Button onClick={handleAddProject}>
           <Plus className="h-4 w-4 mr-2" />
           New Project
         </Button>
@@ -197,15 +161,24 @@ const Projects: React.FC = () => {
         </div>
       </Card>
 
-      <Tabs defaultValue="grid">
-        <TabsContent value="grid" className="mt-0">
-          <ProjectGrid projects={filteredProjects} />
-        </TabsContent>
-        
-        <TabsContent value="list" className="mt-0">
-          <ProjectList projects={filteredProjects} />
-        </TabsContent>
-      </Tabs>
+      {loading ? (
+        <Card className="p-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+            <p>Loading projects...</p>
+          </div>
+        </Card>
+      ) : (
+        <Tabs defaultValue="grid">
+          <TabsContent value="grid" className="mt-0">
+            <ProjectGrid projects={filteredProjects} />
+          </TabsContent>
+          
+          <TabsContent value="list" className="mt-0">
+            <ProjectList projects={filteredProjects} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 };

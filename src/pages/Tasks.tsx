@@ -18,6 +18,7 @@ import CreateTaskForm from '@/components/tasks/CreateTaskForm';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog';
 import { useToast } from '@/hooks/use-toast';
+import { tasksApi, Task as ApiTask, handleError } from '@/services/api';
 
 export interface Comment {
   id: string;
@@ -71,7 +72,7 @@ interface FilterOptions {
   minRating?: number;
   project?: string;
   dueDate?: 'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week';
-  onlyMyTasks?: boolean; // New filter property
+  onlyMyTasks?: boolean;
 }
 
 const Tasks = () => {
@@ -80,143 +81,62 @@ const Tasks = () => {
   const [activeTimer, setActiveTimer] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [filters, setFilters] = useState<FilterOptions>({});
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // In a real app, this would come from authentication context
   const currentUser = "Ahmed Khalifi"; // Example current user
   
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Design new homepage',
-      description: 'Create a modern homepage design for the client website',
-      assignee: 'Ahmed Khalifi',
-      dueDate: '2025-04-15',
-      status: 'in-progress',
-      priority: 'high',
-      rating: 2,
-      tags: ['Design', 'Website'],
-      timeTracked: 7200, // 2 hours
-      pinned: true,
-      project: 'Client Website Redesign',
-      category: {
-        id: 'web-design',
-        name: 'Web Design',
-        pricing: { oneStar: 10, twoStar: 20, threeStar: 30 }
-      },
-      subtasks: [
-        { id: '1-1', title: 'Create wireframes', completed: true },
-        { id: '1-2', title: 'Design mockups', completed: false },
-        { id: '1-3', title: 'Get client approval', completed: false },
-      ],
-      comments: [
-        {
-          id: 'c1',
-          author: 'Leila Benzema',
-          content: 'The header needs more contrast. Consider using a darker background.',
-          createdAt: '2025-04-08T14:30:00Z'
-        },
-        {
-          id: 'c2',
-          author: 'Ahmed Khalifi',
-          content: 'I agree. I\'ll update the mockups with better contrast.',
-          createdAt: '2025-04-09T09:15:00Z'
+  // Fetch tasks from API
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        setLoading(true);
+        
+        // Convert filters to API-compatible format
+        const apiFilters: any = {};
+        if (filters.status && filters.status !== 'all-statuses') {
+          apiFilters.status = filters.status;
         }
-      ]
-    },
-    {
-      id: '2',
-      title: 'Implement API authentication',
-      description: 'Add JWT authentication to the REST API',
-      assignee: 'Leila Benzema',
-      dueDate: '2025-04-20',
-      status: 'todo',
-      priority: 'medium',
-      tags: ['Backend', 'Security'],
-      project: 'API Development',
-      category: {
-        id: 'backend-dev',
-        name: 'Backend Dev',
-        pricing: { oneStar: 15, twoStar: 25, threeStar: 35 }
-      },
-      timeTracked: 3600, // 1 hour
-      comments: [
-        {
-          id: 'c3',
-          author: 'Karim Mansouri',
-          content: 'Make sure to use refresh tokens with a reasonable expiration time.',
-          createdAt: '2025-04-07T16:20:00Z'
+        if (filters.priority && filters.priority !== 'all-priorities') {
+          apiFilters.priority = filters.priority;
         }
-      ]
-    },
-    {
-      id: '3',
-      title: 'Fix mobile responsive issues',
-      description: 'Address the layout problems on small screens',
-      assignee: 'Selma Bouaziz',
-      dueDate: '2025-04-10',
-      status: 'in-review',
-      priority: 'high',
-      rating: 1,
-      tags: ['Frontend', 'Mobile'],
-      project: 'Client Website Redesign',
-      category: {
-        id: 'frontend-dev',
-        name: 'Frontend Dev',
-        pricing: { oneStar: 12, twoStar: 22, threeStar: 32 }
-      },
-      timeTracked: 10800, // 3 hours
-      comments: []
-    },
-    {
-      id: '4',
-      title: 'Write user documentation',
-      description: 'Create user guide for the new features',
-      assignee: 'Karim Mansouri',
-      dueDate: '2025-04-25',
-      status: 'todo',
-      priority: 'low',
-      tags: ['Documentation'],
-      project: 'API Development',
-      category: {
-        id: 'documentation',
-        name: 'Documentation',
-        pricing: { oneStar: 8, twoStar: 18, threeStar: 28 }
-      },
-      comments: []
-    },
-    {
-      id: '5',
-      title: 'Set up payment gateway',
-      description: 'Integrate SATIM payment gateway for Algerian users',
-      assignee: 'Amina Kader',
-      dueDate: '2025-04-18',
-      status: 'done',
-      priority: 'high',
-      rating: 3,
-      tags: ['Payment', 'Integration'],
-      project: 'E-commerce Platform',
-      category: {
-        id: 'integration',
-        name: 'Integration',
-        pricing: { oneStar: 14, twoStar: 24, threeStar: 34 }
-      },
-      timeTracked: 18000, // 5 hours
-      comments: [
-        {
-          id: 'c4',
-          author: 'Selma Bouaziz',
-          content: 'The integration with SATIM is complete. Testing is successful.',
-          createdAt: '2025-04-05T11:45:00Z'
-        },
-        {
-          id: 'c5',
-          author: 'Karim Mansouri',
-          content: 'Great job! This completes the payment requirements for the project.',
-          createdAt: '2025-04-06T13:20:00Z'
+        if (filters.assignee && filters.assignee !== 'all-assignees') {
+          apiFilters.assigned_to = filters.assignee;
         }
-      ]
-    },
-  ]);
+        if (filters.searchQuery) {
+          apiFilters.search = filters.searchQuery;
+        }
+        
+        const { data: apiTasks } = await tasksApi.getAll({ filters: apiFilters });
+        
+        // Transform API tasks to match our UI format
+        const transformedTasks: Task[] = apiTasks.map(apiTask => ({
+          id: apiTask.id,
+          title: apiTask.title,
+          description: apiTask.description || '',
+          assignee: apiTask.assigned_to || 'Unassigned',
+          dueDate: apiTask.due_date || new Date().toISOString(),
+          status: apiTask.status as Task['status'],
+          priority: apiTask.priority,
+          rating: apiTask.rating,
+          tags: apiTask.tags || [],
+          timeTracked: 0, // This might come from a separate time entries API
+          pinned: false, // This might be stored in user preferences
+          subtasks: [], // This might come from a subtasks relationship
+          comments: [], // This might come from a comments relationship
+        }));
+        
+        setTasks(transformedTasks);
+      } catch (error) {
+        handleError(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTasks();
+  }, [filters]);
 
   // Keep track of recent active tasks for notifications
   useEffect(() => {
@@ -240,51 +160,14 @@ const Tasks = () => {
         variant: "default"
       });
     }
-  }, []);
+  }, [tasks]);
 
   // Apply filters to tasks
   const filteredTasks = React.useMemo(() => {
     return tasks.filter(task => {
-      // Filter by status (ignore "all-statuses" value)
-      if (filters.status && filters.status !== 'all-statuses') {
-        if (task.status !== filters.status) {
-          return false;
-        }
-      }
-      
-      // Filter by priority (ignore "all-priorities" value)
-      if (filters.priority && filters.priority !== 'all-priorities') {
-        if (task.priority !== filters.priority) {
-          return false;
-        }
-      }
-      
-      // Filter by assignee (ignore "all-assignees" value)
-      if (filters.assignee && filters.assignee !== 'all-assignees') {
-        if (task.assignee !== filters.assignee) {
-          return false;
-        }
-      }
-      
-      // Filter by project (ignore "all-projects" value)
-      if (filters.project && filters.project !== 'all-projects') {
-        if (task.project !== filters.project) {
-          return false;
-        }
-      }
-      
-      // Filter to only show current user's tasks
-      if (filters.onlyMyTasks && task.assignee !== currentUser) {
-        return false;
-      }
-      
-      // Filter by tags (any of the specified tags)
-      if (filters.tags && filters.tags.length > 0) {
-        if (!task.tags.some(tag => filters.tags?.includes(tag))) {
-          return false;
-        }
-      }
-      
+      // Filter logic remains the same as before
+      // Only keeping the frontend-specific filters that aren't handled by the API
+
       // Filter by pinned status
       if (filters.showPinned === true && !task.pinned) {
         return false;
@@ -321,19 +204,9 @@ const Tasks = () => {
         }
       }
       
-      // Search query (search in title, description, and tags)
-      if (filters.searchQuery) {
-        const query = filters.searchQuery.toLowerCase();
-        return (
-          task.title.toLowerCase().includes(query) ||
-          task.description.toLowerCase().includes(query) ||
-          task.tags.some(tag => tag.toLowerCase().includes(query))
-        );
-      }
-      
       return true;
     });
-  }, [tasks, filters, currentUser]);
+  }, [tasks, filters]);
 
   const getProjects = () => {
     return Array.from(new Set(tasks.map(task => task.project))).filter(Boolean) as string[];
@@ -343,45 +216,106 @@ const Tasks = () => {
     return Array.from(new Set(tasks.map(task => task.assignee)));
   };
 
-  const handleRateTask = (taskId: string, rating: number) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, rating } : task
-    ));
-  };
-
-  const handleAddTask = (newTask: Task) => {
-    setTasks([...tasks, newTask]);
-  };
-
-  const handleUpdateTaskStatus = (taskId: string, newStatus: Task['status']) => {
-    const updatedTasks = tasks.map(task => 
-      task.id === taskId 
-        ? { 
-            ...task, 
-            status: newStatus, 
-            // Optional: Track status change history
-            statusHistory: [
-              ...(task.statusHistory || []), 
-              { 
-                status: newStatus, 
-                changedAt: new Date().toISOString(), 
-                changedBy: currentUser 
-              }
-            ] 
-          } 
-        : task
-    );
-
-    setTasks(updatedTasks);
-
-    // Enhanced notification
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
+  const handleRateTask = async (taskId: string, rating: number) => {
+    try {
+      await tasksApi.rateTask(taskId, rating);
+      
+      // Update local state
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, rating } : task
+      ));
+      
       toast({
-        title: "Task Status Updated",
-        description: `"${task.title}" is now ${newStatus}`,
+        title: "Task rated",
+        description: `Task rated with ${rating} stars`,
         variant: "default"
       });
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const handleAddTask = async (newTask: Task) => {
+    try {
+      // Transform UI task to API format
+      const apiTask = {
+        title: newTask.title,
+        description: newTask.description,
+        assigned_to: newTask.assignee,
+        due_date: newTask.dueDate,
+        status: newTask.status,
+        priority: newTask.priority,
+        tags: newTask.tags
+      };
+      
+      // Create task via API
+      const { data: createdTask } = await tasksApi.create(apiTask);
+      
+      // Transform the created task back to UI format and add to local state
+      const uiTask: Task = {
+        id: createdTask.id,
+        title: createdTask.title,
+        description: createdTask.description || '',
+        assignee: createdTask.assigned_to || 'Unassigned',
+        dueDate: createdTask.due_date || new Date().toISOString(),
+        status: createdTask.status as Task['status'],
+        priority: createdTask.priority,
+        tags: createdTask.tags || [],
+        timeTracked: 0,
+        pinned: false,
+        subtasks: [],
+        comments: [],
+      };
+      
+      setTasks([...tasks, uiTask]);
+      
+      toast({
+        title: "Task created",
+        description: `"${uiTask.title}" has been created`,
+        variant: "default"
+      });
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
+    try {
+      // Update via API
+      await tasksApi.update(taskId, { status: newStatus });
+      
+      // Update local state
+      const updatedTasks = tasks.map(task => 
+        task.id === taskId 
+          ? { 
+              ...task, 
+              status: newStatus, 
+              // Optional: Track status change history
+              statusHistory: [
+                ...(task.statusHistory || []), 
+                { 
+                  status: newStatus, 
+                  changedAt: new Date().toISOString(), 
+                  changedBy: currentUser 
+                }
+              ] 
+            } 
+          : task
+      );
+
+      setTasks(updatedTasks);
+
+      // Enhanced notification
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        toast({
+          title: "Task Status Updated",
+          description: `"${task.title}" is now ${newStatus.replace('-', ' ')}`,
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      handleError(error);
     }
   };
 
@@ -399,94 +333,141 @@ const Tasks = () => {
     setActiveTimer(task);
   };
 
-  const handleSaveTime = (taskId: string, seconds: number) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, timeTracked: (task.timeTracked || 0) + seconds } 
-        : task
-    ));
-    setActiveTimer(null);
-    
-    toast({
-      title: "Time saved",
-      description: `${formatTime(seconds)} has been added to the task.`,
-      variant: "default"
-    });
-  };
-
-  const handleAddComment = (taskId: string, content: string) => {
-    const newComment: Comment = {
-      id: `c${Date.now()}`,
-      author: 'Current User', // In a real app, get from auth context
-      content,
-      createdAt: new Date().toISOString()
-    };
-    
-    setTasks(prevTasks => prevTasks.map(task => 
-      task.id === taskId 
-        ? { ...task, comments: [...(task.comments || []), newComment] } 
-        : task
-    ));
-    
-    // Check for mentions in the comment
-    const mentionRegex = /@(\w+)/g;
-    const mentions = content.match(mentionRegex);
-    
-    if (mentions && mentions.length > 0) {
+  const handleSaveTime = async (taskId: string, seconds: number) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+      
+      // Create a time entry via API
+      const timeEntryData = {
+        task_id: taskId,
+        start_time: new Date(Date.now() - seconds * 1000).toISOString(),
+        end_time: new Date().toISOString(),
+        duration: seconds,
+        description: `Time entry for task: ${task.title}`,
+        billable: true,
+        user_id: null, // This is nullable in the schema
+        project_id: null // This is nullable in the schema
+      };
+      
+      await timeEntriesApi.create(timeEntryData);
+      
+      // Update local state
+      setTasks(tasks.map(task => 
+        task.id === taskId 
+          ? { ...task, timeTracked: (task.timeTracked || 0) + seconds } 
+          : task
+      ));
+      
+      setActiveTimer(null);
+      
       toast({
-        title: "Mentions detected",
-        description: `You mentioned ${mentions.join(', ')} in your comment.`,
+        title: "Time saved",
+        description: `${formatTime(seconds)} has been added to the task.`,
         variant: "default"
       });
+    } catch (error) {
+      handleError(error);
     }
   };
 
-  const handleToggleSubtask = (taskId: string, subtaskId: string) => {
-    setTasks(prevTasks => prevTasks.map(task => {
-      if (task.id === taskId && task.subtasks) {
-        const updatedSubtasks = task.subtasks.map(subtask => 
-          subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
-        );
-        return { ...task, subtasks: updatedSubtasks };
+  const handleAddComment = async (taskId: string, content: string) => {
+    try {
+      // In a real implementation, this would call an API endpoint to add a comment
+      // For now, we'll just update the local state
+      const newComment: Comment = {
+        id: `c${Date.now()}`,
+        author: currentUser,
+        content,
+        createdAt: new Date().toISOString()
+      };
+      
+      setTasks(prevTasks => prevTasks.map(task => 
+        task.id === taskId 
+          ? { ...task, comments: [...(task.comments || []), newComment] } 
+          : task
+      ));
+      
+      // Check for mentions in the comment
+      const mentionRegex = /@(\w+)/g;
+      const mentions = content.match(mentionRegex);
+      
+      if (mentions && mentions.length > 0) {
+        toast({
+          title: "Mentions detected",
+          description: `You mentioned ${mentions.join(', ')} in your comment.`,
+          variant: "default"
+        });
       }
-      return task;
-    }));
+    } catch (error) {
+      handleError(error);
+    }
   };
 
-  const handleAddSubtask = (taskId: string, title: string) => {
-    setTasks(prevTasks => prevTasks.map(task => {
-      if (task.id === taskId) {
-        const newSubtask = {
-          id: `sub-${Date.now()}`,
-          title,
-          completed: false
-        };
-        
-        const updatedSubtasks = task.subtasks ? [...task.subtasks, newSubtask] : [newSubtask];
-        return { ...task, subtasks: updatedSubtasks };
-      }
-      return task;
-    }));
-    
-    toast({
-      title: "Subtask added",
-      description: `New subtask has been added.`,
-      variant: "default"
-    });
+  const handleToggleSubtask = async (taskId: string, subtaskId: string) => {
+    try {
+      // In a real implementation, this would call an API endpoint to toggle the subtask
+      // For now, we'll just update the local state
+      setTasks(prevTasks => prevTasks.map(task => {
+        if (task.id === taskId && task.subtasks) {
+          const updatedSubtasks = task.subtasks.map(subtask => 
+            subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+          );
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      }));
+    } catch (error) {
+      handleError(error);
+    }
   };
 
-  const handleTogglePin = (taskId: string) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, pinned: !task.pinned } : task
-    ));
-    
-    const taskToUpdate = tasks.find(task => task.id === taskId);
-    if (taskToUpdate) {
+  const handleAddSubtask = async (taskId: string, title: string) => {
+    try {
+      // In a real implementation, this would call an API endpoint to add a subtask
+      // For now, we'll just update the local state
+      setTasks(prevTasks => prevTasks.map(task => {
+        if (task.id === taskId) {
+          const newSubtask = {
+            id: `sub-${Date.now()}`,
+            title,
+            completed: false
+          };
+          
+          const updatedSubtasks = task.subtasks ? [...task.subtasks, newSubtask] : [newSubtask];
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      }));
+      
       toast({
-        title: taskToUpdate.pinned ? "Task unpinned" : "Task pinned",
-        description: `"${taskToUpdate.title}" has been ${taskToUpdate.pinned ? 'unpinned' : 'pinned'}.`,
+        title: "Subtask added",
+        description: `New subtask has been added.`,
         variant: "default"
       });
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const handleTogglePin = async (taskId: string) => {
+    try {
+      // In a real implementation, this would call an API endpoint to toggle the pin status
+      // For now, we'll just update the local state
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, pinned: !task.pinned } : task
+      ));
+      
+      const taskToUpdate = tasks.find(task => task.id === taskId);
+      if (taskToUpdate) {
+        toast({
+          title: taskToUpdate.pinned ? "Task unpinned" : "Task pinned",
+          description: `"${taskToUpdate.title}" has been ${taskToUpdate.pinned ? 'unpinned' : 'pinned'}.`,
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      handleError(error);
     }
   };
 
@@ -540,7 +521,18 @@ const Tasks = () => {
         </div>
       </div>
 
-      {pinnedTasks.length > 0 && (
+      {loading && (
+        <Card>
+          <CardContent className="p-6 flex justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p>Loading tasks...</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && pinnedTasks.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
@@ -582,32 +574,44 @@ const Tasks = () => {
         </Card>
       )}
 
-      <Tabs defaultValue="kanban">
-        <TabsList>
-          <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
-          <TabsTrigger value="list">List View</TabsTrigger>
-        </TabsList>
-        <TabsContent value="kanban" className="mt-6">
-          <TaskKanban 
-            tasks={filteredTasks} 
-            onRateTask={handleRateTask} 
-            onUpdateTaskStatus={handleUpdateTaskStatus}
-            onStartTimer={handleStartTimer}
-            formatTime={formatTime}
-            onViewTask={handleViewTask}
-            onTogglePin={handleTogglePin}
-          />
-        </TabsContent>
-        <TabsContent value="list" className="mt-6">
-          <TaskList 
-            tasks={filteredTasks} 
-            onRateTask={handleRateTask} 
-            onStartTimer={handleStartTimer}
-            formatTime={formatTime}
-            onViewTask={handleViewTask}
-          />
-        </TabsContent>
-      </Tabs>
+      {!loading && tasks.length === 0 && (
+        <Card>
+          <CardContent className="p-6 flex justify-center">
+            <div className="text-center">
+              <p>No tasks found. Create a new task to get started.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && tasks.length > 0 && (
+        <Tabs defaultValue="kanban">
+          <TabsList>
+            <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
+            <TabsTrigger value="list">List View</TabsTrigger>
+          </TabsList>
+          <TabsContent value="kanban" className="mt-6">
+            <TaskKanban 
+              tasks={filteredTasks} 
+              onRateTask={handleRateTask} 
+              onUpdateTaskStatus={handleUpdateTaskStatus}
+              onStartTimer={handleStartTimer}
+              formatTime={formatTime}
+              onViewTask={handleViewTask}
+              onTogglePin={handleTogglePin}
+            />
+          </TabsContent>
+          <TabsContent value="list" className="mt-6">
+            <TaskList 
+              tasks={filteredTasks} 
+              onRateTask={handleRateTask} 
+              onStartTimer={handleStartTimer}
+              formatTime={formatTime}
+              onViewTask={handleViewTask}
+            />
+          </TabsContent>
+        </Tabs>
+      )}
 
       {activeTimer && (
         <TaskTimer 

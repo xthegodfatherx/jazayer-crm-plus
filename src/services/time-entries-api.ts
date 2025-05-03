@@ -1,52 +1,96 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import apiClient from './api-client';
+import { AxiosResponse } from 'axios';
 
-// Define simpler types explicitly
-export type TimeEntry = Database['public']['Tables']['time_entries']['Row'];
-export type TimeEntryInsert = Database['public']['Tables']['time_entries']['Insert'];
-export type TimeEntryUpdate = Database['public']['Tables']['time_entries']['Update'];
+// Define types based on the backend structures
+export interface TimeEntry {
+  id: string;
+  task_id: string | null;
+  project_id: string | null;
+  user_id: string | null;
+  description: string | null;
+  start_time: string;
+  end_time: string | null;
+  duration: number | null;
+  billable: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TimeEntryInsert {
+  task_id: string | null;
+  project_id: string | null;
+  user_id: string | null;
+  description: string | null;
+  start_time: string;
+  end_time: string | null;
+  duration: number | null;
+  billable: boolean;
+}
 
 export interface TimeEntryFilter {
-  user_id?: string;
-  project_id?: string;
   task_id?: string;
+  project_id?: string;
+  user_id?: string;
+  date_from?: string;
+  date_to?: string;
   billable?: boolean;
 }
 
+// Define the API response type
+interface ApiResponse<T> {
+  data: T;
+}
+
 export const timeEntriesApi = {
-  getAll: async (params?: { filters?: TimeEntryFilter }) => {
-    let query = supabase.from('time_entries').select('*');
-    if (params?.filters) {
-      Object.entries(params.filters).forEach(([key, value]) => {
-        if (value !== undefined) query = query.eq(key, value);
+  getAll: async (params?: { filters?: TimeEntryFilter }): Promise<{ data: TimeEntry[] }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<TimeEntry[]>> = await apiClient.get('/time-entries', { 
+        params: params?.filters 
       });
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error fetching time entries:', error);
+      throw error;
     }
-    const { data, error } = await query;
-    if (error) throw error;
-    return { data };
   },
-  get: async (id: string) => {
-    const { data, error } = await supabase.from('time_entries').select('*').eq('id', id).single();
-    if (error) throw error;
-    return { data };
+  
+  get: async (id: string): Promise<{ data: TimeEntry }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<TimeEntry>> = await apiClient.get(`/time-entries/${id}`);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error fetching time entry with id ${id}:`, error);
+      throw error;
+    }
   },
-  create: async (data: TimeEntryInsert) => {
-    const { data: result, error } = await supabase.from('time_entries').insert(data).select().single();
-    if (error) throw error;
-    return { data: result };
+  
+  create: async (timeEntryData: TimeEntryInsert): Promise<{ data: TimeEntry }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<TimeEntry>> = await apiClient.post('/time-entries', timeEntryData);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error creating time entry:', error);
+      throw error;
+    }
   },
-  update: async (id: string, data: TimeEntryUpdate) => {
-    const { data: result, error } = await supabase.from('time_entries').update(data).eq('id', id).select().single();
-    if (error) throw error;
-    return { data: result };
+  
+  update: async (id: string, timeEntryData: Partial<TimeEntry>): Promise<{ data: TimeEntry }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<TimeEntry>> = await apiClient.put(`/time-entries/${id}`, timeEntryData);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error updating time entry with id ${id}:`, error);
+      throw error;
+    }
   },
-  delete: async (id: string) => {
-    const { error } = await supabase.from('time_entries').delete().eq('id', id);
-    if (error) throw error;
+  
+  delete: async (id: string): Promise<void> => {
+    try {
+      await apiClient.delete(`/time-entries/${id}`);
+    } catch (error) {
+      console.error(`Error deleting time entry with id ${id}:`, error);
+      throw error;
+    }
   },
-  // Helper method to calculate duration
-  calculateDuration: (startTime: Date, endTime: Date): number => {
-    return Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-  }
 };

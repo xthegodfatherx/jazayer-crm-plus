@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,10 +18,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CalendarIcon, Plus, X } from 'lucide-react';
+import { CalendarIcon, Plus, X, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { projectsApi, teamApi, handleError } from '@/services/api';
 
 interface CreateTaskFormProps {
   onAddTask: (task: Task) => void;
@@ -36,8 +37,41 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
   const [date, setDate] = React.useState<Date>();
   const [tags, setTags] = React.useState<string[]>([]);
   const [tagInput, setTagInput] = React.useState('');
+  const [projects, setProjects] = React.useState<{id: string, name: string}[]>([]);
+  const [selectedProject, setSelectedProject] = React.useState('');
+  const [teamMembers, setTeamMembers] = React.useState<{id: string, name: string}[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch projects and team members from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch projects
+        const { data: projectsData } = await projectsApi.getAll();
+        setProjects(projectsData.map(p => ({ id: p.id, name: p.name })));
+        
+        // In a real app, fetch team members from an API
+        // For now we'll use mock data
+        setTeamMembers([
+          { id: '1', name: 'Ahmed Khalifi' },
+          { id: '2', name: 'Selma Bouaziz' },
+          { id: '3', name: 'Karim Mansouri' },
+          { id: '4', name: 'Leila Benzema' },
+        ]);
+      } catch (error) {
+        handleError(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!title || !assignee || !date) {
@@ -45,27 +79,38 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
       return;
     }
     
-    const newTask: Task = {
-      id: Math.random().toString(36).substr(2, 9),
-      title,
-      description,
-      assignee,
-      dueDate: date?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-      status,
-      priority,
-      tags,
-    };
-    
-    onAddTask(newTask);
-    
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setAssignee('');
-    setStatus('todo');
-    setPriority('medium');
-    setDate(undefined);
-    setTags([]);
+    try {
+      setIsSubmitting(true);
+      
+      const newTask: Task = {
+        id: Math.random().toString(36).substr(2, 9), // This will be replaced by the API
+        title,
+        description,
+        assignee,
+        dueDate: date?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+        status,
+        priority,
+        tags,
+        project: projects.find(p => p.id === selectedProject)?.name,
+      };
+      
+      // The parent component will handle the API call
+      onAddTask(newTask);
+      
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setAssignee('');
+      setStatus('todo');
+      setPriority('medium');
+      setDate(undefined);
+      setTags([]);
+      setSelectedProject('');
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const addTag = () => {
@@ -85,6 +130,15 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
       addTag();
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading form data...</span>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -118,10 +172,9 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
               <SelectValue placeholder="Select assignee" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Ahmed Khalifi">Ahmed Khalifi</SelectItem>
-              <SelectItem value="Selma Bouaziz">Selma Bouaziz</SelectItem>
-              <SelectItem value="Karim Mansouri">Karim Mansouri</SelectItem>
-              <SelectItem value="Leila Benzema">Leila Benzema</SelectItem>
+              {teamMembers.map(member => (
+                <SelectItem key={member.id} value={member.name}>{member.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -186,6 +239,20 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
       </div>
       
       <div className="space-y-2">
+        <Label htmlFor="project">Project</Label>
+        <Select value={selectedProject} onValueChange={setSelectedProject}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select project (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map(project => (
+              <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="space-y-2">
         <Label htmlFor="tags">Tags</Label>
         <div className="flex">
           <Input 
@@ -219,7 +286,19 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
       
       <div className="flex justify-end gap-2 pt-4">
         <Button type="button" variant="outline">Cancel</Button>
-        <Button type="submit">Create Task</Button>
+        <Button 
+          type="submit" 
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            'Create Task'
+          )}
+        </Button>
       </div>
     </form>
   );

@@ -1,46 +1,81 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import apiClient from './api-client';
+import { AxiosResponse } from 'axios';
 
-// Define simpler types explicitly
-export type Report = Database['public']['Tables']['reports']['Row'];
-export type ReportInsert = Database['public']['Tables']['reports']['Insert'];
-export type ReportUpdate = Database['public']['Tables']['reports']['Update'];
+// Define types based on the backend structures
+export interface Report {
+  id: string;
+  title: string;
+  type: string;
+  created_by: string | null;
+  parameters: any | null;
+  date_range_start: string | null;
+  date_range_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface ReportFilter {
   type?: string;
   created_by?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+// Define the API response type
+interface ApiResponse<T> {
+  data: T;
 }
 
 export const reportsApi = {
-  getAll: async (params?: { filters?: ReportFilter }) => {
-    let query = supabase.from('reports').select('*');
-    if (params?.filters) {
-      Object.entries(params.filters).forEach(([key, value]) => {
-        if (value) query = query.eq(key, value);
+  getAll: async (params?: { filters?: ReportFilter }): Promise<{ data: Report[] }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Report[]>> = await apiClient.get('/reports', { 
+        params: params?.filters 
       });
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      throw error;
     }
-    const { data, error } = await query;
-    if (error) throw error;
-    return { data };
   },
-  get: async (id: string) => {
-    const { data, error } = await supabase.from('reports').select('*').eq('id', id).single();
-    if (error) throw error;
-    return { data };
+  
+  get: async (id: string): Promise<{ data: Report }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Report>> = await apiClient.get(`/reports/${id}`);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error fetching report with id ${id}:`, error);
+      throw error;
+    }
   },
-  create: async (data: ReportInsert) => {
-    const { data: result, error } = await supabase.from('reports').insert(data).select().single();
-    if (error) throw error;
-    return { data: result };
+  
+  create: async (reportData: Partial<Report>): Promise<{ data: Report }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Report>> = await apiClient.post('/reports', reportData);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error creating report:', error);
+      throw error;
+    }
   },
-  update: async (id: string, data: ReportUpdate) => {
-    const { data: result, error } = await supabase.from('reports').update(data).eq('id', id).select().single();
-    if (error) throw error;
-    return { data: result };
+  
+  update: async (id: string, reportData: Partial<Report>): Promise<{ data: Report }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Report>> = await apiClient.put(`/reports/${id}`, reportData);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error updating report with id ${id}:`, error);
+      throw error;
+    }
   },
-  delete: async (id: string) => {
-    const { error } = await supabase.from('reports').delete().eq('id', id);
-    if (error) throw error;
+  
+  delete: async (id: string): Promise<void> => {
+    try {
+      await apiClient.delete(`/reports/${id}`);
+    } catch (error) {
+      console.error(`Error deleting report with id ${id}:`, error);
+      throw error;
+    }
   },
 };

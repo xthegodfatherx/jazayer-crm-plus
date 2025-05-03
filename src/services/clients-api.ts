@@ -1,46 +1,81 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import apiClient from './api-client';
+import { AxiosResponse } from 'axios';
 
-// Define simpler types explicitly using the base Database types
-export type Client = Database['public']['Tables']['clients']['Row'];
-export type ClientInsert = Database['public']['Tables']['clients']['Insert'];
-export type ClientUpdate = Database['public']['Tables']['clients']['Update'];
+// Define types based on the backend structures
+export interface Client {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface ClientFilter {
   status?: string;
   name?: string;
 }
 
+// Define the API response type
+interface ApiResponse<T> {
+  data: T;
+}
+
 export const clientsApi = {
-  getAll: async (params?: { filters?: ClientFilter }) => {
-    let query = supabase.from('clients').select('*');
-    if (params?.filters) {
-      Object.entries(params.filters).forEach(([key, value]) => {
-        if (value) query = query.eq(key, value);
+  getAll: async (params?: { filters?: ClientFilter }): Promise<{ data: Client[] }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Client[]>> = await apiClient.get('/clients', { 
+        params: params?.filters 
       });
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      throw error;
     }
-    const { data, error } = await query;
-    if (error) throw error;
-    return { data };
   },
-  get: async (id: string) => {
-    const { data, error } = await supabase.from('clients').select('*').eq('id', id).single();
-    if (error) throw error;
-    return { data };
+  
+  get: async (id: string): Promise<{ data: Client }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Client>> = await apiClient.get(`/clients/${id}`);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error fetching client with id ${id}:`, error);
+      throw error;
+    }
   },
-  create: async (data: ClientInsert) => {
-    const { data: result, error } = await supabase.from('clients').insert(data).select().single();
-    if (error) throw error;
-    return { data: result };
+  
+  create: async (clientData: Partial<Client>): Promise<{ data: Client }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Client>> = await apiClient.post('/clients', clientData);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error creating client:', error);
+      throw error;
+    }
   },
-  update: async (id: string, data: ClientUpdate) => {
-    const { data: result, error } = await supabase.from('clients').update(data).eq('id', id).select().single();
-    if (error) throw error;
-    return { data: result };
+  
+  update: async (id: string, clientData: Partial<Client>): Promise<{ data: Client }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Client>> = await apiClient.put(`/clients/${id}`, clientData);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error updating client with id ${id}:`, error);
+      throw error;
+    }
   },
-  delete: async (id: string) => {
-    const { error } = await supabase.from('clients').delete().eq('id', id);
-    if (error) throw error;
+  
+  delete: async (id: string): Promise<void> => {
+    try {
+      await apiClient.delete(`/clients/${id}`);
+    } catch (error) {
+      console.error(`Error deleting client with id ${id}:`, error);
+      throw error;
+    }
   },
 };

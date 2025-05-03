@@ -1,49 +1,107 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import apiClient from './api-client';
+import { AxiosResponse } from 'axios';
 
-// Define simpler types explicitly
-export type Task = Database['public']['Tables']['tasks']['Row'];
-export type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
-export type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
+// Define types based on the backend structures
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  status: 'todo' | 'in-progress' | 'in-review' | 'done';
+  priority: 'low' | 'medium' | 'high';
+  due_date: string | null;
+  assigned_to: string | null;
+  project_id: string | null;
+  category_id: string | null;
+  rating?: number;
+  tags?: string[];
+  subtasks?: { id: string; title: string; completed: boolean }[];
+  comments?: {
+    id: string;
+    author: string;
+    content: string;
+    createdAt: string;
+  }[];
+  timeTracked?: number;
+  pinned?: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface TaskFilter {
   status?: string;
   priority?: string;
   assigned_to?: string;
   category_id?: string;
+  project_id?: string;
+  search?: string;
+}
+
+// Define the API response type
+interface ApiResponse<T> {
+  data: T;
 }
 
 export const tasksApi = {
-  getAll: async (params?: { filters?: TaskFilter }) => {
-    let query = supabase.from('tasks').select('*');
-    if (params?.filters) {
-      // Add filters based on params
-      Object.entries(params.filters).forEach(([key, value]) => {
-        if (value) query = query.eq(key, value);
+  getAll: async (params?: { filters?: TaskFilter }): Promise<{ data: Task[] }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Task[]>> = await apiClient.get('/tasks', { 
+        params: params?.filters 
       });
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      throw error;
     }
-    const { data, error } = await query;
-    if (error) throw error;
-    return { data };
   },
-  get: async (id: string) => {
-    const { data, error } = await supabase.from('tasks').select('*').eq('id', id).single();
-    if (error) throw error;
-    return { data };
+  
+  get: async (id: string): Promise<{ data: Task }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Task>> = await apiClient.get(`/tasks/${id}`);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error fetching task with id ${id}:`, error);
+      throw error;
+    }
   },
-  create: async (data: TaskInsert) => {
-    const { data: result, error } = await supabase.from('tasks').insert(data).select().single();
-    if (error) throw error;
-    return { data: result };
+  
+  create: async (taskData: Partial<Task>): Promise<{ data: Task }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Task>> = await apiClient.post('/tasks', taskData);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error creating task:', error);
+      throw error;
+    }
   },
-  update: async (id: string, data: TaskUpdate) => {
-    const { data: result, error } = await supabase.from('tasks').update(data).eq('id', id).select().single();
-    if (error) throw error;
-    return { data: result };
+  
+  update: async (id: string, taskData: Partial<Task>): Promise<{ data: Task }> => {
+    try {
+      // Laravel expects PUT/PATCH requests for updates
+      const response: AxiosResponse<ApiResponse<Task>> = await apiClient.put(`/tasks/${id}`, taskData);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error updating task with id ${id}:`, error);
+      throw error;
+    }
   },
-  delete: async (id: string) => {
-    const { error } = await supabase.from('tasks').delete().eq('id', id);
-    if (error) throw error;
+  
+  delete: async (id: string): Promise<void> => {
+    try {
+      await apiClient.delete(`/tasks/${id}`);
+    } catch (error) {
+      console.error(`Error deleting task with id ${id}:`, error);
+      throw error;
+    }
+  },
+
+  rateTask: async (id: string, rating: number): Promise<{ data: Task }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Task>> = await apiClient.post(`/tasks/${id}/rate`, { rating });
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error rating task with id ${id}:`, error);
+      throw error;
+    }
   },
 };

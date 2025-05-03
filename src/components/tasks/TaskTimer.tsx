@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -11,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { timeEntriesApi } from '@/services/api';
+import { timeEntriesApi, handleError } from '@/services/api';
 import { TimeEntryInsert } from '@/services/time-entries-api';
 
 interface TaskTimerProps {
@@ -33,6 +34,7 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
   const [isActive, setIsActive] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [startTimestamp, setStartTimestamp] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
@@ -87,6 +89,8 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
 
   const saveTime = async () => {
     try {
+      setIsSaving(true);
+      
       if (!startTimestamp) {
         toast({
           title: "Error",
@@ -126,12 +130,9 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
       setSeconds(0);
       setStartTimestamp(null);
     } catch (error) {
-      console.error("Failed to save time entry:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save time entry",
-        variant: "destructive"
-      });
+      handleError(error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -186,6 +187,7 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
             variant={isActive ? "destructive" : "default"} 
             size="sm" 
             onClick={toggleTimer} 
+            disabled={isSaving}
             className="flex-1"
           >
             {isActive ? (
@@ -205,6 +207,7 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
             variant="outline" 
             size="sm" 
             onClick={stopTimer} 
+            disabled={!isActive || isSaving}
             className="flex-1"
           >
             <StopCircle className="h-4 w-4 mr-2" />
@@ -215,9 +218,14 @@ const TaskTimer: React.FC<TaskTimerProps> = ({
             variant="outline" 
             size="sm" 
             onClick={saveTime} 
+            disabled={seconds === 0 || isSaving}
             className="flex-1"
           >
-            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? (
+              <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
             Save
           </Button>
         </div>
