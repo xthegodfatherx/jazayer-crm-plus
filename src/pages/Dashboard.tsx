@@ -139,7 +139,7 @@ const Dashboard = () => {
             <CardDescription>Task distribution by current status</CardDescription>
           </CardHeader>
           <CardContent>
-            <TaskSummary dateRange={dateRange} />
+            <TaskSummary period={dateRange} />
           </CardContent>
         </Card>
         

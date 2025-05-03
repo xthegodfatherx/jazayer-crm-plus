@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,18 +6,15 @@ import { Timer, Clock, Plus, Calendar, Edit, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import TeamTimeReport from '@/components/reports/TeamTimeReport';
-import { Task } from './Tasks';
+import { Task } from '@/services/tasks-api';
 import { useToast } from '@/hooks/use-toast';
 import { tasksApi, timeEntriesApi } from '@/services/api';
 import { TimeEntry } from '@/services/time-entries-api';
-import { Database } from '@/integrations/supabase/types';
-
-type TaskType = Database['public']['Tables']['tasks']['Row'];
 
 const TimeTracking: React.FC = () => {
   const [activeTimer, setActiveTimer] = useState<Task | null>(null);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
-  const [tasks, setTasks] = useState<TaskType[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -64,19 +60,8 @@ const TimeTracking: React.FC = () => {
     setActiveTimer(null);
   };
 
-  const startTimerForTask = (task: TaskType) => {
-    const taskForTimer: Task = {
-      id: task.id,
-      title: task.title,
-      description: task.description || '',
-      assignee: task.assigned_to || '',
-      dueDate: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
-      status: task.status as Task['status'],
-      priority: task.priority as Task['priority'],
-      tags: [],
-    };
-    
-    setActiveTimer(taskForTimer);
+  const startTimerForTask = (task: Task) => {
+    setActiveTimer(task);
   };
 
   const formatDuration = (seconds: number) => {

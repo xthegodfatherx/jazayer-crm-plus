@@ -14,6 +14,8 @@ export interface Task {
   project_id?: string;
   created_at: string;
   updated_at: string;
+  tags?: string[];
+  rating?: number;
 }
 
 export interface TaskStats {
@@ -108,4 +110,17 @@ export const tasksApi = {
       throw error;
     }
   },
+
+  // Rate a task
+  rateTask: async (id: string, rating: number): Promise<{ data: Task }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Task>> = await apiClient.post(`/tasks/${id}/rate`, {
+        rating
+      });
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error rating task with id ${id}:`, error);
+      throw error;
+    }
+  }
 };
