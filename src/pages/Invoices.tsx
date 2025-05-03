@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter, Search, FileText, Calendar, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -17,151 +18,97 @@ import CreateInvoiceForm from '@/components/invoices/CreateInvoiceForm';
 import CreateInvoiceAdvanced from '@/components/invoices/CreateInvoiceAdvanced';
 import { useToast } from '@/hooks/use-toast';
 import { Invoice } from '@/types/invoice';
+import { invoiceApi } from '@/services/invoice-api';
+import { handleError } from '@/services/api';
 
 const Invoices: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [invoices, setInvoices] = useState<Invoice[]>([
-    {
-      id: '1',
-      number: 'INV-2025-001',
-      client: {
-        id: '1',
-        name: 'Sonatrach',
-        logo: '',
-      },
-      issueDate: '2025-04-01',
-      dueDate: '2025-04-15',
-      total: 75000,
-      status: 'sent',
-      items: [
-        {
-          id: '1-1',
-          description: 'Web Application Development',
-          quantity: 1,
-          price: 60000,
-          tax: 19,
-          total: 60000,
-        },
-        {
-          id: '1-2',
-          description: 'UI/UX Design',
-          quantity: 1,
-          price: 15000,
-          tax: 19,
-          total: 15000,
-        },
-      ],
-      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
-      template: 'standard',
-    },
-    {
-      id: '2',
-      number: 'INV-2025-002',
-      client: {
-        id: '2',
-        name: 'Djezzy',
-        logo: '',
-      },
-      issueDate: '2025-03-15',
-      dueDate: '2025-03-29',
-      total: 45000,
-      status: 'paid',
-      items: [
-        {
-          id: '2-1',
-          description: 'Mobile App Development (Phase 1)',
-          quantity: 1,
-          price: 45000,
-          tax: 19,
-          total: 45000,
-        },
-      ],
-      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
-      template: 'standard',
-    },
-    {
-      id: '3',
-      number: 'INV-2025-003',
-      client: {
-        id: '3',
-        name: 'Air Algérie',
-        logo: '',
-      },
-      issueDate: '2025-03-20',
-      dueDate: '2025-04-10',
-      total: 36000,
-      status: 'overdue',
-      items: [
-        {
-          id: '3-1',
-          description: 'Digital Marketing Campaign',
-          quantity: 1,
-          price: 25000,
-          tax: 19,
-          total: 25000,
-        },
-        {
-          id: '3-2',
-          description: 'Social Media Management',
-          quantity: 1,
-          price: 11000,
-          tax: 19,
-          total: 11000,
-        },
-      ],
-      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
-      template: 'standard',
-    },
-    {
-      id: '4',
-      number: 'INV-2025-004',
-      client: {
-        id: '4',
-        name: 'Ooredoo Algérie',
-        logo: '',
-      },
-      issueDate: '2025-04-05',
-      dueDate: '2025-04-20',
-      total: 55000,
-      status: 'draft',
-      items: [
-        {
-          id: '4-1',
-          description: 'IT Consulting Services',
-          quantity: 40,
-          price: 1250,
-          tax: 19,
-          total: 50000,
-        },
-        {
-          id: '4-2',
-          description: 'Server Infrastructure Setup',
-          quantity: 1,
-          price: 5000,
-          tax: 19,
-          total: 5000,
-        },
-      ],
-      currency: { code: 'DZD', name: 'Algerian Dinar', symbol: 'دج' },
-      template: 'standard',
-    },
-  ]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        setLoading(true);
+        const { data } = await invoiceApi.getAll();
+        setInvoices(data);
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error loading invoices",
+          description: "Failed to load invoice data. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoices();
+  }, [toast]);
 
   const filteredInvoices = invoices.filter(invoice => 
     invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     invoice.client.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateInvoice = (newInvoice: Invoice) => {
-    setInvoices([...invoices, newInvoice]);
-    setIsCreateDialogOpen(false);
-    toast({
-      title: "Invoice Created",
-      description: `Invoice ${newInvoice.number} has been created successfully.`,
-    });
+  const handleCreateInvoice = async (newInvoice: Invoice) => {
+    try {
+      const { data: createdInvoice } = await invoiceApi.create(newInvoice);
+      setInvoices([...invoices, createdInvoice]);
+      setIsCreateDialogOpen(false);
+      toast({
+        title: "Invoice Created",
+        description: `Invoice ${createdInvoice.number} has been created successfully.`,
+      });
+    } catch (error) {
+      handleError(error);
+      toast({
+        title: "Error creating invoice",
+        description: "Failed to create the invoice. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleExport = async (format: 'pdf' | 'excel' | 'print') => {
+    try {
+      toast({
+        title: "Processing export",
+        description: `Your ${format === 'print' ? 'printing' : format} request is being processed.`,
+      });
+      
+      if (format === 'print') {
+        window.print();
+        return;
+      }
+      
+      const blob = await invoiceApi.export({ format, invoices: filteredInvoices.map(inv => inv.id) });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoices.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast({
+        title: "Export complete",
+        description: `Your ${format} file has been downloaded.`,
+      });
+    } catch (error) {
+      handleError(error);
+      toast({
+        title: "Export failed",
+        description: `There was a problem with the ${format} export. Please try again.`,
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -178,13 +125,13 @@ const Invoices: React.FC = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')}>
                 Export to PDF
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
                 Export to Excel
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('print')}>
                 Print Invoices
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -252,19 +199,19 @@ const Invoices: React.FC = () => {
                   </TabsList>
                 </div>
                 <TabsContent value="all" className="m-0">
-                  <InvoiceList invoices={filteredInvoices} />
+                  <InvoiceList invoices={filteredInvoices} loading={loading} />
                 </TabsContent>
                 <TabsContent value="draft" className="m-0">
-                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'draft')} />
+                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'draft')} loading={loading} />
                 </TabsContent>
                 <TabsContent value="sent" className="m-0">
-                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'sent')} />
+                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'sent')} loading={loading} />
                 </TabsContent>
                 <TabsContent value="paid" className="m-0">
-                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'paid')} />
+                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'paid')} loading={loading} />
                 </TabsContent>
                 <TabsContent value="overdue" className="m-0">
-                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'overdue')} />
+                  <InvoiceList invoices={filteredInvoices.filter(i => i.status === 'overdue')} loading={loading} />
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -272,7 +219,7 @@ const Invoices: React.FC = () => {
         </div>
         
         <div className="md:col-span-2">
-          <InvoiceSummary invoices={invoices} />
+          <InvoiceSummary invoices={invoices} loading={loading} />
         </div>
       </div>
 

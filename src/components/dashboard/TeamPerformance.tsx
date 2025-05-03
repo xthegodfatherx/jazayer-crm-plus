@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { teamApi, TeamPerformance as TeamPerformanceType } from '@/services/team-api';
 import { useToast } from '@/hooks/use-toast';
 import { handleError } from '@/services/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const TeamPerformance: React.FC = () => {
   const [teamMembers, setTeamMembers] = useState<TeamPerformanceType[]>([]);
@@ -59,9 +60,19 @@ const TeamPerformance: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center p-4">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        <p className="text-sm">Loading...</p>
+      <div className="space-y-4">
+        {[1, 2, 3, 4].map((index) => (
+          <div key={index} className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Skeleton className="h-8 w-8 rounded-full mr-2" />
+              <div>
+                <Skeleton className="h-4 w-24 mb-1" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+            <Skeleton className="h-4 w-28" />
+          </div>
+        ))}
       </div>
     );
   }

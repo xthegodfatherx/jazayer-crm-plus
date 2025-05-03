@@ -21,7 +21,8 @@ import {
   Calendar,
   Package,
   Wallet,
-  ShieldAlert
+  ShieldAlert,
+  Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/contexts/PermissionsContext';
@@ -67,7 +68,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         { title: 'Expenses', icon: <Wallet size={18} />, path: '/expenses' },
       ]
     },
-    { title: 'Team', icon: <Users size={20} />, path: '/team' },
+    { 
+      title: 'Team', 
+      icon: <Users size={20} />, 
+      path: '#',
+      children: [
+        { title: 'Members', icon: <Users size={18} />, path: '/team' },
+        { title: 'Salary Statements', icon: <Calculator size={18} />, path: '/salary-statements' },
+      ]
+    },
     { title: 'Clients', icon: <UserCircle size={20} />, path: '/clients' },
     { title: 'Reports', icon: <LineChart size={20} />, path: '/reports' },
     { title: 'Time Tracking', icon: <Clock size={20} />, path: '/time-tracking' },
@@ -91,9 +100,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     >
       <div className="h-16 flex items-center justify-center border-b border-sidebar-border">
         {!collapsed ? (
-          <h1 className="text-lg font-bold text-white">Jazayer CRM</h1>
+          <h1 className="text-lg font-bold text-white">CRM System</h1>
         ) : (
-          <h1 className="text-xl font-bold text-white">J</h1>
+          <h1 className="text-xl font-bold text-white">C</h1>
         )}
       </div>
       <nav className="py-4">

@@ -1,110 +1,107 @@
 
-import React from 'react';
-import { 
-  CheckCircle, 
-  Clock, 
-  Star, 
-  User, 
-  FileText, 
-  MessageSquare,
-  CreditCard
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-interface Activity {
-  id: number;
-  user: string;
-  action: string;
-  subject: string;
-  time: string;
-  type: 'task' | 'client' | 'invoice' | 'comment' | 'rating' | 'payment';
-}
+import React, { useEffect, useState } from 'react';
+import { Loader2, CheckSquare, FileText, CreditCard, Users, Bell } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { activityApi, Activity } from '@/services/activity-api';
+import { useToast } from '@/hooks/use-toast';
+import { handleError } from '@/services/api';
 
 const RecentActivity: React.FC = () => {
-  const activities: Activity[] = [
-    { 
-      id: 1, 
-      user: 'Ahmed Khalifi', 
-      action: 'completed', 
-      subject: 'Website Redesign Homepage', 
-      time: '10 minutes ago', 
-      type: 'task' 
-    },
-    { 
-      id: 2, 
-      user: 'Selma Bouaziz', 
-      action: 'added a new', 
-      subject: 'client: Mobilis Algeria', 
-      time: '2 hours ago', 
-      type: 'client' 
-    },
-    { 
-      id: 3, 
-      user: 'Karim Mansouri', 
-      action: 'rated with 5 stars', 
-      subject: 'API Integration Task', 
-      time: '4 hours ago', 
-      type: 'rating' 
-    },
-    { 
-      id: 4, 
-      user: 'Leila Benzema', 
-      action: 'commented on', 
-      subject: 'Mobile App Design Project', 
-      time: 'yesterday', 
-      type: 'comment' 
-    },
-    { 
-      id: 5, 
-      user: 'Mohammed Ali', 
-      action: 'created an invoice for', 
-      subject: 'Djezzy Ecommerce Platform', 
-      time: 'yesterday', 
-      type: 'invoice' 
-    },
-    { 
-      id: 6, 
-      user: 'Amina Kader', 
-      action: 'processed a payment from', 
-      subject: 'Air Algérie', 
-      time: '3 days ago', 
-      type: 'payment' 
-    },
-  ];
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const getActivityIcon = (type: Activity['type']) => {
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true);
+        const { data } = await activityApi.getRecent();
+        setActivities(data);
+      } catch (error) {
+        handleError(error);
+        toast({
+          title: "Error loading activities",
+          description: "Failed to load recent activities. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivities();
+  }, [toast]);
+
+  // Function to get icon based on activity type
+  const getActivityIcon = (type: string) => {
     switch (type) {
       case 'task':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'client':
-        return <User className="h-5 w-5 text-blue-500" />;
+        return <CheckSquare className="h-4 w-4 text-blue-500" />;
       case 'invoice':
-        return <FileText className="h-5 w-5 text-purple-500" />;
-      case 'comment':
-        return <MessageSquare className="h-5 w-5 text-amber-500" />;
-      case 'rating':
-        return <Star className="h-5 w-5 text-yellow-500" />;
+        return <FileText className="h-4 w-4 text-orange-500" />;
       case 'payment':
-        return <CreditCard className="h-5 w-5 text-emerald-500" />;
+        return <CreditCard className="h-4 w-4 text-green-500" />;
+      case 'team':
+        return <Users className="h-4 w-4 text-violet-500" />;
+      case 'notification':
+        return <Bell className="h-4 w-4 text-amber-500" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-500" />;
+        return <Bell className="h-4 w-4 text-gray-500" />;
     }
   };
 
+  // Function to format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    
+    if (diffMinutes < 60) {
+      return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <p>Loading activities...</p>
+      </div>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No recent activities found
+      </div>
+    );
+  }
+
   return (
-    <div className="divide-y">
+    <div className="space-y-4">
       {activities.map((activity) => (
-        <div key={activity.id} className="py-4 flex items-start">
-          <div className="mr-4 mt-0.5">
-            {getActivityIcon(activity.type)}
-          </div>
-          <div className="flex-1">
-            <p className="text-sm">
-              <span className="font-medium">{activity.user}</span>{' '}
-              <span className="text-muted-foreground">{activity.action}</span>{' '}
-              <span className="font-medium">{activity.subject}</span>
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+        <div key={activity.id} className="flex items-start gap-4 border-b pb-4 last:border-0">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={activity.user_avatar || ''} alt={activity.user_name} />
+            <AvatarFallback>{activity.user_name?.slice(0, 2)}</AvatarFallback>
+          </Avatar>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {getActivityIcon(activity.type)}
+              <p className="text-sm font-medium">{activity.user_name}</p>
+              <p className="text-xs text-muted-foreground">{formatDate(activity.created_at)}</p>
+            </div>
+            <p className="text-sm">{activity.description}</p>
           </div>
         </div>
       ))}

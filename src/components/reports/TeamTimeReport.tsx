@@ -67,12 +67,18 @@ const TeamTimeReport: React.FC<TeamTimeReportProps> = ({ dateRange }) => {
         const { data: performanceData } = await teamApi.getPerformance(period);
         
         // Transform performance data to time entries format
+        // We need to fetch additional data for hourly rates
+        const { data: teamMembers } = await teamApi.getMembers();
+        
         const timeEntries: TimeEntry[] = performanceData.map(member => {
+          // Find member details to get the hourly rate
+          const memberDetails = teamMembers.find(m => m.id === member.member_id) || { hourly_rate: 0 };
+          
           return {
             user: member.member_name,
             userId: member.member_id,
             totalHours: member.total_hours || 0,
-            billableHours: member.calculated_salary / (member.hourly_rate || 1),
+            billableHours: memberDetails.hourly_rate ? (member.calculated_salary / memberDetails.hourly_rate) : 0,
             projects: [], // This would come from another API endpoint
             tasks: [], // This would come from another API endpoint
             averageHoursPerDay: (member.total_hours || 0) / 20, // assuming ~20 working days per month
