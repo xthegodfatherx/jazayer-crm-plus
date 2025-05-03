@@ -4,37 +4,29 @@ import { AxiosResponse } from 'axios';
 
 // Define types based on the backend structures
 export interface TimeEntry {
-  id: string;
-  task_id: string | null;
-  project_id: string | null;
-  user_id: string | null;
-  description: string | null;
+  id: number;
+  task_id: number;
+  user_id: number | null;
+  project_id: number | null;
   start_time: string;
-  end_time: string | null;
-  duration: number | null;
+  end_time: string;
+  duration: number;
+  description: string;
   billable: boolean;
   created_at: string;
   updated_at: string;
 }
 
+// Type for creating a new time entry
 export interface TimeEntryInsert {
-  task_id: string | null;
-  project_id: string | null;
-  user_id: string | null;
-  description: string | null;
+  task_id: string | number;
+  user_id: number | null;
+  project_id: number | null;
   start_time: string;
-  end_time: string | null;
-  duration: number | null;
+  end_time: string;
+  duration: number;
+  description: string;
   billable: boolean;
-}
-
-export interface TimeEntryFilter {
-  task_id?: string;
-  project_id?: string;
-  user_id?: string;
-  date_from?: string;
-  date_to?: string;
-  billable?: boolean;
 }
 
 // Define the API response type
@@ -43,10 +35,10 @@ interface ApiResponse<T> {
 }
 
 export const timeEntriesApi = {
-  getAll: async (params?: { filters?: TimeEntryFilter }): Promise<{ data: TimeEntry[] }> => {
+  getAll: async (params?: { taskId?: number }): Promise<{ data: TimeEntry[] }> => {
     try {
       const response: AxiosResponse<ApiResponse<TimeEntry[]>> = await apiClient.get('/time-entries', { 
-        params: params?.filters 
+        params: params
       });
       return { data: response.data.data };
     } catch (error) {
@@ -55,7 +47,7 @@ export const timeEntriesApi = {
     }
   },
   
-  get: async (id: string): Promise<{ data: TimeEntry }> => {
+  get: async (id: number): Promise<{ data: TimeEntry }> => {
     try {
       const response: AxiosResponse<ApiResponse<TimeEntry>> = await apiClient.get(`/time-entries/${id}`);
       return { data: response.data.data };
@@ -75,7 +67,7 @@ export const timeEntriesApi = {
     }
   },
   
-  update: async (id: string, timeEntryData: Partial<TimeEntry>): Promise<{ data: TimeEntry }> => {
+  update: async (id: number, timeEntryData: Partial<TimeEntry>): Promise<{ data: TimeEntry }> => {
     try {
       const response: AxiosResponse<ApiResponse<TimeEntry>> = await apiClient.put(`/time-entries/${id}`, timeEntryData);
       return { data: response.data.data };
@@ -85,7 +77,7 @@ export const timeEntriesApi = {
     }
   },
   
-  delete: async (id: string): Promise<void> => {
+  delete: async (id: number): Promise<void> => {
     try {
       await apiClient.delete(`/time-entries/${id}`);
     } catch (error) {

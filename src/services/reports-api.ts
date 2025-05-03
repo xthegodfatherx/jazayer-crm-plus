@@ -6,18 +6,18 @@ import { AxiosResponse } from 'axios';
 export interface Report {
   id: string;
   title: string;
-  type: string;
-  created_by: string | null;
-  parameters: any | null;
-  date_range_start: string | null;
-  date_range_end: string | null;
+  type: 'project' | 'team' | 'financial' | 'time' | 'task';
+  date_range: {
+    start: string;
+    end: string;
+  };
+  data: any; // This will depend on the report type
   created_at: string;
   updated_at: string;
 }
 
 export interface ReportFilter {
   type?: string;
-  created_by?: string;
   date_from?: string;
   date_to?: string;
 }
@@ -50,22 +50,24 @@ export const reportsApi = {
     }
   },
   
-  create: async (reportData: Partial<Report>): Promise<{ data: Report }> => {
+  generate: async (reportData: { type: string, params: any }): Promise<{ data: Report }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Report>> = await apiClient.post('/reports', reportData);
+      const response: AxiosResponse<ApiResponse<Report>> = await apiClient.post('/reports/generate', reportData);
       return { data: response.data.data };
     } catch (error) {
-      console.error('Error creating report:', error);
+      console.error('Error generating report:', error);
       throw error;
     }
   },
   
-  update: async (id: string, reportData: Partial<Report>): Promise<{ data: Report }> => {
+  export: async (id: string, format: 'pdf' | 'csv' | 'excel'): Promise<Blob> => {
     try {
-      const response: AxiosResponse<ApiResponse<Report>> = await apiClient.put(`/reports/${id}`, reportData);
-      return { data: response.data.data };
+      const response = await apiClient.get(`/reports/${id}/export/${format}`, { 
+        responseType: 'blob' 
+      });
+      return response.data;
     } catch (error) {
-      console.error(`Error updating report with id ${id}:`, error);
+      console.error(`Error exporting report ${id} as ${format}:`, error);
       throw error;
     }
   },

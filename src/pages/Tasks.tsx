@@ -18,7 +18,7 @@ import CreateTaskForm from '@/components/tasks/CreateTaskForm';
 import TaskTimer from '@/components/tasks/TaskTimer';
 import TaskDetailDialog from '@/components/tasks/TaskDetailDialog';
 import { useToast } from '@/hooks/use-toast';
-import { tasksApi, Task as ApiTask, handleError } from '@/services/api';
+import { tasksApi, Task as ApiTask, handleError, timeEntriesApi } from '@/services/api';
 
 export interface Comment {
   id: string;
