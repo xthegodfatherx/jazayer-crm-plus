@@ -95,6 +95,8 @@ const TaskTimer: React.FC<TaskTimerProps> = ({ taskId, taskTitle, onSaveTime, as
         end_time: new Date().toISOString(),
         duration: seconds,
         billable: isBillable,
+        user_id: "current_user", // Add required fields
+        project_id: null // Add required fields, can be null
       });
       
       toast({

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Task } from '@/types/task';
 import TaskCard from './TaskCard';
 import { cn } from '@/lib/utils';
@@ -13,10 +13,9 @@ import {
   useSensors,
   DragOverEvent,
   closestCorners,
-  DragMoveEvent,
 } from '@dnd-kit/core';
 import { createPortal } from 'react-dom';
-import { toast } from "@/hooks/use-toast";
+import { useToast } from '@/hooks/use-toast';
 
 interface KanbanColumn {
   id: Task['status'];
@@ -45,13 +44,14 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
 }) => {
   const columns: KanbanColumn[] = [
     { id: 'todo', title: 'To Do', color: 'border-blue-500' },
-    { id: 'in-progress', title: 'In Progress', color: 'border-amber-500' },
-    { id: 'in-review', title: 'In Review', color: 'border-purple-500' },
+    { id: 'in_progress', title: 'In Progress', color: 'border-amber-500' },
+    { id: 'review', title: 'In Review', color: 'border-purple-500' },
     { id: 'done', title: 'Done', color: 'border-green-500' },
   ];
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeColumn, setActiveColumn] = useState<string | null>(null);
+  const { toast } = useToast();
   
   // Configure sensors with better activation constraints
   const sensors = useSensors(
@@ -195,8 +195,8 @@ const TaskKanban: React.FC<TaskKanbanProps> = ({
                 <span className={cn(
                   "flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium",
                   column.id === 'todo' ? "bg-blue-100 text-blue-600" :
-                  column.id === 'in-progress' ? "bg-amber-100 text-amber-600" :
-                  column.id === 'in-review' ? "bg-purple-100 text-purple-600" :
+                  column.id === 'in_progress' ? "bg-amber-100 text-amber-600" :
+                  column.id === 'review' ? "bg-purple-100 text-purple-600" :
                   "bg-green-100 text-green-600"
                 )}>
                   {columnTasks.length}

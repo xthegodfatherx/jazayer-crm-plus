@@ -37,9 +37,9 @@ const TaskList: React.FC<TaskListProps> = ({
     switch (status) {
       case 'todo':
         return <Badge variant="outline" className="border-blue-500 text-blue-500">To Do</Badge>;
-      case 'in-progress':
+      case 'in_progress':
         return <Badge variant="outline" className="border-amber-500 text-amber-500">In Progress</Badge>;
-      case 'in-review':
+      case 'review':
         return <Badge variant="outline" className="border-purple-500 text-purple-500">In Review</Badge>;
       case 'done':
         return <Badge variant="outline" className="border-green-500 text-green-500">Done</Badge>;
@@ -105,7 +105,7 @@ const TaskList: React.FC<TaskListProps> = ({
                 <div>
                   {task.title}
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {task.tags.map((tag, index) => (
+                    {task.tags?.map((tag, index) => (
                       <Badge key={index} variant="secondary" className="text-xs">
                         {tag}
                       </Badge>
@@ -117,7 +117,7 @@ const TaskList: React.FC<TaskListProps> = ({
                 <div className="flex items-center">
                   <Avatar className="h-6 w-6 mr-2">
                     <AvatarImage src="" alt={task.assignee} />
-                    <AvatarFallback>{task.assignee.charAt(0)}</AvatarFallback>
+                    <AvatarFallback>{task.assignee?.charAt(0) || '?'}</AvatarFallback>
                   </Avatar>
                   <span className="text-sm">{task.assignee}</span>
                 </div>
@@ -126,7 +126,7 @@ const TaskList: React.FC<TaskListProps> = ({
               <TableCell>
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{formatDate(task.dueDate)}</span>
+                  <span className="text-sm">{task.dueDate && formatDate(task.dueDate)}</span>
                 </div>
               </TableCell>
               <TableCell>
@@ -169,7 +169,7 @@ const TaskList: React.FC<TaskListProps> = ({
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleStartTimer(task)}
+                      onClick={() => onStartTimer && onStartTimer(task)}
                     >
                       <Timer className="h-4 w-4" />
                     </Button>
@@ -178,7 +178,7 @@ const TaskList: React.FC<TaskListProps> = ({
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleViewTask(task)}
+                      onClick={() => onViewTask && onViewTask(task)}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -191,6 +191,32 @@ const TaskList: React.FC<TaskListProps> = ({
       </Table>
     </div>
   );
+};
+
+const formatDate = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('fr-DZ', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }).format(date);
+  } catch (e) {
+    return 'Invalid date';
+  }
+};
+
+const getPriorityIcon = (priority: Task['priority']) => {
+  switch (priority) {
+    case "high":
+      return <ArrowUpCircle className="h-4 w-4 text-red-500" />;
+    case "medium":
+      return <ArrowRightCircle className="h-4 w-4 text-amber-500" />;
+    case "low":
+      return <ArrowDownCircle className="h-4 w-4 text-green-500" />;
+    default:
+      return null;
+  }
 };
 
 export default TaskList;

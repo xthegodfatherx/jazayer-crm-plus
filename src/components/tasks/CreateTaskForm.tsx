@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { projectsApi, teamApi, handleError } from '@/services/api';
 
 interface CreateTaskFormProps {
-  onAddTask: (task: Task) => void;
+  onAddTask: (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => void;
 }
 
 const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
@@ -82,16 +82,18 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
     try {
       setIsSubmitting(true);
       
-      const newTask: Task = {
-        id: Math.random().toString(36).substr(2, 9), // This will be replaced by the API
+      const newTask: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
         title,
         description,
-        assignee,
-        dueDate: date?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+        assigned_to: assignee,
+        due_date: date?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
         status,
         priority,
         tags,
-        project: projects.find(p => p.id === selectedProject)?.name,
+        project_id: selectedProject || undefined,
+        // Add required fields from Task type
+        assignee: assignee, // For compatibility
+        dueDate: date?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0], // For compatibility
       };
       
       // The parent component will handle the API call
@@ -216,8 +218,8 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todo">To Do</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="in-review">In Review</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="review">In Review</SelectItem>
               <SelectItem value="done">Done</SelectItem>
             </SelectContent>
           </Select>
@@ -260,12 +262,25 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
             placeholder="Add tag" 
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (tagInput.trim()) {
+                  setTags([...tags, tagInput.trim()]);
+                  setTagInput('');
+                }
+              }
+            }}
             className="rounded-r-none"
           />
           <Button 
             type="button" 
-            onClick={addTag} 
+            onClick={() => {
+              if (tagInput.trim()) {
+                setTags([...tags, tagInput.trim()]);
+                setTagInput('');
+              }
+            }} 
             className="rounded-l-none"
           >
             <Plus className="h-4 w-4" />
@@ -277,7 +292,7 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onAddTask }) => {
               {tag}
               <X 
                 className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeTag(tag)} 
+                onClick={() => setTags(tags.filter(t => t !== tag))} 
               />
             </Badge>
           ))}

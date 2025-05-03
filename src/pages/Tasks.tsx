@@ -97,10 +97,8 @@ const Tasks: React.FC = () => {
 
   const handleCreateTask = async () => {
     try {
-      // Convert status from UI format to API format if needed
-      const apiStatus = formData.status === 'in-progress' ? 'in_progress' :
-                         formData.status === 'in-review' ? 'review' : 
-                         formData.status;
+      // Convert UI format status to API format if needed
+      const apiStatus = formData.status;
 
       const newTask = {
         title: formData.title,
@@ -157,10 +155,8 @@ const Tasks: React.FC = () => {
     if (!selectedTask) return;
 
     try {
-      // Convert status from UI format to API format if needed
-      const apiStatus = formData.status === 'in-progress' ? 'in_progress' :
-                         formData.status === 'in-review' ? 'review' : 
-                         formData.status;
+      // Convert UI format status to API format
+      const apiStatus = formData.status;
 
       const updatedTask = {
         title: formData.title,
@@ -217,12 +213,8 @@ const Tasks: React.FC = () => {
   };
 
   const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
-    const apiStatus = 
-      newStatus === 'in-progress' ? 'in_progress' :
-      newStatus === 'in-review' ? 'review' : newStatus;
-    
     try {
-      await tasksApi.update(taskId, { status: apiStatus });
+      await tasksApi.update(taskId, { status: newStatus });
       toast({
         title: "Status Updated",
         description: "Task status updated successfully.",
@@ -309,7 +301,7 @@ const Tasks: React.FC = () => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      variant={"outline"}
+                      variant="outline"
                       className={cn(
                         "w-[240px] justify-start text-left font-normal",
                         !formData.dueDate && "text-muted-foreground"

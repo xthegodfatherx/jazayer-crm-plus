@@ -176,9 +176,9 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     switch (localTask.status) {
       case 'todo':
         return <Badge variant="outline" className="border-blue-500 text-blue-500">To Do</Badge>;
-      case 'in-progress':
+      case 'in_progress':
         return <Badge variant="outline" className="border-amber-500 text-amber-500">In Progress</Badge>;
-      case 'in-review':
+      case 'review':
         return <Badge variant="outline" className="border-purple-500 text-purple-500">In Review</Badge>;
       case 'done':
         return <Badge variant="outline" className="border-green-500 text-green-500">Done</Badge>;
@@ -187,7 +187,7 @@ const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     }
   };
 
-  const isPastDue = new Date(localTask.dueDate) < new Date() && localTask.status !== 'done';
+  const isPastDue = localTask.dueDate && new Date(localTask.dueDate) < new Date() && localTask.status !== 'done';
 
   return (
     <Dialog open={!!localTask} onOpenChange={(isOpen) => !isOpen && onClose()}>

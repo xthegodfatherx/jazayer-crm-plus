@@ -39,6 +39,8 @@ const ProjectDetail: React.FC = () => {
         comments: [],
         subtasks: [],
         assignee: 'John Doe',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
       {
         id: '2',
@@ -52,6 +54,8 @@ const ProjectDetail: React.FC = () => {
         comments: [],
         subtasks: [],
         assignee: 'Jane Smith',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
       {
         id: '3',
@@ -65,6 +69,8 @@ const ProjectDetail: React.FC = () => {
         comments: [],
         subtasks: [],
         assignee: 'Alice Johnson',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
     ];
     setTasks(mockTasks);

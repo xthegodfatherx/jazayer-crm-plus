@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, TrendingUp, Users, Calendar } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, Users, Calendar, CheckSquare, Star } from 'lucide-react';
 import { Task } from '@/types/task';
 import { tasksApi } from '@/services/tasks-api';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +32,7 @@ const AdminOverview: React.FC<AdminOverviewProps> = ({ className }) => {
         // Fetch tasks and team data in parallel
         const [tasksData, teamData] = await Promise.all([
           tasksApi.getAll(),
-          teamApi.getAll()
+          teamApi.getMembers()
         ]);
 
         // Calculate task statistics
@@ -44,7 +45,7 @@ const AdminOverview: React.FC<AdminOverviewProps> = ({ className }) => {
         setTeamSize(teamData.data.length);
 
         // Calculate average team rating
-        const totalRating = teamData.data.reduce((sum, member) => sum + (member.average_rating || 0), 0);
+        const totalRating = teamData.data.reduce((sum, member) => sum + (member.rating || 0), 0);
         const avgRating = teamSize > 0 ? totalRating / teamSize : 0;
         setAverageRating(parseFloat(avgRating.toFixed(1)));
       } catch (error) {
