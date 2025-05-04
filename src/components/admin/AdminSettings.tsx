@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,14 +13,14 @@ import {
   Mail, 
   Globe, 
   BellRing,
-  Languages,
   Clock,
   AlertTriangle,
   FileText,
   DollarSign,
   Shield,
   Info,
-  Loader
+  Loader,
+  Languages
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -837,7 +838,11 @@ const AdminSettings = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="language">Default Language</Label>
-                <Select defaultValue={systemSettings?.default_language || "en"}>
+                <Select 
+                  value={systemSettings?.default_language || "en"}
+                  onValueChange={value => setSystemSettings(prev => prev ? 
+                    {...prev, default_language: value as 'ar' | 'en' | 'fr'} : null)}
+                >
                   <SelectTrigger id="language">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
@@ -851,7 +856,11 @@ const AdminSettings = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="timezone">Timezone</Label>
-                <Select defaultValue={systemSettings?.timezone || "UTC"}>
+                <Select 
+                  value={systemSettings?.timezone || "UTC"}
+                  onValueChange={value => setSystemSettings(prev => prev ? 
+                    {...prev, timezone: value} : null)}
+                >
                   <SelectTrigger id="timezone">
                     <SelectValue placeholder="Select timezone" />
                   </SelectTrigger>
@@ -865,7 +874,11 @@ const AdminSettings = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="date-format">Date Format</Label>
-                <Select defaultValue={systemSettings?.date_format || "DD/MM/YYYY"}>
+                <Select 
+                  value={systemSettings?.date_format || "DD/MM/YYYY"}
+                  onValueChange={value => setSystemSettings(prev => prev ? 
+                    {...prev, date_format: value} : null)}
+                >
                   <SelectTrigger id="date-format">
                     <SelectValue placeholder="Select date format" />
                   </SelectTrigger>
@@ -879,7 +892,11 @@ const AdminSettings = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="currency">Default Currency</Label>
-                <Select defaultValue={systemSettings?.default_currency || "DZD"}>
+                <Select 
+                  value={systemSettings?.default_currency || "DZD"}
+                  onValueChange={value => setSystemSettings(prev => prev ? 
+                    {...prev, default_currency: value} : null)}
+                >
                   <SelectTrigger id="currency">
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
@@ -909,4 +926,157 @@ const AdminSettings = () => {
             </div>
           </TabsContent>
           
-          {/* Security
+          {/* Security Settings */}
+          <TabsContent value="security" className="space-y-4">
+            {error.security && (
+              <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-center gap-2 mb-4">
+                <AlertTriangle className="h-5 w-5" />
+                <span>{error.security}</span>
+              </div>
+            )}
+            
+            {loading.security ? renderSkeleton() : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Require users to use two-factor authentication
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={securitySettings?.two_factor_enabled || false}
+                    onCheckedChange={checked => 
+                      setSecuritySettings(prev => prev ? {...prev, two_factor_enabled: checked} : null)}
+                  />
+                </div>
+                
+                <div className="space-y-4">
+                  <Label htmlFor="session-timeout">Session Timeout (minutes)</Label>
+                  <Input 
+                    id="session-timeout" 
+                    type="number"
+                    placeholder="60"
+                    value={securitySettings?.session_timeout || 60}
+                    onChange={e => setSecuritySettings(prev => prev ? 
+                      {...prev, session_timeout: parseInt(e.target.value)} : null)}
+                  />
+                </div>
+                
+                <div className="space-y-4">
+                  <Label htmlFor="password-policy">Password Policy</Label>
+                  <Select 
+                    value={securitySettings?.password_policy || "standard"}
+                    onValueChange={value => setSecuritySettings(prev => prev ? 
+                      {...prev, password_policy: value as 'basic' | 'standard' | 'strong' | 'very-strong'} : null)}
+                  >
+                    <SelectTrigger id="password-policy">
+                      <SelectValue placeholder="Select password policy" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">Basic (min. 8 chars)</SelectItem>
+                      <SelectItem value="standard">Standard (min. 8 chars, 1 number)</SelectItem>
+                      <SelectItem value="strong">Strong (min. 10 chars, upper+lower, number)</SelectItem>
+                      <SelectItem value="very-strong">Very Strong (min. 12 chars, upper+lower, number, special)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium">IP Restriction</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Restrict access to specified IP addresses
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={securitySettings?.ip_restriction_enabled || false}
+                      onCheckedChange={checked => 
+                        setSecuritySettings(prev => prev ? {...prev, ip_restriction_enabled: checked} : null)}
+                    />
+                  </div>
+                  
+                  {securitySettings?.ip_restriction_enabled && (
+                    <div className="space-y-2">
+                      <Label htmlFor="allowed-ips">Allowed IPs (comma separated)</Label>
+                      <Textarea 
+                        id="allowed-ips" 
+                        placeholder="192.168.1.1, 10.0.0.1"
+                        value={securitySettings?.allowed_ips?.join(", ") || ""}
+                        onChange={e => setSecuritySettings(prev => prev ? 
+                          {...prev, allowed_ips: e.target.value.split(",").map(ip => ip.trim())} : null)}
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium">Rate Limiting</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Limit login attempts to prevent brute force attacks
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={securitySettings?.rate_limiting_enabled || false}
+                      onCheckedChange={checked => 
+                        setSecuritySettings(prev => prev ? {...prev, rate_limiting_enabled: checked} : null)}
+                    />
+                  </div>
+                  
+                  {securitySettings?.rate_limiting_enabled && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="rate-limit-attempts">Max Attempts</Label>
+                        <Input 
+                          id="rate-limit-attempts" 
+                          type="number"
+                          placeholder="5"
+                          value={securitySettings?.rate_limit_attempts || 5}
+                          onChange={e => setSecuritySettings(prev => prev ? 
+                            {...prev, rate_limit_attempts: parseInt(e.target.value)} : null)}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="rate-limit-duration">Lockout Duration (minutes)</Label>
+                        <Input 
+                          id="rate-limit-duration" 
+                          type="number"
+                          placeholder="15"
+                          value={securitySettings?.rate_limit_duration || 15}
+                          onChange={e => setSecuritySettings(prev => prev ? 
+                            {...prev, rate_limit_duration: parseInt(e.target.value)} : null)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-end mt-6">
+              <Button onClick={handleSecuritySettingsUpdate} disabled={loading.security || saving.security}>
+                {saving.security ? (
+                  <>
+                    <Loader className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Settings
+                  </>
+                )}
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default AdminSettings;

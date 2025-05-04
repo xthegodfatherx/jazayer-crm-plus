@@ -1,9 +1,8 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/contexts/PermissionsContext';
-import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Users, 
   ShieldCheck, 
@@ -14,8 +13,11 @@ import {
   Lock, 
   Settings, 
   Activity,
-  UserCheck
+  UserCheck,
+  Loader
 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Admin components
 import RoleSwitcher from '@/components/admin/RoleSwitcher';
@@ -29,34 +31,74 @@ import InvoiceSettings from '@/components/admin/InvoiceSettings';
 import EmailTemplateSettings from '@/components/admin/EmailTemplateSettings';
 import SecuritySettings from '@/components/admin/SecuritySettings';
 import SystemSettings from '@/components/admin/SystemSettings';
+import { settingsApi } from '@/services/settings-api';
 
 const Admin: React.FC = () => {
   const { userRole } = usePermissions();
   const [activeTab, setActiveTab] = useState('users');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>("Admin Dashboard");
+  
+  // Fetch company name for title
+  useEffect(() => {
+    const fetchCompanyInfo = async () => {
+      try {
+        setLoading(true);
+        const settings = await settingsApi.getSystemSettings();
+        if (settings) {
+          setCompanyName(settings.company_name || "Admin Dashboard");
+        }
+      } catch (err) {
+        setError("Failed to load system settings");
+        console.error("Error fetching company info:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCompanyInfo();
+  }, []);
   
   // Check if user has admin permissions
   if (userRole !== 'admin') {
     return (
       <div className="p-8">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-              <p className="text-muted-foreground">
-                You don't have permission to access this page. Please contact an administrator.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <Alert variant="destructive">
+          <AlertTitle>Access Denied</AlertTitle>
+          <AlertDescription>
+            You don't have permission to access this page. Please contact an administrator.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8 space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-[500px] w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Admin Settings</h1>
+        <h1 className="text-3xl font-bold text-gray-800">
+          {companyName} - Admin Settings
+        </h1>
+        <RoleSwitcher />
       </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
         <div className="bg-muted/50 rounded-lg p-1 overflow-x-auto">
