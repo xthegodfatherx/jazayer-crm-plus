@@ -34,12 +34,14 @@ const NotificationSettings: React.FC = () => {
   } = useQuery({
     queryKey: ['notificationSettings'],
     queryFn: settingsApi.getNotificationSettings,
-    onSuccess: (data: NotificationSettingsType) => {
-      if (data) {
-        setSettings(data);
-      }
-    }
   });
+  
+  // Update state when data is received
+  React.useEffect(() => {
+    if (data) {
+      setSettings(data);
+    }
+  }, [data]);
 
   // Update notification settings mutation
   const updateNotificationSettingsMutation = useMutation({
