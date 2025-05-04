@@ -13,9 +13,9 @@ const Index = () => {
       navigate('/admin');
     } else if (userRole === null) {
       // If userRole is null or undefined, default to dashboard
-      navigate('/');
+      navigate('/dashboard');
     } else {
-      navigate('/'); // For manager, employee, client - redirect to main dashboard
+      navigate('/dashboard'); // For manager, employee, client - redirect to main dashboard
     }
   }, [navigate, userRole]);
 
