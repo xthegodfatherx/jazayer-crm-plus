@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { authApi } from '@/services/auth-api';
 import { usersApi, User } from '@/services/users-api';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
@@ -34,6 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [permissions, setPermissions] = useState<string[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   
   useEffect(() => {
     const checkAuth = async () => {
