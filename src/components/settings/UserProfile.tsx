@@ -16,19 +16,41 @@ import { useToast } from '@/hooks/use-toast';
 import { profileApi, UserProfile as UserProfileType } from '@/services/profile-api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+// Mock data for development environment
+const mockUserProfile: UserProfileType = {
+  id: 'mock-id',
+  fullName: 'John Doe',
+  email: 'john.doe@example.com',
+  phone: '+1 234 567 890',
+  jobTitle: 'Frontend Developer',
+  department: 'Engineering',
+  bio: 'Passionate about creating beautiful and functional user interfaces.',
+  avatar: 'https://avatars.githubusercontent.com/u/124599?v=4',
+  skills: ['React', 'TypeScript', 'Tailwind CSS'],
+  languages: ['English', 'Spanish'],
+  performance_rating: 4.5
+};
+
 const UserProfile: React.FC = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isDevEnvironment] = useState(import.meta.env.DEV);
   
-  // Fetch user profile data
+  // Fetch user profile data with mock data fallback
   const { 
     data: profile, 
     isLoading, 
     error 
   } = useQuery({
     queryKey: ['userProfile'],
-    queryFn: profileApi.getUserProfile,
+    queryFn: async () => {
+      if (isDevEnvironment) {
+        console.log('Using mock profile data in development environment');
+        return mockUserProfile;
+      }
+      return await profileApi.getUserProfile();
+    },
   });
 
   // Update profile mutation
@@ -76,6 +98,14 @@ const UserProfile: React.FC = () => {
 
   // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (isDevEnvironment) {
+      toast({
+        title: "Development Mode",
+        description: "Profile changes are not persisted in development mode.",
+      });
+      return;
+    }
+    
     const { name, value } = e.target;
     updateProfileMutation.mutate({ [name]: value });
   };
@@ -89,27 +119,35 @@ const UserProfile: React.FC = () => {
 
   // Handle avatar upload
   const handleAvatarUpload = () => {
+    if (isDevEnvironment) {
+      toast({
+        title: "Development Mode",
+        description: "Avatar uploads are not persisted in development mode.",
+      });
+      return;
+    }
+    
     if (avatarFile) {
       uploadAvatarMutation.mutate(avatarFile);
     }
   };
 
-  // Error state handling
-  if (error) {
-    return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-        <h2 className="text-lg font-semibold text-red-800">Error loading profile</h2>
-        <p className="text-red-600">There was a problem loading your profile. Please refresh or try again later.</p>
-      </div>
-    );
-  }
-
   // Loading state
-  if (isLoading) {
+  if (isLoading && !isDevEnvironment) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh]">
         <Loader className="h-8 w-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">Loading your profile...</p>
+      </div>
+    );
+  }
+
+  // Error state handling
+  if (error && !isDevEnvironment) {
+    return (
+      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
+        <h2 className="text-lg font-semibold text-red-800">Error loading profile</h2>
+        <p className="text-red-600">There was a problem loading your profile. Please refresh or try again later.</p>
       </div>
     );
   }
@@ -261,6 +299,14 @@ const UserProfile: React.FC = () => {
                 name="skills"
                 value={profile?.skills?.join(', ') || ''} 
                 onChange={(e) => {
+                  if (isDevEnvironment) {
+                    toast({
+                      title: "Development Mode",
+                      description: "Skills changes are not persisted in development mode.",
+                    });
+                    return;
+                  }
+                  
                   const skillsArray = e.target.value.split(',').map(skill => skill.trim());
                   updateProfileMutation.mutate({ skills: skillsArray });
                 }}
@@ -275,6 +321,14 @@ const UserProfile: React.FC = () => {
                 name="languages"
                 value={profile?.languages?.join(', ') || ''} 
                 onChange={(e) => {
+                  if (isDevEnvironment) {
+                    toast({
+                      title: "Development Mode",
+                      description: "Language changes are not persisted in development mode.",
+                    });
+                    return;
+                  }
+                  
                   const languagesArray = e.target.value.split(',').map(language => language.trim());
                   updateProfileMutation.mutate({ languages: languagesArray });
                 }}

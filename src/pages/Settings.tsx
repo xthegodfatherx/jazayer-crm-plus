@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -28,20 +29,43 @@ import UserProfile from '@/components/settings/UserProfile';
 import { useToast } from '@/hooks/use-toast';
 import { userSettingsApi, UserSettings } from '@/services/user-settings-api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import NotificationSettings from '@/pages/NotificationSettings';
+
+// Mock data for development environment
+const mockUserSettings: UserSettings = {
+  id: 'mock-id',
+  user_id: 'mock-user-id',
+  notifications_enabled: true,
+  email_notifications: true,
+  task_reminders: true,
+  invoice_notifications: false,
+  system_notifications: true,
+  dark_mode: false,
+  language: 'en',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString()
+};
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isDevEnvironment] = useState(import.meta.env.DEV);
 
-  // Fetch user settings using React Query
+  // Fetch user settings using React Query with mock data fallback for development
   const { 
     data: settings, 
     isLoading, 
     error 
   } = useQuery({
     queryKey: ['userSettings'],
-    queryFn: userSettingsApi.getUserSettings,
+    queryFn: async () => {
+      if (isDevEnvironment) {
+        console.log('Using mock settings data in development environment');
+        return mockUserSettings;
+      }
+      return await userSettingsApi.getUserSettings();
+    },
   });
 
   // Update notification settings mutation
@@ -106,37 +130,29 @@ const Settings: React.FC = () => {
 
   // Handle notification settings changes
   const handleNotificationsToggle = (enabled: boolean) => {
+    if (isDevEnvironment) {
+      toast({
+        title: "Development Mode",
+        description: "Settings changes are not persisted in development mode."
+      });
+      return;
+    }
+    
     updateNotificationSettingsMutation.mutate({ 
       notifications_enabled: enabled 
     });
   };
 
-  const handleEmailNotificationsToggle = (enabled: boolean) => {
-    updateNotificationSettingsMutation.mutate({ 
-      email_notifications: enabled 
-    });
-  };
-
-  const handleTaskRemindersToggle = (enabled: boolean) => {
-    updateNotificationSettingsMutation.mutate({ 
-      task_reminders: enabled 
-    });
-  };
-
-  const handleInvoiceRemindersToggle = (enabled: boolean) => {
-    updateNotificationSettingsMutation.mutate({ 
-      invoice_notifications: enabled 
-    });
-  };
-
-  const handleSystemNotificationsToggle = (enabled: boolean) => {
-    updateNotificationSettingsMutation.mutate({ 
-      system_notifications: enabled 
-    });
-  };
-
   // Handle appearance settings changes
   const handleDarkModeToggle = (enabled: boolean) => {
+    if (isDevEnvironment) {
+      toast({
+        title: "Development Mode",
+        description: "Settings changes are not persisted in development mode."
+      });
+      return;
+    }
+    
     updateAppearanceMutation.mutate({ 
       dark_mode: enabled 
     });
@@ -144,23 +160,21 @@ const Settings: React.FC = () => {
 
   // Handle language settings changes
   const handleLanguageChange = (language: 'ar' | 'en' | 'fr') => {
+    if (isDevEnvironment) {
+      toast({
+        title: "Development Mode",
+        description: "Settings changes are not persisted in development mode."
+      });
+      return;
+    }
+    
     updateLanguageMutation.mutate({ 
       language 
     });
   };
 
-  // Error state handling
-  if (error) {
-    return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-        <h2 className="text-lg font-semibold text-red-800">Error loading settings</h2>
-        <p className="text-red-600">There was a problem loading your settings. Please refresh or try again later.</p>
-      </div>
-    );
-  }
-
   // Loading state
-  if (isLoading) {
+  if (isLoading && !isDevEnvironment) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh]">
         <Loader className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -212,82 +226,7 @@ const Settings: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Configure how you want to receive notifications</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-medium">Notifications</h3>
-                  <p className="text-sm text-muted-foreground">Enable or disable all notifications</p>
-                </div>
-                <Switch 
-                  checked={settings?.notifications_enabled || false} 
-                  onCheckedChange={handleNotificationsToggle} 
-                  id="notifications"
-                  disabled={updateNotificationSettingsMutation.isPending}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="email-notifications" className="text-base">Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-                  </div>
-                  <Switch 
-                    checked={settings?.email_notifications || false} 
-                    onCheckedChange={handleEmailNotificationsToggle} 
-                    id="email-notifications"
-                    disabled={!settings?.notifications_enabled || updateNotificationSettingsMutation.isPending}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="task-reminders" className="text-base">Task Reminders</Label>
-                    <p className="text-sm text-muted-foreground">Get reminders for upcoming tasks</p>
-                  </div>
-                  <Switch 
-                    checked={settings?.task_reminders || false} 
-                    onCheckedChange={handleTaskRemindersToggle} 
-                    id="task-reminders"
-                    disabled={!settings?.notifications_enabled || updateNotificationSettingsMutation.isPending}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="invoice-reminders" className="text-base">Invoice Reminders</Label>
-                    <p className="text-sm text-muted-foreground">Get reminders for unpaid invoices</p>
-                  </div>
-                  <Switch 
-                    checked={settings?.invoice_notifications || false} 
-                    onCheckedChange={handleInvoiceRemindersToggle} 
-                    id="invoice-reminders"
-                    disabled={!settings?.notifications_enabled || updateNotificationSettingsMutation.isPending}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="system-notifications" className="text-base">System Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Receive important system alerts</p>
-                  </div>
-                  <Switch 
-                    checked={settings?.system_notifications || false} 
-                    onCheckedChange={handleSystemNotificationsToggle} 
-                    id="system-notifications"
-                    disabled={!settings?.notifications_enabled || updateNotificationSettingsMutation.isPending}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <NotificationSettings />
         </TabsContent>
         
         <TabsContent value="appearance">
