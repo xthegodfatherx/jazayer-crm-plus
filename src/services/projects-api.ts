@@ -28,6 +28,8 @@ export interface ProjectFilter {
   status?: string;
   client_id?: string;
   name?: string;
+  created_after?: string;
+  created_before?: string;
 }
 
 // Define the API response type
@@ -35,10 +37,12 @@ interface ApiResponse<T> {
   data: T;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 export const projectsApi = {
   getAll: async (params?: { filters?: ProjectFilter }): Promise<{ data: Project[] }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Project[]>> = await apiClient.get('/projects', { 
+      const response: AxiosResponse<ApiResponse<Project[]>> = await apiClient.get(`${API_URL}/projects`, { 
         params: params?.filters 
       });
       return { data: response.data.data };
@@ -50,7 +54,7 @@ export const projectsApi = {
   
   get: async (id: string): Promise<{ data: Project }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Project>> = await apiClient.get(`/projects/${id}`);
+      const response: AxiosResponse<ApiResponse<Project>> = await apiClient.get(`${API_URL}/projects/${id}`);
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error fetching project with id ${id}:`, error);
@@ -60,7 +64,7 @@ export const projectsApi = {
   
   create: async (projectData: Partial<Project>): Promise<{ data: Project }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Project>> = await apiClient.post('/projects', projectData);
+      const response: AxiosResponse<ApiResponse<Project>> = await apiClient.post(`${API_URL}/projects`, projectData);
       return { data: response.data.data };
     } catch (error) {
       console.error('Error creating project:', error);
@@ -70,7 +74,7 @@ export const projectsApi = {
   
   update: async (id: string, projectData: Partial<Project>): Promise<{ data: Project }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Project>> = await apiClient.put(`/projects/${id}`, projectData);
+      const response: AxiosResponse<ApiResponse<Project>> = await apiClient.put(`${API_URL}/projects/${id}`, projectData);
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error updating project with id ${id}:`, error);
@@ -80,10 +84,22 @@ export const projectsApi = {
   
   delete: async (id: string): Promise<void> => {
     try {
-      await apiClient.delete(`/projects/${id}`);
+      await apiClient.delete(`${API_URL}/projects/${id}`);
     } catch (error) {
       console.error(`Error deleting project with id ${id}:`, error);
       throw error;
     }
   },
+  
+  // Get project statistics
+  getStats: async (): Promise<{ active: number, completed: number, pending: number, onHold: number }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<{ active: number, completed: number, pending: number, onHold: number }>> = 
+        await apiClient.get(`${API_URL}/projects/stats`);
+      return { ...response.data.data };
+    } catch (error) {
+      console.error('Error fetching project statistics:', error);
+      throw error;
+    }
+  }
 };
