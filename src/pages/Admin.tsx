@@ -50,13 +50,15 @@ const Admin: React.FC = () => {
   } = useQuery({
     queryKey: ['systemSettings'],
     queryFn: () => settingsApi.getSystemSettings(),
-    onError: (err) => {
-      toast({
-        title: "Error loading system settings",
-        description: "Please try again or contact support.",
-        variant: "destructive"
-      });
-      console.error("Error fetching system settings:", err);
+    meta: {
+      onError: (err: Error) => {
+        toast({
+          title: "Error loading system settings",
+          description: "Please try again or contact support.",
+          variant: "destructive"
+        });
+        console.error("Error fetching system settings:", err);
+      }
     }
   });
   

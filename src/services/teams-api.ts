@@ -58,7 +58,7 @@ export const teamsApi = {
   },
 
   // Create a new team
-  create: async (data: Omit<Team, 'id' | 'created_at' | 'updated_at'>): Promise<Team> => {
+  create: async (data: Omit<Team, 'id' | 'created_at' | 'updated_at' | 'member_count' | 'leader_id' | 'leader_name'>): Promise<Team> => {
     try {
       const response: AxiosResponse<ApiResponse<Team>> = await apiClient.post(`${API_URL}/teams`, data);
       return response.data.data;

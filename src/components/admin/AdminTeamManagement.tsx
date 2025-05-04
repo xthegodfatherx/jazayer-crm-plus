@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Card, 
@@ -244,7 +243,7 @@ const AdminTeamManagement: React.FC = () => {
   }
 
   return (
-    <>
+    <div className="space-y-6">
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -556,7 +555,7 @@ const AdminTeamManagement: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 };
 
