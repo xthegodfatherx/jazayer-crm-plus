@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +27,7 @@ const ProjectDetail: React.FC = () => {
     setProject(mockProject);
 
     // Mock task data
+    const currentDate = new Date().toISOString();
     const mockTasks: Task[] = [
       {
         id: '1',
@@ -33,14 +35,13 @@ const ProjectDetail: React.FC = () => {
         description: 'Create a visually appealing landing page design.',
         status: 'todo',
         priority: 'high',
-        dueDate: '2024-08-15',
+        due_date: '2024-08-15',
         assigned_to: 'John Doe',
         tags: ['design', 'ui'],
         comments: [],
         subtasks: [],
-        assignee: 'John Doe',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: currentDate,
+        updated_at: currentDate,
       },
       {
         id: '2',
@@ -48,14 +49,13 @@ const ProjectDetail: React.FC = () => {
         description: 'Implement the necessary API endpoints for data retrieval.',
         status: 'in_progress',
         priority: 'medium',
-        dueDate: '2024-08-22',
+        due_date: '2024-08-22',
         assigned_to: 'Jane Smith',
         tags: ['backend', 'api'],
         comments: [],
         subtasks: [],
-        assignee: 'Jane Smith',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: currentDate,
+        updated_at: currentDate,
       },
       {
         id: '3',
@@ -63,14 +63,13 @@ const ProjectDetail: React.FC = () => {
         description: 'Document all the implemented features and APIs.',
         status: 'done',
         priority: 'low',
-        dueDate: '2024-08-29',
+        due_date: '2024-08-29',
         assigned_to: 'Alice Johnson',
         tags: ['documentation'],
         comments: [],
         subtasks: [],
-        assignee: 'Alice Johnson',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: currentDate,
+        updated_at: currentDate,
       },
     ];
     setTasks(mockTasks);
@@ -142,7 +141,7 @@ const ProjectDetail: React.FC = () => {
               <CardDescription>List of tasks for this project</CardDescription>
             </CardHeader>
             <CardContent>
-              <TaskList tasks={tasks} onRateTask={() => {}} />
+              <TaskList tasks={tasks} />
             </CardContent>
           </Card>
         </TabsContent>

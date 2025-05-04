@@ -1,35 +1,29 @@
 
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+import { format, parseISO } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number, currency: string = 'DZD'): string {
-  return new Intl.NumberFormat('fr-DZ', {
-    style: 'currency',
-    currency: 'DZD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-export function formatDateTime(dateString: string, format: 'date' | 'time' | 'datetime' = 'datetime'): string {
-  const date = new Date(dateString);
-  
-  switch (format) {
-    case 'date':
-      return date.toLocaleDateString();
-    case 'time':
-      return date.toLocaleTimeString();
-    default:
-      return date.toLocaleString();
+export function formatDate(date: string): string {
+  try {
+    return format(parseISO(date), 'MMM d, yyyy');
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return date;
   }
 }
 
-export function truncateText(text: string, maxLength: number): string {
-  return text.length > maxLength 
-    ? text.slice(0, maxLength) + '...' 
-    : text;
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+}
+
+export function truncateString(str: string, maxLength: number): string {
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength) + '...';
 }

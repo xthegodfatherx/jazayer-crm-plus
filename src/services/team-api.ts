@@ -11,20 +11,40 @@ export interface TeamMember {
   rating?: number;
   created_at: string;
   updated_at: string;
+  // Additional fields that are used in the application
+  status?: 'active' | 'offline' | 'busy';
+  department?: string;
+  tasks_completed?: number;
+  tasks_in_progress?: number;
+  avatar?: string;
+  base_salary?: number;
+  hourly_rate?: number;
 }
 
-interface TeamStats {
+export interface TeamStats {
   total: number;
   active: number;
   admins: number;
   rating_average: number;
 }
 
-interface SalarySettings {
+export interface SalarySettings {
   base_salary: number;
   hourly_rate: number;
   tax_rate: number;
   bonus_rate: number;
+}
+
+export interface TeamPerformance {
+  id: string;
+  member_id: string;
+  name: string;
+  tasks_completed: number;
+  tasks_in_progress: number;
+  average_task_completion_time: number;
+  rating: number;
+  time_logged: number;
+  period: string;
 }
 
 interface ApiResponse<T> {
@@ -111,5 +131,29 @@ export const teamApi = {
       console.error(`Error updating salary settings for member with id ${memberId}:`, error);
       throw error;
     }
-  }
+  },
+
+  getPerformance: async (period?: string): Promise<{ data: TeamPerformance[] }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<TeamPerformance[]>> = await apiClient.get(`${API_URL}/team/performance`, {
+        params: { period }
+      });
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error fetching team performance:', error);
+      throw error;
+    }
+  },
+
+  calculateSalary: async (memberId: string, month: string): Promise<{ data: any }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<any>> = await apiClient.get(`${API_URL}/team/${memberId}/salary-calculation`, {
+        params: { month }
+      });
+      return { data: response.data.data };
+    } catch (error) {
+      console.error(`Error calculating salary for member with id ${memberId}:`, error);
+      throw error;
+    }
+  },
 };
