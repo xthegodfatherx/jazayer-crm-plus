@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -22,29 +21,161 @@ import {
   Languages,
   Clock,
   Palette,
-  Save
+  Save,
+  Loader
 } from 'lucide-react';
 import UserProfile from '@/components/settings/UserProfile';
+import { useToast } from '@/hooks/use-toast';
+import { userSettingsApi, UserSettings } from '@/services/user-settings-api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const Settings: React.FC = () => {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [taskReminders, setTaskReminders] = useState(true);
-  const [invoiceReminders, setInvoiceReminders] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState('ar');
+  const [activeTab, setActiveTab] = useState('profile');
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch user settings using React Query
+  const { 
+    data: settings, 
+    isLoading, 
+    error 
+  } = useQuery({
+    queryKey: ['userSettings'],
+    queryFn: userSettingsApi.getUserSettings,
+  });
+
+  // Update notification settings mutation
+  const updateNotificationSettingsMutation = useMutation({
+    mutationFn: userSettingsApi.updateNotificationSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userSettings'] });
+      toast({
+        title: "Settings updated",
+        description: "Your notification settings have been saved."
+      });
+    },
+    onError: (error) => {
+      console.error('Error updating notification settings:', error);
+      toast({
+        title: "Update failed",
+        description: "There was an error saving your settings. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Update appearance settings mutation
+  const updateAppearanceMutation = useMutation({
+    mutationFn: userSettingsApi.updateAppearanceSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userSettings'] });
+      toast({
+        title: "Settings updated",
+        description: "Your appearance settings have been saved."
+      });
+    },
+    onError: (error) => {
+      console.error('Error updating appearance settings:', error);
+      toast({
+        title: "Update failed",
+        description: "There was an error saving your settings. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Update language settings mutation
+  const updateLanguageMutation = useMutation({
+    mutationFn: userSettingsApi.updateLanguageSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userSettings'] });
+      toast({
+        title: "Settings updated",
+        description: "Your language settings have been saved."
+      });
+    },
+    onError: (error) => {
+      console.error('Error updating language settings:', error);
+      toast({
+        title: "Update failed",
+        description: "There was an error saving your settings. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Handle notification settings changes
+  const handleNotificationsToggle = (enabled: boolean) => {
+    updateNotificationSettingsMutation.mutate({ 
+      notifications_enabled: enabled 
+    });
+  };
+
+  const handleEmailNotificationsToggle = (enabled: boolean) => {
+    updateNotificationSettingsMutation.mutate({ 
+      email_notifications: enabled 
+    });
+  };
+
+  const handleTaskRemindersToggle = (enabled: boolean) => {
+    updateNotificationSettingsMutation.mutate({ 
+      task_reminders: enabled 
+    });
+  };
+
+  const handleInvoiceRemindersToggle = (enabled: boolean) => {
+    updateNotificationSettingsMutation.mutate({ 
+      invoice_notifications: enabled 
+    });
+  };
+
+  const handleSystemNotificationsToggle = (enabled: boolean) => {
+    updateNotificationSettingsMutation.mutate({ 
+      system_notifications: enabled 
+    });
+  };
+
+  // Handle appearance settings changes
+  const handleDarkModeToggle = (enabled: boolean) => {
+    updateAppearanceMutation.mutate({ 
+      dark_mode: enabled 
+    });
+  };
+
+  // Handle language settings changes
+  const handleLanguageChange = (language: 'ar' | 'en' | 'fr') => {
+    updateLanguageMutation.mutate({ 
+      language 
+    });
+  };
+
+  // Error state handling
+  if (error) {
+    return (
+      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
+        <h2 className="text-lg font-semibold text-red-800">Error loading settings</h2>
+        <p className="text-red-600">There was a problem loading your settings. Please refresh or try again later.</p>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh]">
+        <Loader className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading your settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Settings</h1>
-        <Button>
-          <Save className="h-4 w-4 mr-2" />
-          Save Changes
-        </Button>
       </div>
 
-      <Tabs defaultValue="profile">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full border-b mb-6">
           <TabsTrigger value="profile" className="flex items-center">
             <User className="h-4 w-4 mr-2" />
@@ -93,9 +224,10 @@ const Settings: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Enable or disable all notifications</p>
                 </div>
                 <Switch 
-                  checked={notificationsEnabled} 
-                  onCheckedChange={setNotificationsEnabled} 
+                  checked={settings?.notifications_enabled || false} 
+                  onCheckedChange={handleNotificationsToggle} 
                   id="notifications"
+                  disabled={updateNotificationSettingsMutation.isPending}
                 />
               </div>
               
@@ -108,10 +240,10 @@ const Settings: React.FC = () => {
                     <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                   </div>
                   <Switch 
-                    checked={emailNotifications} 
-                    onCheckedChange={setEmailNotifications} 
+                    checked={settings?.email_notifications || false} 
+                    onCheckedChange={handleEmailNotificationsToggle} 
                     id="email-notifications"
-                    disabled={!notificationsEnabled}
+                    disabled={!settings?.notifications_enabled || updateNotificationSettingsMutation.isPending}
                   />
                 </div>
                 
@@ -121,10 +253,10 @@ const Settings: React.FC = () => {
                     <p className="text-sm text-muted-foreground">Get reminders for upcoming tasks</p>
                   </div>
                   <Switch 
-                    checked={taskReminders} 
-                    onCheckedChange={setTaskReminders} 
+                    checked={settings?.task_reminders || false} 
+                    onCheckedChange={handleTaskRemindersToggle} 
                     id="task-reminders"
-                    disabled={!notificationsEnabled}
+                    disabled={!settings?.notifications_enabled || updateNotificationSettingsMutation.isPending}
                   />
                 </div>
                 
@@ -134,10 +266,23 @@ const Settings: React.FC = () => {
                     <p className="text-sm text-muted-foreground">Get reminders for unpaid invoices</p>
                   </div>
                   <Switch 
-                    checked={invoiceReminders} 
-                    onCheckedChange={setInvoiceReminders} 
+                    checked={settings?.invoice_notifications || false} 
+                    onCheckedChange={handleInvoiceRemindersToggle} 
                     id="invoice-reminders"
-                    disabled={!notificationsEnabled}
+                    disabled={!settings?.notifications_enabled || updateNotificationSettingsMutation.isPending}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="system-notifications" className="text-base">System Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Receive important system alerts</p>
+                  </div>
+                  <Switch 
+                    checked={settings?.system_notifications || false} 
+                    onCheckedChange={handleSystemNotificationsToggle} 
+                    id="system-notifications"
+                    disabled={!settings?.notifications_enabled || updateNotificationSettingsMutation.isPending}
                   />
                 </div>
               </div>
@@ -158,9 +303,10 @@ const Settings: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Enable dark mode for the application</p>
                 </div>
                 <Switch 
-                  checked={darkMode} 
-                  onCheckedChange={setDarkMode} 
+                  checked={settings?.dark_mode || false} 
+                  onCheckedChange={handleDarkModeToggle} 
                   id="dark-mode"
+                  disabled={updateAppearanceMutation.isPending}
                 />
               </div>
             </CardContent>
@@ -177,25 +323,28 @@ const Settings: React.FC = () => {
               <div className="grid gap-4">
                 <div className="flex items-center space-x-2">
                   <input type="radio" id="ar" name="language" value="ar" 
-                    checked={language === 'ar'} 
-                    onChange={() => setLanguage('ar')} 
+                    checked={settings?.language === 'ar'} 
+                    onChange={() => handleLanguageChange('ar')} 
                     className="h-4 w-4"
+                    disabled={updateLanguageMutation.isPending}
                   />
                   <Label htmlFor="ar">العربية (Arabic)</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <input type="radio" id="fr" name="language" value="fr" 
-                    checked={language === 'fr'} 
-                    onChange={() => setLanguage('fr')} 
+                    checked={settings?.language === 'fr'} 
+                    onChange={() => handleLanguageChange('fr')} 
                     className="h-4 w-4"
+                    disabled={updateLanguageMutation.isPending}
                   />
                   <Label htmlFor="fr">Français (French)</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <input type="radio" id="en" name="language" value="en" 
-                    checked={language === 'en'} 
-                    onChange={() => setLanguage('en')} 
+                    checked={settings?.language === 'en'} 
+                    onChange={() => handleLanguageChange('en')} 
                     className="h-4 w-4"
+                    disabled={updateLanguageMutation.isPending}
                   />
                   <Label htmlFor="en">English</Label>
                 </div>
@@ -292,6 +441,16 @@ const Settings: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Loading spinner for mutations */}
+      {(updateNotificationSettingsMutation.isPending || 
+        updateAppearanceMutation.isPending || 
+        updateLanguageMutation.isPending) && (
+        <div className="fixed bottom-4 right-4 bg-primary text-white px-4 py-2 rounded-md flex items-center">
+          <Loader className="h-4 w-4 animate-spin mr-2" />
+          <span>Saving changes...</span>
+        </div>
+      )}
     </div>
   );
 };
