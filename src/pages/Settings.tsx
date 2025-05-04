@@ -16,9 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { 
   User, 
   Bell, 
-  Globe, 
   Shield, 
-  CreditCard, 
   Languages,
   Clock,
   Palette,
@@ -178,10 +176,6 @@ const Settings: React.FC = () => {
             <Shield className="h-4 w-4 mr-2" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="billing" className="flex items-center">
-            <CreditCard className="h-4 w-4 mr-2" />
-            Billing
-          </TabsTrigger>
           <TabsTrigger value="timeTracking" className="flex items-center">
             <Clock className="h-4 w-4 mr-2" />
             Time Tracking
@@ -293,24 +287,6 @@ const Settings: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
                 </div>
                 <Button variant="outline">Setup 2FA</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="billing">
-          <Card>
-            <CardHeader>
-              <CardTitle>Billing Settings</CardTitle>
-              <CardDescription>Manage your billing information and payment methods</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">Current Plan: Professional</p>
-              
-              <div className="flex flex-col gap-4">
-                <Button variant="outline">View Billing History</Button>
-                <Button variant="outline">Update Payment Method</Button>
-                <Button variant="outline">Change Plan</Button>
               </div>
             </CardContent>
           </Card>
