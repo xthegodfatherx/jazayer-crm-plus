@@ -35,6 +35,7 @@ export interface Task {
   };
   dueDate?: string; // For compatibility with existing components
   assignee?: string; // For compatibility with existing components
+  category_id?: string; // Added for compatibility with form submissions
 }
 
 export interface TaskStats {

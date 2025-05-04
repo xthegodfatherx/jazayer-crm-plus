@@ -31,7 +31,7 @@ import {
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { taskCategoriesApi, teamApi } from '@/services/api';
-import { Task } from '@/services/tasks-api';
+import { Task } from '@/types/task';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export interface CreateTaskFormProps {
@@ -104,7 +104,10 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onCreateTask }) => {
         description: values.description || '',
         priority: values.priority,
         status: values.status,
-        category_id: values.category_id,
+        category: values.category_id ? { 
+          id: values.category_id,
+          name: categories.find(cat => cat.id === values.category_id)?.name || ''
+        } : undefined,
         assigned_to: values.assigned_to,
         due_date: values.due_date ? values.due_date.toISOString() : undefined,
       };

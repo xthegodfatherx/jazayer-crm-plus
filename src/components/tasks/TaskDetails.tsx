@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -100,7 +99,7 @@ const TaskDetails: React.FC<TaskDetailsProps> = ({
       case 'todo': return 'secondary';
       case 'in_progress': return 'default';
       case 'review': return 'outline';
-      case 'done': return 'success';
+      case 'done': return 'secondary'; // Changed from 'success' to 'secondary'
       default: return 'secondary';
     }
   };
