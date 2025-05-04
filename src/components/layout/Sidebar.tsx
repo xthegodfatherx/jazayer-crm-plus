@@ -25,7 +25,7 @@ import {
   Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -36,12 +36,12 @@ interface NavItem {
   icon: React.ReactNode;
   path: string;
   children?: NavItem[];
-  requiredRole?: string[];
+  requiredPermission?: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>(['Sales']);
-  const { userRole } = usePermissions();
+  const { userRole, hasPermission } = useAuth();
   
   const toggleExpand = (title: string) => {
     setExpandedItems(prev => 
@@ -74,21 +74,31 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       path: '#',
       children: [
         { title: 'Members', icon: <Users size={18} />, path: '/team' },
-        { title: 'Salary Statements', icon: <Calculator size={18} />, path: '/salary-statements' },
+        { 
+          title: 'Salary Statements', 
+          icon: <Calculator size={18} />, 
+          path: '/salary-statements',
+          requiredPermission: 'salary.manage'
+        },
       ]
     },
     { title: 'Clients', icon: <UserCircle size={20} />, path: '/clients' },
-    { title: 'Reports', icon: <LineChart size={20} />, path: '/reports' },
+    { title: 'Reports', icon: <LineChart size={20} />, path: '/reports', requiredPermission: 'reports.access' },
     { title: 'Time Tracking', icon: <Clock size={20} />, path: '/time-tracking' },
     { title: 'Notifications', icon: <Bell size={20} />, path: '/notifications' },
-    { title: 'Admin Panel', icon: <ShieldAlert size={20} />, path: '/admin', requiredRole: ['admin'] },
+    { 
+      title: 'Admin Panel', 
+      icon: <ShieldAlert size={20} />, 
+      path: '/admin', 
+      requiredPermission: 'admin.access'
+    },
     { title: 'Settings', icon: <Settings size={20} />, path: '/settings' },
   ];
 
-  // Filter items based on user role
+  // Filter items based on user permissions
   const filteredNavItems = navItems.filter(item => {
-    if (!item.requiredRole) return true;
-    return item.requiredRole.includes(userRole);
+    if (!item.requiredPermission) return true;
+    return hasPermission(item.requiredPermission);
   });
 
   return (
@@ -146,22 +156,24 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
                   {/* Submenu */}
                   {expandedItems.includes(item.title) && !collapsed && (
                     <ul className="mt-1 ml-7 space-y-1">
-                      {item.children.map((child, childIndex) => (
-                        <li key={childIndex}>
-                          <NavLink
-                            to={child.path}
-                            className={({ isActive }) => cn(
-                              "flex items-center py-1.5 px-3 rounded-md transition-colors text-sm",
-                              isActive 
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                                : "text-sidebar-foreground/90 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                            )}
-                          >
-                            {child.icon}
-                            <span className="ml-2">{child.title}</span>
-                          </NavLink>
-                        </li>
-                      ))}
+                      {item.children
+                        .filter(child => !child.requiredPermission || hasPermission(child.requiredPermission))
+                        .map((child, childIndex) => (
+                          <li key={childIndex}>
+                            <NavLink
+                              to={child.path}
+                              className={({ isActive }) => cn(
+                                "flex items-center py-1.5 px-3 rounded-md transition-colors text-sm",
+                                isActive 
+                                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                                  : "text-sidebar-foreground/90 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                              )}
+                            >
+                              {child.icon}
+                              <span className="ml-2">{child.title}</span>
+                            </NavLink>
+                          </li>
+                        ))}
                     </ul>
                   )}
                 </>

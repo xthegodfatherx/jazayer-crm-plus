@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePermissions } from '@/contexts/PermissionsContext';
 import { 
   Users, 
   ShieldCheck, 
@@ -22,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { useNavigate } from 'react-router-dom';
 
 // Admin components
 import RoleSwitcher from '@/components/admin/RoleSwitcher';
@@ -37,11 +37,13 @@ import SecuritySettings from '@/components/admin/SecuritySettings';
 import SystemSettings from '@/components/admin/SystemSettings';
 import { settingsApi } from '@/services/settings-api';
 import CompanySettings from '@/components/admin/CompanySettings';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Admin: React.FC = () => {
-  const { userRole } = usePermissions();
+  const { userRole, hasPermission, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Fetch company info using React Query
   const { 
@@ -62,8 +64,30 @@ const Admin: React.FC = () => {
       }
     }
   });
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!authLoading && userRole !== 'admin') {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to access the admin panel.",
+        variant: "destructive"
+      });
+      navigate('/dashboard');
+    }
+  }, [userRole, authLoading, navigate, toast]);
   
   // Check if user has admin permissions
+  if (authLoading) {
+    return (
+      <div className="p-8 space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-[500px] w-full" />
+      </div>
+    );
+  }
+  
   if (userRole !== 'admin') {
     return (
       <div className="p-8">

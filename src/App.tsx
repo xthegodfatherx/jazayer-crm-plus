@@ -18,8 +18,9 @@ import TimeTracking from './pages/TimeTracking';
 import Notifications from './pages/Notifications';
 import Admin from './pages/Admin';
 import Settings from './pages/Settings';
-import { PermissionsProvider } from './contexts/PermissionsContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthGuard } from './components/auth/AuthGuard';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -34,7 +35,7 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <PermissionsProvider>
+      <AuthProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<MainLayout />}>
@@ -48,17 +49,30 @@ function App() {
               <Route path="products" element={<Products />} />
               <Route path="expenses" element={<Expenses />} />
               <Route path="team" element={<Team />} />
-              <Route path="salary-statements" element={<SalaryStatements />} />
+              
+              {/* Protected routes with specific permissions */}
+              <Route element={<AuthGuard requiredPermission="salary.manage" />}>
+                <Route path="salary-statements" element={<SalaryStatements />} />
+              </Route>
+              
               <Route path="clients" element={<Clients />} />
-              <Route path="reports" element={<Reports />} />
+              
+              <Route element={<AuthGuard requiredPermission="reports.access" />}>
+                <Route path="reports" element={<Reports />} />
+              </Route>
+              
               <Route path="time-tracking" element={<TimeTracking />} />
               <Route path="notifications" element={<Notifications />} />
-              <Route path="admin" element={<Admin />} />
+              
+              <Route element={<AuthGuard requiredPermission="admin.access" />}>
+                <Route path="admin" element={<Admin />} />
+              </Route>
+              
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
         </BrowserRouter>
-      </PermissionsProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
