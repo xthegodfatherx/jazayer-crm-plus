@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -23,49 +23,32 @@ import {
   Clock,
   Palette,
   Save,
-  Loader
+  Loader,
+  LayoutDashboard
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import UserProfile from '@/components/settings/UserProfile';
 import { useToast } from '@/hooks/use-toast';
 import { userSettingsApi, UserSettings } from '@/services/user-settings-api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import NotificationSettings from '@/pages/NotificationSettings';
-
-// Mock data for development environment
-const mockUserSettings: UserSettings = {
-  id: 'mock-id',
-  user_id: 'mock-user-id',
-  notifications_enabled: true,
-  email_notifications: true,
-  task_reminders: true,
-  invoice_notifications: false,
-  system_notifications: true,
-  dark_mode: false,
-  language: 'en',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString()
-};
+import { useAuth } from '@/contexts/AuthContext';
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isDevEnvironment] = useState(import.meta.env.DEV);
-
-  // Fetch user settings using React Query with mock data fallback for development
+  const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  
+  // Fetch user settings using React Query
   const { 
     data: settings, 
     isLoading, 
     error 
   } = useQuery({
     queryKey: ['userSettings'],
-    queryFn: async () => {
-      if (isDevEnvironment) {
-        console.log('Using mock settings data in development environment');
-        return mockUserSettings;
-      }
-      return await userSettingsApi.getUserSettings();
-    },
+    queryFn: userSettingsApi.getUserSettings
   });
 
   // Update notification settings mutation
@@ -130,14 +113,6 @@ const Settings: React.FC = () => {
 
   // Handle notification settings changes
   const handleNotificationsToggle = (enabled: boolean) => {
-    if (isDevEnvironment) {
-      toast({
-        title: "Development Mode",
-        description: "Settings changes are not persisted in development mode."
-      });
-      return;
-    }
-    
     updateNotificationSettingsMutation.mutate({ 
       notifications_enabled: enabled 
     });
@@ -145,14 +120,6 @@ const Settings: React.FC = () => {
 
   // Handle appearance settings changes
   const handleDarkModeToggle = (enabled: boolean) => {
-    if (isDevEnvironment) {
-      toast({
-        title: "Development Mode",
-        description: "Settings changes are not persisted in development mode."
-      });
-      return;
-    }
-    
     updateAppearanceMutation.mutate({ 
       dark_mode: enabled 
     });
@@ -160,21 +127,13 @@ const Settings: React.FC = () => {
 
   // Handle language settings changes
   const handleLanguageChange = (language: 'ar' | 'en' | 'fr') => {
-    if (isDevEnvironment) {
-      toast({
-        title: "Development Mode",
-        description: "Settings changes are not persisted in development mode."
-      });
-      return;
-    }
-    
     updateLanguageMutation.mutate({ 
       language 
     });
   };
 
   // Loading state
-  if (isLoading && !isDevEnvironment) {
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh]">
         <Loader className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -187,6 +146,14 @@ const Settings: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Settings</h1>
+        
+        {/* Admin Dashboard Quick Access */}
+        {hasPermission('admin.access') && (
+          <Button onClick={() => navigate('/admin')} className="bg-purple-600 hover:bg-purple-700">
+            <LayoutDashboard className="h-4 w-4 mr-2" />
+            Admin Dashboard
+          </Button>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

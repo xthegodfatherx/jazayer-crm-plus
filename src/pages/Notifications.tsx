@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,58 +14,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistance } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
-
-// Mock data for development environment
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    title: 'New Task Assigned',
-    message: 'You have been assigned a new task: "Update user interface"',
-    is_read: false,
-    type: 'info',
-    related_entity: { type: 'task', id: '123', name: 'Update user interface' },
-    created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString() // 30 minutes ago
-  },
-  {
-    id: '2',
-    title: 'Payment Received',
-    message: 'You have received a payment of $1,500 for project "Website Redesign"',
-    is_read: false,
-    type: 'success',
-    related_entity: { type: 'payment', id: '456', name: 'Website Redesign Payment' },
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() // 2 hours ago
-  },
-  {
-    id: '3',
-    title: 'Project Deadline Approaching',
-    message: 'Project "Mobile App Development" is due in 2 days',
-    is_read: true,
-    type: 'warning',
-    related_entity: { type: 'project', id: '789', name: 'Mobile App Development' },
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString() // 1 day ago
-  },
-  {
-    id: '4',
-    title: 'System Maintenance',
-    message: 'The system will be under maintenance on Sunday, May 10, from 02:00 to 04:00 UTC',
-    is_read: true,
-    type: 'info',
-    related_entity: null,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString() // 3 days ago
-  }
-];
-
-const mockNotificationResponse = {
-  data: mockNotifications,
-  meta: {
-    total: mockNotifications.length,
-    page: 1,
-    limit: 10,
-    total_pages: 1
-  }
-};
-
-const mockUnreadCount = { count: mockNotifications.filter(n => !n.is_read).length };
 
 const NotificationItem = ({
   notification,
@@ -155,28 +103,11 @@ const Notifications = () => {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [page, setPage] = useState(1);
   const limit = 10;
-  const [isDevEnvironment] = useState(import.meta.env.DEV);
 
-  // Fetch notifications with mock data fallback
+  // Fetch notifications
   const { data, isLoading, error } = useQuery({
     queryKey: ['notifications', filter, page],
     queryFn: async () => {
-      if (isDevEnvironment) {
-        console.log('Using mock notification data in development environment');
-        // Filter mock data if "unread" filter is selected
-        if (filter === 'unread') {
-          return {
-            data: mockNotifications.filter(n => !n.is_read),
-            meta: {
-              total: mockNotifications.filter(n => !n.is_read).length,
-              page: 1,
-              limit: 10,
-              total_pages: 1
-            }
-          };
-        }
-        return mockNotificationResponse;
-      }
       return await notificationsApi.getNotifications({
         page,
         limit,
@@ -240,74 +171,24 @@ const Notifications = () => {
     },
   });
 
-  // Get unread count with mock data fallback
+  // Get unread count
   const { data: unreadData } = useQuery({
     queryKey: ['unread-count'],
-    queryFn: async () => {
-      if (isDevEnvironment) {
-        console.log('Using mock unread count in development environment');
-        return mockUnreadCount;
-      }
-      return await notificationsApi.getUnreadCount();
-    },
+    queryFn: notificationsApi.getUnreadCount,
   });
 
-  // Handle mark as read actions in development mode
+  // Handle mark as read actions
   const handleMarkAsRead = (id: string) => {
-    if (isDevEnvironment) {
-      // Update the mock data in development mode
-      const index = mockNotifications.findIndex(n => n.id === id);
-      if (index !== -1) {
-        mockNotifications[index].is_read = true;
-        // Force a refetch to update the UI
-        queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-        toast({
-          title: "Development Mode",
-          description: "Notification marked as read (mock data)",
-        });
-      }
-      return;
-    }
-    // Use the actual API in production
     markAsReadMutation.mutate(id);
   };
 
-  // Handle mark all as read in development mode
+  // Handle mark all as read
   const handleMarkAllAsRead = () => {
-    if (isDevEnvironment) {
-      // Update all mock notifications
-      mockNotifications.forEach(n => n.is_read = true);
-      // Force a refetch to update the UI
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-      toast({
-        title: "Development Mode",
-        description: "All notifications marked as read (mock data)",
-      });
-      return;
-    }
-    // Use the actual API in production
     markAllAsReadMutation.mutate();
   };
 
-  // Handle delete notification in development mode
+  // Handle delete notification
   const handleDeleteNotification = (id: string) => {
-    if (isDevEnvironment) {
-      // Remove from mock data in development mode
-      const index = mockNotifications.findIndex(n => n.id === id);
-      if (index !== -1) {
-        mockNotifications.splice(index, 1);
-        // Force a refetch to update the UI
-        queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        toast({
-          title: "Development Mode",
-          description: "Notification deleted (mock data)",
-        });
-      }
-      return;
-    }
-    // Use the actual API in production
     deleteNotificationMutation.mutate(id);
   };
 
@@ -319,7 +200,7 @@ const Notifications = () => {
           <p className="text-gray-600">Stay updated with what's happening</p>
         </div>
         
-        {/* Admin Dashboard Quick Access during development */}
+        {/* Admin Dashboard Quick Access */}
         {hasPermission('admin.access') && (
           <Button onClick={() => navigate('/admin')} className="bg-purple-600 hover:bg-purple-700">
             <LayoutDashboard className="h-4 w-4 mr-2" />
