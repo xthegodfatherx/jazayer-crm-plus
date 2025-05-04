@@ -1,379 +1,312 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Bell,
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  AlertCircle,
-  Trash2,
-  Check,
-  Loader
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Bell, CheckCheck, Trash2, Info, AlertCircle, CheckCircle, XCircle, Settings, LayoutDashboard } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { notificationsApi, Notification } from '@/services/notifications-api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { notificationsApi, Notification } from '@/services/notifications-api';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatDistance } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
-const NotificationsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
-  const [page, setPage] = useState(1);
-  const limit = 10; // notifications per page
-  
+const NotificationItem = ({
+  notification,
+  onMarkAsRead,
+  onDelete
+}: {
+  notification: Notification;
+  onMarkAsRead: () => void;
+  onDelete: () => void;
+}) => {
+  const getIcon = () => {
+    switch (notification.type) {
+      case 'info':
+        return <Info className="h-5 w-5 text-blue-500" />;
+      case 'warning':
+        return <AlertCircle className="h-5 w-5 text-amber-500" />;
+      case 'success':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'error':
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      default:
+        return <Bell className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  const getTypeColor = () => {
+    switch (notification.type) {
+      case 'info':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'warning':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'success':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'error':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  return (
+    <div className={`p-4 border rounded-lg mb-3 ${notification.is_read ? 'bg-gray-50' : 'bg-white border-l-4 border-l-blue-500'}`}>
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <div className="mt-1">{getIcon()}</div>
+          <div>
+            <h4 className="font-medium text-sm">{notification.title}</h4>
+            <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <Badge variant="outline" className={getTypeColor()}>
+                {notification.type.charAt(0).toUpperCase() + notification.type.slice(1)}
+              </Badge>
+              {notification.related_entity && (
+                <Badge variant="outline" className="bg-gray-100">
+                  {notification.related_entity.type.charAt(0).toUpperCase() + notification.related_entity.type.slice(1)}
+                  {notification.related_entity.name ? `: ${notification.related_entity.name}` : ''}
+                </Badge>
+              )}
+              <span className="text-xs text-gray-500">
+                {formatDistance(new Date(notification.created_at), new Date(), { addSuffix: true })}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {!notification.is_read && (
+            <Button variant="ghost" size="sm" onClick={onMarkAsRead}>
+              <CheckCheck className="h-4 w-4" />
+              <span className="sr-only">Mark as read</span>
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={onDelete}>
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">Delete</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Notifications = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   // Fetch notifications
-  const { 
-    data: notificationsData, 
-    isLoading,
-    error
-  } = useQuery({
-    queryKey: ['notifications', activeTab, page, limit],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['notifications', filter, page],
     queryFn: () => notificationsApi.getNotifications({
       page,
       limit,
-      is_read: activeTab === 'unread' ? false : undefined
+      is_read: filter === 'unread' ? false : undefined
     }),
   });
 
   // Mark as read mutation
   const markAsReadMutation = useMutation({
-    mutationFn: notificationsApi.markAsRead,
+    mutationFn: (id: string) => notificationsApi.markAsRead(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
     },
-    onError: (error) => {
-      console.error('Error marking notification as read:', error);
+    onError: () => {
       toast({
-        title: "Action failed",
-        description: "Could not mark notification as read. Please try again.",
-        variant: "destructive"
+        title: "Error",
+        description: "Failed to mark notification as read",
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // Mark all as read mutation
   const markAllAsReadMutation = useMutation({
-    mutationFn: notificationsApi.markAllAsRead,
+    mutationFn: () => notificationsApi.markAllAsRead(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
       toast({
         title: "Success",
-        description: "All notifications have been marked as read.",
+        description: "All notifications marked as read",
       });
     },
-    onError: (error) => {
-      console.error('Error marking all notifications as read:', error);
+    onError: () => {
       toast({
-        title: "Action failed",
-        description: "Could not mark all notifications as read. Please try again.",
-        variant: "destructive"
+        title: "Error",
+        description: "Failed to mark all notifications as read",
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // Delete notification mutation
   const deleteNotificationMutation = useMutation({
-    mutationFn: notificationsApi.deleteNotification,
+    mutationFn: (id: string) => notificationsApi.deleteNotification(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({
         title: "Success",
-        description: "Notification has been deleted.",
+        description: "Notification deleted",
       });
     },
-    onError: (error) => {
-      console.error('Error deleting notification:', error);
+    onError: () => {
       toast({
-        title: "Action failed",
-        description: "Could not delete notification. Please try again.",
-        variant: "destructive"
+        title: "Error",
+        description: "Failed to delete notification",
+        variant: "destructive",
       });
-    }
+    },
   });
 
-  const handleNotificationClick = (notification: Notification) => {
-    // Mark as read if not already read
-    if (!notification.is_read) {
-      markAsReadMutation.mutate(notification.id);
-    }
-
-    // Navigate based on the related entity if available
-    if (notification.related_entity) {
-      switch (notification.related_entity.type) {
-        case 'task':
-          navigate(`/tasks?id=${notification.related_entity.id}`);
-          break;
-        case 'project':
-          navigate(`/projects/${notification.related_entity.id}`);
-          break;
-        case 'invoice':
-          navigate(`/invoices?id=${notification.related_entity.id}`);
-          break;
-        case 'user':
-          navigate(`/team?user=${notification.related_entity.id}`);
-          break;
-        default:
-          // For system notifications or if no specific action
-          break;
-      }
-    }
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'success':
-        return <CheckCircle className="text-green-500" />;
-      case 'warning':
-        return <AlertTriangle className="text-yellow-500" />;
-      case 'error':
-        return <AlertCircle className="text-red-500" />;
-      case 'info':
-      default:
-        return <Info className="text-blue-500" />;
-    }
-  };
-
-  // Error state handling
-  if (error) {
-    return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-        <h2 className="text-lg font-semibold text-red-800">Error loading notifications</h2>
-        <p className="text-red-600">There was a problem loading your notifications. Please refresh or try again later.</p>
-      </div>
-    );
-  }
-
-  // Pagination handlers
-  const handlePrevPage = () => {
-    if (page > 1) {
-      setPage(page - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (notificationsData && page < Math.ceil(notificationsData.meta.total / limit)) {
-      setPage(page + 1);
-    }
-  };
+  // Get unread count
+  const { data: unreadData } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => notificationsApi.getUnreadCount(),
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Notifications</h1>
-        <Button onClick={() => markAllAsReadMutation.mutate()} disabled={markAllAsReadMutation.isPending}>
-          {markAllAsReadMutation.isPending ? (
-            <Loader className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Check className="h-4 w-4 mr-2" />
-          )}
-          Mark All as Read
-        </Button>
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Notifications</h1>
+          <p className="text-gray-600">Stay updated with what's happening</p>
+        </div>
+        
+        {/* Admin Dashboard Quick Access during development */}
+        {hasPermission('admin.access') && (
+          <Button onClick={() => navigate('/admin')} className="bg-purple-600 hover:bg-purple-700">
+            <LayoutDashboard className="h-4 w-4 mr-2" />
+            Admin Dashboard
+          </Button>
+        )}
       </div>
 
-      <Tabs defaultValue="all" value={activeTab} onValueChange={(value) => {
-        setActiveTab(value as 'all' | 'unread');
-        setPage(1); // Reset page when changing tabs
-      }}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="all">All Notifications</TabsTrigger>
-          <TabsTrigger value="unread">Unread</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>All Notifications</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex justify-center items-center py-8">
-                  <Loader className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : notificationsData?.data?.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Bell className="h-12 w-12 mx-auto opacity-30 mb-3" />
-                  <p>You have no notifications</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {notificationsData?.data.map((notification) => (
-                    <div key={notification.id} className="relative">
-                      <div 
-                        className={`p-4 rounded-lg cursor-pointer transition-colors ${
-                          notification.is_read ? 'bg-card hover:bg-muted/50' : 'bg-blue-50 hover:bg-blue-100'
-                        }`}
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="mt-1">
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start mb-1">
-                              <h3 className="font-medium">{notification.title}</h3>
-                              <div className="flex items-center gap-2">
-                                <Badge variant={notification.is_read ? "outline" : "secondary"}>
-                                  {notification.is_read ? 'Read' : 'New'}
-                                </Badge>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteNotificationMutation.mutate(notification.id);
-                                  }}
-                                  disabled={deleteNotificationMutation.isPending}
-                                >
-                                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {notification.message}
-                            </p>
-                            <div className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                            </div>
-                          </div>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center">
+                <Bell className="mr-2 h-5 w-5" />
+                <span>Your Notifications</span>
+                {unreadData?.count > 0 && (
+                  <Badge className="ml-2 bg-blue-500">{unreadData.count} new</Badge>
+                )}
+              </CardTitle>
+              <CardDescription>Stay updated with task updates, messages, and system alerts</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => markAllAsReadMutation.mutate()}
+                disabled={markAllAsReadMutation.isPending || (unreadData?.count === 0)}
+              >
+                <CheckCheck className="mr-2 h-4 w-4" />
+                Mark all as read
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/settings')}
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Notification Settings
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="all" onValueChange={(v) => setFilter(v as 'all' | 'unread')}>
+            <TabsList>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="unread">Unread</TabsTrigger>
+            </TabsList>
+            <Separator className="my-4" />
+            
+            {error ? (
+              <Alert variant="destructive" className="my-4">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>Failed to load notifications. Please try again.</AlertDescription>
+              </Alert>
+            ) : isLoading ? (
+              <div className="space-y-4 mt-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="p-4 border rounded-lg">
+                    <div className="flex gap-3">
+                      <Skeleton className="h-6 w-6 rounded-full" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-full" />
+                        <div className="flex gap-2 mt-2">
+                          <Skeleton className="h-5 w-16 rounded-full" />
+                          <Skeleton className="h-5 w-24 rounded-full" />
                         </div>
                       </div>
-                      <Separator className="my-2" />
-                    </div>
-                  ))}
-                  
-                  {/* Pagination */}
-                  <div className="flex justify-between items-center pt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, notificationsData?.meta?.total || 0)} of {notificationsData?.meta?.total || 0}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handlePrevPage} 
-                        disabled={page === 1}
-                      >
-                        Previous
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        onClick={handleNextPage}
-                        disabled={!notificationsData?.meta?.total || page >= Math.ceil(notificationsData.meta.total / limit)}
-                      >
-                        Next
-                      </Button>
                     </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="unread" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Unread Notifications</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex justify-center items-center py-8">
-                  <Loader className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : notificationsData?.data?.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 mx-auto opacity-30 mb-3" />
-                  <p>You have no unread notifications</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {notificationsData?.data.map((notification) => (
-                    <div key={notification.id} className="relative">
-                      <div 
-                        className="p-4 bg-blue-50 rounded-lg cursor-pointer transition-colors hover:bg-blue-100"
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="mt-1">
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start mb-1">
-                              <h3 className="font-medium">{notification.title}</h3>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="secondary">New</Badge>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteNotificationMutation.mutate(notification.id);
-                                  }}
-                                  disabled={deleteNotificationMutation.isPending}
-                                >
-                                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {notification.message}
-                            </p>
-                            <div className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <Separator className="my-2" />
-                    </div>
-                  ))}
-                  
-                  {/* Pagination */}
-                  <div className="flex justify-between items-center pt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, notificationsData?.meta?.total || 0)} of {notificationsData?.meta?.total || 0}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handlePrevPage} 
-                        disabled={page === 1}
-                      >
-                        Previous
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        onClick={handleNextPage}
-                        disabled={!notificationsData?.meta?.total || page >= Math.ceil(notificationsData.meta.total / limit)}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                ))}
+              </div>
+            ) : data?.data.length === 0 ? (
+              <div className="text-center py-10">
+                <Bell className="mx-auto h-12 w-12 text-gray-300" />
+                <h3 className="mt-4 text-lg font-medium">No notifications</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  You don't have any {filter === 'unread' ? 'unread ' : ''}notifications at the moment.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4">
+                {data?.data.map((notification) => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                    onMarkAsRead={() => markAsReadMutation.mutate(notification.id)}
+                    onDelete={() => deleteNotificationMutation.mutate(notification.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </Tabs>
+        </CardContent>
+        {data?.meta && data.meta.total > limit && (
+          <CardFooter className="flex justify-between">
+            <div className="text-sm text-gray-500">
+              Showing {(page - 1) * limit + 1}-{Math.min(page * limit, data.meta.total)} of {data.meta.total}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => p + 1)}
+                disabled={page * limit >= data.meta.total}
+              >
+                Next
+              </Button>
+            </div>
+          </CardFooter>
+        )}
+      </Card>
     </div>
   );
 };
 
-export default NotificationsPage;
+export default Notifications;
