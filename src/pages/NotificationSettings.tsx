@@ -34,11 +34,9 @@ const NotificationSettings: React.FC = () => {
   } = useQuery({
     queryKey: ['notificationSettings'],
     queryFn: settingsApi.getNotificationSettings,
-    meta: {
-      onSuccess: (data: NotificationSettingsType) => {
-        if (data) {
-          setSettings(data);
-        }
+    onSuccess: (data: NotificationSettingsType) => {
+      if (data) {
+        setSettings(data);
       }
     }
   });
