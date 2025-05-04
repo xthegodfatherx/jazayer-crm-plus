@@ -15,8 +15,8 @@ const TeamPerformance: React.FC = () => {
     const fetchTeamPerformance = async () => {
       try {
         setLoading(true);
-        const { data } = await teamApi.getPerformance('current-month');
-        setTeamMembers(data);
+        const response = await teamApi.getPerformance('current-month');
+        setTeamMembers(response?.data || []);
       } catch (error) {
         handleError(error);
         toast({
@@ -24,6 +24,7 @@ const TeamPerformance: React.FC = () => {
           description: "Failed to load team performance data. Please try again.",
           variant: "destructive"
         });
+        setTeamMembers([]);
       } finally {
         setLoading(false);
       }
@@ -66,7 +67,7 @@ const TeamPerformance: React.FC = () => {
     );
   }
 
-  if (teamMembers.length === 0) {
+  if (!teamMembers || teamMembers.length === 0) {
     return (
       <div className="text-center py-6 text-muted-foreground">
         No team performance data available.
@@ -80,17 +81,17 @@ const TeamPerformance: React.FC = () => {
         <div key={member.id} className="flex items-center justify-between">
           <div className="flex items-center">
             <Avatar className="h-8 w-8 mr-2">
-              <AvatarImage src="" alt={member.member_name} />
-              <AvatarFallback>{member.member_name.slice(0, 2)}</AvatarFallback>
+              <AvatarImage src="" alt={member.member_name || 'Team member'} />
+              <AvatarFallback>{(member.member_name || 'TM').slice(0, 2)}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-sm font-medium">{member.member_name}</p>
-              <p className="text-xs text-muted-foreground">Completed: {member.completed_tasks}/{member.total_tasks}</p>
+              <p className="text-sm font-medium">{member.member_name || 'Unnamed member'}</p>
+              <p className="text-xs text-muted-foreground">Completed: {member.completed_tasks || 0}/{member.total_tasks || 0}</p>
             </div>
           </div>
           <div className="flex items-center">
-            <span className="text-sm font-medium mr-2">{member.average_rating.toFixed(1)}</span>
-            {renderStars(member.average_rating)}
+            <span className="text-sm font-medium mr-2">{member.average_rating?.toFixed(1) || '0.0'}</span>
+            {renderStars(member.average_rating || 0)}
           </div>
         </div>
       ))}

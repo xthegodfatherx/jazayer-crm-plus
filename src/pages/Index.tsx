@@ -5,12 +5,15 @@ import { usePermissions } from "@/contexts/PermissionsContext";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { userRole } = usePermissions();
+  const { userRole } = usePermissions() || { userRole: null };
   
   useEffect(() => {
-    // Redirect based on user role
+    // Redirect based on user role with fallback
     if (userRole === 'admin') {
       navigate('/admin');
+    } else if (userRole === null) {
+      // If userRole is null or undefined, default to dashboard
+      navigate('/');
     } else {
       navigate('/'); // For manager, employee, client - redirect to main dashboard
     }

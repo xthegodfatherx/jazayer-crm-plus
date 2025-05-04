@@ -22,9 +22,16 @@ const AdminReports = () => {
     const fetchTopPerformers = async () => {
       try {
         setLoading(true);
-        const { data } = await teamApi.getPerformance(dateRange);
+        const response = await teamApi.getPerformance(dateRange);
+        // Ensure we handle undefined data properly
+        const performanceData = response?.data || [];
         // Sort by average rating descending to get top performers
-        setTopPerformers(data.sort((a, b) => b.average_rating - a.average_rating).slice(0, 3));
+        setTopPerformers(
+          performanceData
+            .filter(p => p && typeof p.average_rating === 'number')
+            .sort((a, b) => (b.average_rating || 0) - (a.average_rating || 0))
+            .slice(0, 3)
+        );
       } catch (error) {
         handleError(error);
         toast({
@@ -32,6 +39,8 @@ const AdminReports = () => {
           description: "Failed to load team performance data. Please try again.",
           variant: "destructive"
         });
+        // Set empty array on error
+        setTopPerformers([]);
       } finally {
         setLoading(false);
       }
@@ -41,7 +50,7 @@ const AdminReports = () => {
   }, [dateRange, toast]);
 
   const formatPerformanceScore = (score: number) => {
-    return score.toFixed(1);
+    return (score || 0).toFixed(1);
   };
 
   return (
@@ -120,14 +129,14 @@ const AdminReports = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {topPerformers.length > 0 ? (
+                      {topPerformers && topPerformers.length > 0 ? (
                         topPerformers.map((performer, index) => (
                           <div key={performer.id} className="flex justify-between items-center pb-2 border-b">
-                            <div className="font-medium">{performer.member_name}</div>
+                            <div className="font-medium">{performer.member_name || 'Unnamed'}</div>
                             <div className={`px-2 py-1 rounded-full text-sm font-medium ${
                               index === 0 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-800"
                             }`}>
-                              Score: {formatPerformanceScore(performer.average_rating)}
+                              Score: {formatPerformanceScore(performer.average_rating || 0)}
                             </div>
                           </div>
                         ))
@@ -145,18 +154,18 @@ const AdminReports = () => {
                     <CardTitle className="text-lg">Performance Breakdown</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {topPerformers.length > 0 ? (
+                    {topPerformers && topPerformers.length > 0 ? (
                       <div className="space-y-3">
                         {topPerformers.map((performer) => (
                           <div key={performer.id}>
                             <div className="flex justify-between mb-1">
-                              <span className="text-sm font-medium">{performer.member_name}</span>
-                              <span className="text-sm text-muted-foreground">{performer.completed_tasks} tasks</span>
+                              <span className="text-sm font-medium">{performer.member_name || 'Unnamed'}</span>
+                              <span className="text-sm text-muted-foreground">{performer.completed_tasks || 0} tasks</span>
                             </div>
                             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                               <div 
                                 className="h-full bg-amber-500 rounded-full" 
-                                style={{ width: `${(performer.completed_tasks / Math.max(performer.total_tasks, 1)) * 100}%` }}
+                                style={{ width: `${((performer.completed_tasks || 0) / Math.max((performer.total_tasks || 1), 1)) * 100}%` }}
                               ></div>
                             </div>
                           </div>

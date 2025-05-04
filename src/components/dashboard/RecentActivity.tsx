@@ -15,8 +15,9 @@ const RecentActivity: React.FC = () => {
     const fetchActivities = async () => {
       try {
         setLoading(true);
-        const { data } = await activityApi.getRecent(10);
-        setActivities(data);
+        const response = await activityApi.getRecent(10);
+        // Ensure we handle undefined data properly
+        setActivities(response?.data || []);
       } catch (error) {
         handleError(error);
         toast({
@@ -24,6 +25,8 @@ const RecentActivity: React.FC = () => {
           description: "Failed to load recent activities. Please try again.",
           variant: "destructive"
         });
+        // Set empty array on error to prevent undefined issues
+        setActivities([]);
       } finally {
         setLoading(false);
       }
@@ -79,7 +82,7 @@ const RecentActivity: React.FC = () => {
     );
   }
 
-  if (activities.length === 0) {
+  if (!activities || activities.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         No recent activities found
@@ -92,13 +95,13 @@ const RecentActivity: React.FC = () => {
       {activities.map((activity) => (
         <div key={activity.id} className="flex items-start gap-4 border-b pb-4 last:border-0">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={activity.user_avatar || ''} alt={activity.user_name} />
-            <AvatarFallback>{activity.user_name?.slice(0, 2)}</AvatarFallback>
+            <AvatarImage src={activity.user_avatar || ''} alt={activity.user_name || 'User'} />
+            <AvatarFallback>{(activity.user_name || 'U')?.slice(0, 2)}</AvatarFallback>
           </Avatar>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               {getActivityIcon(activity.type)}
-              <p className="text-sm font-medium">{activity.user_name}</p>
+              <p className="text-sm font-medium">{activity.user_name || 'Unknown user'}</p>
               <p className="text-xs text-muted-foreground">{formatDate(activity.created_at)}</p>
             </div>
             <p className="text-sm">{activity.description}</p>

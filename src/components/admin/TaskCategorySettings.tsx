@@ -11,7 +11,7 @@ import { usePermissions } from '@/contexts/PermissionsContext';
 import TaskCategoryManagement from './TaskCategoryManagement';
 
 const TaskCategorySettings = () => {
-  const { userRole } = usePermissions();
+  const { userRole } = usePermissions() || { userRole: null };
   const canManageCategories = userRole === 'admin' || userRole === 'manager';
 
   if (!canManageCategories) {

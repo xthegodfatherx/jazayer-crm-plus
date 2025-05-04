@@ -30,22 +30,24 @@ const AdminOverview: React.FC<AdminOverviewProps> = ({ className }) => {
         setLoading(true);
 
         // Fetch tasks and team data in parallel
-        const [tasksData, teamData] = await Promise.all([
+        const [tasksResponse, teamResponse] = await Promise.all([
           tasksApi.getAll(),
           teamApi.getMembers()
         ]);
 
-        // Calculate task statistics
-        const total = tasksData.data.length;
-        const completed = tasksData.data.filter(task => task.status === 'done').length;
+        // Calculate task statistics with safety checks
+        const tasks = tasksResponse?.data || [];
+        const total = tasks.length;
+        const completed = tasks.filter(task => task && task.status === 'done').length;
         setTotalTasks(total);
         setCompletedTasks(completed);
 
-        // Calculate team size
-        setTeamSize(teamData.data.length);
+        // Calculate team size with safety checks
+        const teamData = teamResponse?.data || [];
+        setTeamSize(teamData.length);
 
-        // Calculate average team rating
-        const totalRating = teamData.data.reduce((sum, member) => sum + (member.rating || 0), 0);
+        // Calculate average team rating with safety checks
+        const totalRating = teamData.reduce((sum, member) => sum + (member?.rating || 0), 0);
         const avgRating = teamSize > 0 ? totalRating / teamSize : 0;
         setAverageRating(parseFloat(avgRating.toFixed(1)));
       } catch (error) {
@@ -55,6 +57,11 @@ const AdminOverview: React.FC<AdminOverviewProps> = ({ className }) => {
           description: "Failed to load admin overview data.",
           variant: "destructive"
         });
+        // Set default values on error
+        setTotalTasks(0);
+        setCompletedTasks(0);
+        setTeamSize(0);
+        setAverageRating(0);
       } finally {
         setLoading(false);
       }
@@ -62,6 +69,9 @@ const AdminOverview: React.FC<AdminOverviewProps> = ({ className }) => {
 
     fetchData();
   }, [toast]);
+
+  // Calculate completion percentage safely
+  const completionPercentage = totalTasks > 0 ? (completedTasks / totalTasks * 100) : 0;
 
   return (
     <div className={className}>
@@ -75,12 +85,12 @@ const AdminOverview: React.FC<AdminOverviewProps> = ({ className }) => {
             <div className="text-3xl font-bold">{loading ? 'Loading...' : totalTasks}</div>
             <div className="flex items-center text-sm text-muted-foreground mt-2">
               <TrendingUp className="h-4 w-4 mr-2" />
-              <span>{loading ? 'Loading...' : `${(completedTasks / totalTasks * 100).toFixed(1)}% Completed`}</span>
+              <span>{loading ? 'Loading...' : `${completionPercentage.toFixed(1)}% Completed`}</span>
             </div>
             {loading ? (
               <Progress value={0} className="mt-2" />
             ) : (
-              <Progress value={(completedTasks / totalTasks * 100)} className="mt-2" />
+              <Progress value={completionPercentage} className="mt-2" />
             )}
           </CardContent>
         </Card>
