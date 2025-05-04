@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { 
@@ -28,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { taskCategoriesApi } from '@/services/api';
 import type { Database } from '@/integrations/supabase/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type TaskCategory = Database['public']['Tables']['task_categories']['Row'];
 
@@ -35,7 +37,8 @@ const TaskCategoryManagement = () => {
   const { userRole } = usePermissions();
   const [categories, setCategories] = useState<TaskCategory[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<TaskCategory | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -52,11 +55,13 @@ const TaskCategoryManagement = () => {
       if (!canManageCategories) return;
       
       setIsLoading(true);
+      setError(null);
       try {
         const response = await taskCategoriesApi.getAll();
         setCategories(response.data);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
+        setError('Failed to load categories. Please try again later.');
       } finally {
         setIsLoading(false);
       }
@@ -76,6 +81,7 @@ const TaskCategoryManagement = () => {
     };
     
     try {
+      setIsLoading(true);
       if (editingCategory) {
         const { data } = await taskCategoriesApi.update(editingCategory.id, categoryData);
         if (data) {
@@ -105,6 +111,13 @@ const TaskCategoryManagement = () => {
       setFormData({ name: '', price_1_star: '', price_2_star: '', price_3_star: '' });
     } catch (error) {
       console.error('Error saving category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save category. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -121,6 +134,7 @@ const TaskCategoryManagement = () => {
 
   const handleDelete = async (categoryId: string) => {
     try {
+      setIsLoading(true);
       await taskCategoriesApi.delete(categoryId);
       setCategories(categories.filter(cat => cat.id !== categoryId));
       toast({
@@ -129,6 +143,13 @@ const TaskCategoryManagement = () => {
       });
     } catch (error) {
       console.error('Error deleting category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete category. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -144,10 +165,13 @@ const TaskCategoryManagement = () => {
         <CardTitle>Task Categories</CardTitle>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => {
-              setEditingCategory(null);
-              setFormData({ name: '', price_1_star: '', price_2_star: '', price_3_star: '' });
-            }}>
+            <Button 
+              onClick={() => {
+                setEditingCategory(null);
+                setFormData({ name: '', price_1_star: '', price_2_star: '', price_3_star: '' });
+              }}
+              disabled={isLoading}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Category
             </Button>
@@ -202,7 +226,7 @@ const TaskCategoryManagement = () => {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {editingCategory ? 'Update Category' : 'Create Category'}
               </Button>
             </form>
@@ -210,9 +234,44 @@ const TaskCategoryManagement = () => {
         </Dialog>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="text-center py-4">Loading categories...</div>
-        ) : (
+        {isLoading && !error && (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        )}
+        
+        {error && (
+          <div className="text-center py-4 text-red-500">
+            {error}
+            <Button 
+              variant="outline" 
+              className="mt-2"
+              onClick={() => {
+                const fetchCategories = async () => {
+                  setIsLoading(true);
+                  setError(null);
+                  try {
+                    const response = await taskCategoriesApi.getAll();
+                    setCategories(response.data);
+                  } catch (error) {
+                    console.error('Failed to fetch categories:', error);
+                    setError('Failed to load categories. Please try again later.');
+                  } finally {
+                    setIsLoading(false);
+                  }
+                };
+                
+                fetchCategories();
+              }}
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
+        
+        {!isLoading && !error && (
           <Table>
             <TableHeader>
               <TableRow>
@@ -241,6 +300,7 @@ const TaskCategoryManagement = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(category)}
+                          disabled={isLoading}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -248,6 +308,7 @@ const TaskCategoryManagement = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(category.id)}
+                          disabled={isLoading}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

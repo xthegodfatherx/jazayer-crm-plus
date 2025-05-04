@@ -3,67 +3,63 @@ import React from 'react';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface StarRatingProps {
+export interface StarRatingProps {
   rating: number;
-  readOnly?: boolean;
-  onRating?: (rating: number) => void;
+  onChange?: (rating: number) => void;
   size?: 'sm' | 'md' | 'lg';
+  readOnly?: boolean;
+  className?: string;
 }
 
-const StarRating: React.FC<StarRatingProps> = ({ 
-  rating, 
-  readOnly = false, 
-  onRating,
-  size = 'md'
+const StarRating: React.FC<StarRatingProps> = ({
+  rating = 0,
+  onChange,
+  size = 'md',
+  readOnly = false,
+  className = '',
 }) => {
-  const [hoverRating, setHoverRating] = React.useState(0);
-
+  const maxRating = 5;
+  
+  const handleStarClick = (index: number) => {
+    if (readOnly) return;
+    const newRating = index + 1;
+    if (onChange) {
+      onChange(newRating);
+    }
+  };
+  
   const getSizeClass = () => {
     switch (size) {
-      case 'sm': return 'h-3 w-3';
+      case 'sm': return 'h-4 w-4';
       case 'lg': return 'h-6 w-6';
-      case 'md': 
       default: return 'h-5 w-5';
     }
   };
-
-  const handleClick = (newRating: number) => {
-    if (!readOnly && onRating) {
-      onRating(newRating);
-    }
-  };
-
-  const handleMouseOver = (newRating: number) => {
-    if (!readOnly) {
-      setHoverRating(newRating);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (!readOnly) {
-      setHoverRating(0);
-    }
-  };
+  
+  const sizeClass = getSizeClass();
 
   return (
-    <div 
-      className="star-rating" 
-      onMouseLeave={handleMouseLeave}
-    >
-      {[1, 2, 3].map((star) => (
-        <Star
-          key={star}
+    <div className={cn('flex', className)}>
+      {[...Array(maxRating)].map((_, index) => (
+        <button
+          key={index}
+          type="button"
           className={cn(
-            getSizeClass(),
-            'cursor-pointer transition-colors duration-150',
-            (hoverRating || rating) >= star 
-              ? 'text-yellow-400 fill-yellow-400' 
-              : 'text-gray-300',
-            !readOnly && 'hover:text-yellow-500'
+            'p-0.5 focus:outline-none transition-colors',
+            readOnly ? 'cursor-default' : 'cursor-pointer'
           )}
-          onClick={() => handleClick(star)}
-          onMouseOver={() => handleMouseOver(star)}
-        />
+          onClick={() => handleStarClick(index)}
+          disabled={readOnly}
+        >
+          <Star
+            fill={index < rating ? 'currentColor' : 'none'}
+            className={cn(
+              sizeClass,
+              index < rating ? 'text-amber-400' : 'text-muted-foreground/30',
+              !readOnly && 'hover:text-amber-400'
+            )}
+          />
+        </button>
       ))}
     </div>
   );

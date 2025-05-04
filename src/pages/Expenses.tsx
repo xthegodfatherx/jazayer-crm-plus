@@ -1,14 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Wallet } from 'lucide-react';
+import { Plus, Edit, Trash2, Wallet, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import apiClient from '@/services/api-client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface Expense {
   id: string;
@@ -20,34 +24,14 @@ interface Expense {
   receipt?: string;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 const Expenses = () => {
   const { toast } = useToast();
-  const [expenses, setExpenses] = useState<Expense[]>([
-    { 
-      id: '1', 
-      description: 'Office Rent', 
-      amount: 70000, 
-      date: '2025-04-01', 
-      category: 'Rent', 
-      paymentMethod: 'bank-transfer'
-    },
-    { 
-      id: '2', 
-      description: 'Internet Subscription', 
-      amount: 10500, 
-      date: '2025-04-05', 
-      category: 'Utilities', 
-      paymentMethod: 'credit-card'
-    },
-    { 
-      id: '3', 
-      description: 'Team Lunch', 
-      amount: 8200, 
-      date: '2025-04-10', 
-      category: 'Meals', 
-      paymentMethod: 'cash'
-    }
-  ]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -65,6 +49,26 @@ const Expenses = () => {
     'Rent', 'Utilities', 'Salaries', 'Equipment', 'Software', 
     'Marketing', 'Travel', 'Meals', 'Office Supplies', 'Other'
   ];
+
+  // Fetch expenses from API
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const response = await apiClient.get(`${API_URL}/expenses`);
+        setExpenses(response.data.data);
+      } catch (error) {
+        console.error('Error fetching expenses:', error);
+        setError('Failed to load expenses. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchExpenses();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -86,25 +90,39 @@ const Expenses = () => {
     });
   };
 
-  const handleAddExpense = () => {
-    const newExpense: Expense = {
-      id: Date.now().toString(),
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      date: formData.date,
-      category: formData.category,
-      paymentMethod: formData.paymentMethod,
-      receipt: formData.receipt || undefined
-    };
+  const handleAddExpense = async () => {
+    setIsSubmitting(true);
     
-    setExpenses(prev => [...prev, newExpense]);
-    resetForm();
-    setIsAddDialogOpen(false);
-    
-    toast({
-      title: "Expense Added",
-      description: `${newExpense.description} has been added to your expenses.`,
-    });
+    try {
+      const response = await apiClient.post(`${API_URL}/expenses`, {
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        category: formData.category,
+        payment_method: formData.paymentMethod,
+        receipt: formData.receipt || undefined
+      });
+      
+      const newExpense = response.data.data;
+      setExpenses(prev => [...prev, newExpense]);
+      
+      resetForm();
+      setIsAddDialogOpen(false);
+      
+      toast({
+        title: "Expense Added",
+        description: `${newExpense.description} has been added to your expenses.`,
+      });
+    } catch (error) {
+      console.error('Error creating expense:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create expense. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEditClick = (expense: Expense) => {
@@ -120,42 +138,69 @@ const Expenses = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateExpense = () => {
+  const handleUpdateExpense = async () => {
     if (!currentExpense) return;
     
-    const updatedExpenses = expenses.map(exp => 
-      exp.id === currentExpense.id 
-        ? {
-            ...exp,
-            description: formData.description,
-            amount: parseFloat(formData.amount),
-            date: formData.date,
-            category: formData.category,
-            paymentMethod: formData.paymentMethod,
-            receipt: formData.receipt || undefined
-          } 
-        : exp
-    );
+    setIsSubmitting(true);
     
-    setExpenses(updatedExpenses);
-    setIsEditDialogOpen(false);
-    setCurrentExpense(null);
-    resetForm();
-    
-    toast({
-      title: "Expense Updated",
-      description: `${formData.description} has been updated.`,
-    });
+    try {
+      const response = await apiClient.put(`${API_URL}/expenses/${currentExpense.id}`, {
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        category: formData.category,
+        payment_method: formData.paymentMethod,
+        receipt: formData.receipt || undefined
+      });
+      
+      const updatedExpense = response.data.data;
+      
+      setExpenses(prevExpenses => 
+        prevExpenses.map(exp => 
+          exp.id === currentExpense.id ? updatedExpense : exp
+        )
+      );
+      
+      setIsEditDialogOpen(false);
+      setCurrentExpense(null);
+      resetForm();
+      
+      toast({
+        title: "Expense Updated",
+        description: `${updatedExpense.description} has been updated.`,
+      });
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update expense. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteExpense = (id: string) => {
+  const handleDeleteExpense = async (id: string) => {
     const expenseToDelete = expenses.find(exp => exp.id === id);
-    setExpenses(expenses.filter(exp => exp.id !== id));
     
-    toast({
-      title: "Expense Deleted",
-      description: `${expenseToDelete?.description} has been deleted.`,
-    });
+    try {
+      await apiClient.delete(`${API_URL}/expenses/${id}`);
+      
+      setExpenses(expenses.filter(exp => exp.id !== id));
+      
+      toast({
+        title: "Expense Deleted",
+        description: `${expenseToDelete?.description} has been deleted.`,
+      });
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete expense. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Calculate total expenses
@@ -195,6 +240,7 @@ const Expenses = () => {
                   value={formData.description} 
                   onChange={handleInputChange} 
                   placeholder="Expense description" 
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -208,6 +254,7 @@ const Expenses = () => {
                     value={formData.amount} 
                     onChange={handleInputChange} 
                     placeholder="0.00" 
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -218,6 +265,7 @@ const Expenses = () => {
                     type="date" 
                     value={formData.date} 
                     onChange={handleInputChange} 
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -226,6 +274,7 @@ const Expenses = () => {
                 <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
                   <Select 
+                    disabled={isSubmitting}
                     value={formData.category} 
                     onValueChange={(value) => handleSelectChange('category', value)}
                   >
@@ -244,6 +293,7 @@ const Expenses = () => {
                 <div className="space-y-2">
                   <Label htmlFor="paymentMethod">Payment Method</Label>
                   <Select 
+                    disabled={isSubmitting}
                     value={formData.paymentMethod} 
                     onValueChange={(value) => handleSelectChange('paymentMethod', value)}
                   >
@@ -268,11 +318,21 @@ const Expenses = () => {
                   value={formData.receipt} 
                   onChange={handleInputChange} 
                   placeholder="Receipt number or reference" 
+                  disabled={isSubmitting}
                 />
               </div>
               
               <div className="flex justify-end pt-4">
-                <Button onClick={handleAddExpense}>Add Expense</Button>
+                <Button onClick={handleAddExpense} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    'Add Expense'
+                  )}
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -286,7 +346,11 @@ const Expenses = () => {
             <CardTitle className="text-lg">Total Expenses</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{totalExpenses.toLocaleString()} DZD</p>
+            {isLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <p className="text-2xl font-bold">{totalExpenses.toLocaleString()} DZD</p>
+            )}
           </CardContent>
         </Card>
         
@@ -295,7 +359,11 @@ const Expenses = () => {
             <CardTitle className="text-lg">Expense Count</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{expenses.length}</p>
+            {isLoading ? (
+              <Skeleton className="h-8 w-12" />
+            ) : (
+              <p className="text-2xl font-bold">{expenses.length}</p>
+            )}
           </CardContent>
         </Card>
         
@@ -304,7 +372,11 @@ const Expenses = () => {
             <CardTitle className="text-lg">Categories</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{Object.keys(expensesByCategory).length}</p>
+            {isLoading ? (
+              <Skeleton className="h-8 w-12" />
+            ) : (
+              <p className="text-2xl font-bold">{Object.keys(expensesByCategory).length}</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -318,58 +390,76 @@ const Expenses = () => {
           <CardDescription>Track and manage business expenses</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Payment Method</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {expenses.length === 0 ? (
+          {isLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          )}
+          
+          {!isLoading && error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
+          {!isLoading && !error && (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                    No expenses found. Add your first expense.
-                  </TableCell>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Payment Method</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                expenses.map(expense => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="font-medium">{expense.description}</TableCell>
-                    <TableCell>{expense.amount.toLocaleString()} DZD</TableCell>
-                    <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                    <TableCell>{expense.category}</TableCell>
-                    <TableCell>
-                      <span className="capitalize">
-                        {expense.paymentMethod.replace('-', ' ')}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleEditClick(expense)}
-                        className="mr-1"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleDeleteExpense(expense.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {expenses.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                      No expenses found. Add your first expense.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  expenses.map(expense => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium">{expense.description}</TableCell>
+                      <TableCell>{expense.amount.toLocaleString()} DZD</TableCell>
+                      <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                      <TableCell>{expense.category}</TableCell>
+                      <TableCell>
+                        <span className="capitalize">
+                          {expense.paymentMethod.replace('-', ' ')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEditClick(expense)}
+                          className="mr-1"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleDeleteExpense(expense.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -386,6 +476,7 @@ const Expenses = () => {
                 name="description" 
                 value={formData.description} 
                 onChange={handleInputChange} 
+                disabled={isSubmitting}
               />
             </div>
             
@@ -398,6 +489,7 @@ const Expenses = () => {
                   type="number" 
                   value={formData.amount} 
                   onChange={handleInputChange} 
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
@@ -407,7 +499,8 @@ const Expenses = () => {
                   name="date" 
                   type="date" 
                   value={formData.date} 
-                  onChange={handleInputChange} 
+                  onChange={handleInputChange}
+                  disabled={isSubmitting} 
                 />
               </div>
             </div>
@@ -416,6 +509,7 @@ const Expenses = () => {
               <div className="space-y-2">
                 <Label htmlFor="edit-category">Category</Label>
                 <Select 
+                  disabled={isSubmitting}
                   value={formData.category} 
                   onValueChange={(value) => handleSelectChange('category', value)}
                 >
@@ -434,6 +528,7 @@ const Expenses = () => {
               <div className="space-y-2">
                 <Label htmlFor="edit-paymentMethod">Payment Method</Label>
                 <Select 
+                  disabled={isSubmitting}
                   value={formData.paymentMethod} 
                   onValueChange={(value) => handleSelectChange('paymentMethod', value)}
                 >
@@ -457,11 +552,21 @@ const Expenses = () => {
                 name="receipt" 
                 value={formData.receipt} 
                 onChange={handleInputChange} 
+                disabled={isSubmitting}
               />
             </div>
             
             <div className="flex justify-end pt-4">
-              <Button onClick={handleUpdateExpense}>Update Expense</Button>
+              <Button onClick={handleUpdateExpense} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Expense'
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>

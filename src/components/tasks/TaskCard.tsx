@@ -76,7 +76,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
         {task.assigned_to && (
           <Avatar className="h-6 w-6">
             <AvatarFallback className="text-xs">
-              {task.assigned_to[0]}
+              {typeof task.assigned_to === 'string' 
+                ? task.assigned_to.charAt(0) 
+                : task.assigned_to[0]}
             </AvatarFallback>
           </Avatar>
         )}

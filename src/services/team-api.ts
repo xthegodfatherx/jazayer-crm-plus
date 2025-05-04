@@ -39,12 +39,18 @@ export interface TeamPerformance {
   id: string;
   member_id: string;
   name: string;
+  member_name: string;
   tasks_completed: number;
+  completed_tasks: number;
   tasks_in_progress: number;
+  total_tasks: number;
   average_task_completion_time: number;
   rating: number;
+  average_rating: number;
   time_logged: number;
+  total_hours: number;
   period: string;
+  calculated_salary?: number;
 }
 
 interface ApiResponse<T> {

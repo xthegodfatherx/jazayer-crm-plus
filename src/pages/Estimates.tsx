@@ -1,14 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Calculator } from 'lucide-react';
+import { Plus, Edit, Trash2, Calculator, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import apiClient from '@/services/api-client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface Estimate {
   id: string;
@@ -19,37 +23,17 @@ interface Estimate {
   status: 'draft' | 'sent' | 'accepted' | 'rejected';
 }
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 const Estimates = () => {
   const { toast } = useToast();
-  const [estimates, setEstimates] = useState<Estimate[]>([
-    { 
-      id: '1', 
-      number: 'EST-001', 
-      clientName: 'TechCorp Algeria', 
-      amount: 2500, 
-      date: '2025-04-15', 
-      status: 'sent' 
-    },
-    { 
-      id: '2', 
-      number: 'EST-002', 
-      clientName: 'Digital Solutions', 
-      amount: 1800, 
-      date: '2025-04-18', 
-      status: 'draft' 
-    },
-    { 
-      id: '3', 
-      number: 'EST-003', 
-      clientName: 'Algiers Marketing', 
-      amount: 3200, 
-      date: '2025-04-20', 
-      status: 'accepted' 
-    }
-  ]);
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentEstimate, setCurrentEstimate] = useState<Estimate | null>(null);
   const [formData, setFormData] = useState({
     number: '',
@@ -58,6 +42,25 @@ const Estimates = () => {
     date: '',
     status: 'draft' as Estimate['status']
   });
+
+  useEffect(() => {
+    const fetchEstimates = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const response = await apiClient.get(`${API_URL}/estimates`);
+        setEstimates(response.data.data);
+      } catch (error) {
+        console.error('Error fetching estimates:', error);
+        setError('Failed to load estimates. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchEstimates();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -78,24 +81,38 @@ const Estimates = () => {
     });
   };
 
-  const handleAddEstimate = () => {
-    const newEstimate: Estimate = {
-      id: Date.now().toString(),
-      number: formData.number,
-      clientName: formData.clientName,
-      amount: parseFloat(formData.amount),
-      date: formData.date,
-      status: formData.status
-    };
+  const handleAddEstimate = async () => {
+    setIsSubmitting(true);
     
-    setEstimates(prev => [...prev, newEstimate]);
-    resetForm();
-    setIsAddDialogOpen(false);
-    
-    toast({
-      title: "Estimate Added",
-      description: `Estimate ${newEstimate.number} has been created.`,
-    });
+    try {
+      const response = await apiClient.post(`${API_URL}/estimates`, {
+        number: formData.number,
+        client_name: formData.clientName,
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        status: formData.status
+      });
+      
+      const newEstimate = response.data.data;
+      setEstimates(prev => [...prev, newEstimate]);
+      
+      resetForm();
+      setIsAddDialogOpen(false);
+      
+      toast({
+        title: "Estimate Added",
+        description: `Estimate ${newEstimate.number} has been created.`,
+      });
+    } catch (error) {
+      console.error('Error creating estimate:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create estimate. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEditClick = (estimate: Estimate) => {
@@ -110,41 +127,68 @@ const Estimates = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateEstimate = () => {
+  const handleUpdateEstimate = async () => {
     if (!currentEstimate) return;
     
-    const updatedEstimates = estimates.map(est => 
-      est.id === currentEstimate.id 
-        ? {
-            ...est,
-            number: formData.number,
-            clientName: formData.clientName,
-            amount: parseFloat(formData.amount),
-            date: formData.date,
-            status: formData.status
-          } 
-        : est
-    );
+    setIsSubmitting(true);
     
-    setEstimates(updatedEstimates);
-    setIsEditDialogOpen(false);
-    setCurrentEstimate(null);
-    resetForm();
-    
-    toast({
-      title: "Estimate Updated",
-      description: `Estimate ${formData.number} has been updated.`,
-    });
+    try {
+      const response = await apiClient.put(`${API_URL}/estimates/${currentEstimate.id}`, {
+        number: formData.number,
+        client_name: formData.clientName,
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        status: formData.status
+      });
+      
+      const updatedEstimate = response.data.data;
+      
+      setEstimates(prevEstimates => 
+        prevEstimates.map(est => 
+          est.id === currentEstimate.id ? updatedEstimate : est
+        )
+      );
+      
+      setIsEditDialogOpen(false);
+      setCurrentEstimate(null);
+      resetForm();
+      
+      toast({
+        title: "Estimate Updated",
+        description: `Estimate ${updatedEstimate.number} has been updated.`,
+      });
+    } catch (error) {
+      console.error('Error updating estimate:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update estimate. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteEstimate = (id: string) => {
+  const handleDeleteEstimate = async (id: string) => {
     const estimateToDelete = estimates.find(est => est.id === id);
-    setEstimates(estimates.filter(est => est.id !== id));
     
-    toast({
-      title: "Estimate Deleted",
-      description: `Estimate ${estimateToDelete?.number} has been deleted.`,
-    });
+    try {
+      await apiClient.delete(`${API_URL}/estimates/${id}`);
+      
+      setEstimates(estimates.filter(est => est.id !== id));
+      
+      toast({
+        title: "Estimate Deleted",
+        description: `Estimate ${estimateToDelete?.number} has been deleted.`,
+      });
+    } catch (error) {
+      console.error('Error deleting estimate:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete estimate. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -172,6 +216,7 @@ const Estimates = () => {
                     value={formData.number} 
                     onChange={handleInputChange} 
                     placeholder="EST-001" 
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -182,6 +227,7 @@ const Estimates = () => {
                     type="date" 
                     value={formData.date} 
                     onChange={handleInputChange} 
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -194,6 +240,7 @@ const Estimates = () => {
                   value={formData.clientName} 
                   onChange={handleInputChange} 
                   placeholder="Client name" 
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -206,12 +253,13 @@ const Estimates = () => {
                   value={formData.amount} 
                   onChange={handleInputChange} 
                   placeholder="0.00" 
+                  disabled={isSubmitting}
                 />
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={handleSelectChange}>
+                <Select disabled={isSubmitting} value={formData.status} onValueChange={handleSelectChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -225,7 +273,16 @@ const Estimates = () => {
               </div>
               
               <div className="flex justify-end pt-4">
-                <Button onClick={handleAddEstimate}>Create Estimate</Button>
+                <Button onClick={handleAddEstimate} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Estimate'
+                  )}
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -241,63 +298,81 @@ const Estimates = () => {
           <CardDescription>Create and manage client estimates</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Estimate #</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Amount (DZD)</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {estimates.length === 0 ? (
+          {isLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          )}
+          
+          {!isLoading && error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
+          {!isLoading && !error && (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                    No estimates found. Create your first estimate.
-                  </TableCell>
+                  <TableHead>Estimate #</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Amount (DZD)</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                estimates.map(estimate => (
-                  <TableRow key={estimate.id}>
-                    <TableCell className="font-medium">{estimate.number}</TableCell>
-                    <TableCell>{estimate.clientName}</TableCell>
-                    <TableCell>{estimate.amount.toLocaleString()} DZD</TableCell>
-                    <TableCell>{new Date(estimate.date).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        estimate.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                        estimate.status === 'sent' ? 'bg-blue-100 text-blue-800' :
-                        estimate.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleEditClick(estimate)}
-                        className="mr-1"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleDeleteEstimate(estimate.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {estimates.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                      No estimates found. Create your first estimate.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  estimates.map(estimate => (
+                    <TableRow key={estimate.id}>
+                      <TableCell className="font-medium">{estimate.number}</TableCell>
+                      <TableCell>{estimate.clientName}</TableCell>
+                      <TableCell>{estimate.amount.toLocaleString()} DZD</TableCell>
+                      <TableCell>{new Date(estimate.date).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          estimate.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                          estimate.status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                          estimate.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEditClick(estimate)}
+                          className="mr-1"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleDeleteEstimate(estimate.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -315,6 +390,7 @@ const Estimates = () => {
                   name="number" 
                   value={formData.number} 
                   onChange={handleInputChange} 
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
@@ -325,6 +401,7 @@ const Estimates = () => {
                   type="date" 
                   value={formData.date} 
                   onChange={handleInputChange} 
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -336,6 +413,7 @@ const Estimates = () => {
                 name="clientName" 
                 value={formData.clientName} 
                 onChange={handleInputChange} 
+                disabled={isSubmitting}
               />
             </div>
             
@@ -347,12 +425,13 @@ const Estimates = () => {
                 type="number" 
                 value={formData.amount} 
                 onChange={handleInputChange} 
+                disabled={isSubmitting}
               />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="edit-status">Status</Label>
-              <Select value={formData.status} onValueChange={handleSelectChange}>
+              <Select disabled={isSubmitting} value={formData.status} onValueChange={handleSelectChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -366,7 +445,16 @@ const Estimates = () => {
             </div>
             
             <div className="flex justify-end pt-4">
-              <Button onClick={handleUpdateEstimate}>Update Estimate</Button>
+              <Button onClick={handleUpdateEstimate} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Estimate'
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>
