@@ -11,11 +11,11 @@ const Index = () => {
     // Redirect based on user role with fallback
     if (userRole === 'admin') {
       navigate('/admin');
-    } else if (userRole === null) {
+    } else if (userRole === 'manager' || userRole === 'employee' || userRole === 'client') {
+      navigate('/dashboard'); // For manager, employee, client - redirect to main dashboard
+    } else {
       // If userRole is null or undefined, default to dashboard
       navigate('/dashboard');
-    } else {
-      navigate('/dashboard'); // For manager, employee, client - redirect to main dashboard
     }
   }, [navigate, userRole]);
 

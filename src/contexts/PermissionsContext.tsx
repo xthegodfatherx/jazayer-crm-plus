@@ -1,29 +1,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-// Define all possible permissions
-export type Permission = 
-  | 'view-dashboard'
-  | 'create-projects'
-  | 'assign-tasks'
-  | 'view-all-projects'
-  | 'create-tasks'
-  | 'edit-tasks'
-  | 'track-time'
-  | 'view-time-logs'
-  | 'rate-tasks'
-  | 'pin-tasks'
-  | 'filter-reports'
-  | 'view-reports'
-  | 'manage-users'
-  | 'view-invoices'
-  | 'edit-invoices'
-  | 'use-invoice-builder'
-  | 'view-subscriptions'
-  | 'view-company-performance';
-
-// Define user roles
+// Define the user roles and permissions types
 export type UserRole = 'admin' | 'manager' | 'employee' | 'client';
+type Permission = string;
 
 interface PermissionsContextType {
   userRole: UserRole;
@@ -32,39 +12,60 @@ interface PermissionsContextType {
   hasPermission: (permission: Permission) => boolean;
 }
 
-const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined);
+const PermissionsContext = createContext<PermissionsContextType | null>(null);
 
-export const permissionsByRole: Record<UserRole, Permission[]> = {
+// Role-based permissions mapping
+const rolePermissions: Record<UserRole, Permission[]> = {
   admin: [
-    'view-dashboard', 'create-projects', 'assign-tasks', 'view-all-projects',
-    'create-tasks', 'edit-tasks', 'view-time-logs', 'rate-tasks',
-    'pin-tasks', 'filter-reports', 'view-reports', 'manage-users',
-    'view-invoices', 'edit-invoices', 'use-invoice-builder', 'view-subscriptions',
-    'view-company-performance'
+    'admin.access',
+    'users.manage',
+    'roles.manage',
+    'tasks.manage',
+    'projects.manage',
+    'invoices.manage',
+    'settings.manage',
+    'reports.access',
+    'categories.manage',
+    'salary.manage',
+    'team.manage',
+    'system.manage'
   ],
   manager: [
-    'view-dashboard', 'create-projects', 'assign-tasks', 'view-all-projects',
-    'create-tasks', 'edit-tasks', 'track-time', 'view-time-logs', 
-    'rate-tasks', 'pin-tasks', 'filter-reports', 'view-reports',
-    'view-invoices', 'edit-invoices', 'use-invoice-builder', 'view-subscriptions'
+    'dashboard.access',
+    'tasks.manage',
+    'projects.manage',
+    'team.view',
+    'team.manage',
+    'reports.access',
+    'clients.manage',
+    'invoices.view',
+    'estimates.manage'
   ],
   employee: [
-    'view-dashboard', 'view-all-projects', 'create-tasks', 'edit-tasks',
-    'track-time', 'view-time-logs', 'pin-tasks', 'filter-reports', 'view-reports'
+    'dashboard.access',
+    'tasks.view',
+    'tasks.update',
+    'projects.view',
+    'time.track',
+    'profile.manage'
   ],
   client: [
-    'view-dashboard', 'view-all-projects', 'view-invoices', 'view-subscriptions'
+    'dashboard.access',
+    'projects.view',
+    'invoices.view',
+    'estimates.view',
+    'profile.manage',
+    'support.access'
   ]
 };
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // In a real application, this would be fetched from an API or authentication system
-  const [userRole, setUserRole] = useState<UserRole>('admin');
-  const [permissions, setPermissions] = useState<Permission[]>(permissionsByRole.admin);
+  const [userRole, setUserRole] = useState<UserRole>('admin'); // Default to admin for demonstration
+  const [permissions, setPermissions] = useState<Permission[]>(rolePermissions.admin);
 
+  // Update permissions when role changes
   useEffect(() => {
-    // Update permissions when role changes
-    setPermissions(permissionsByRole[userRole]);
+    setPermissions(rolePermissions[userRole] || []);
   }, [userRole]);
 
   const hasPermission = (permission: Permission): boolean => {
@@ -78,26 +79,4 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 };
 
-export const usePermissions = (): PermissionsContextType => {
-  const context = useContext(PermissionsContext);
-  if (context === undefined) {
-    throw new Error('usePermissions must be used within a PermissionsProvider');
-  }
-  return context;
-};
-
-// Higher-order component for permission-based access control
-export function withPermission<P extends object>(
-  Component: React.ComponentType<P>,
-  requiredPermission: Permission
-): React.FC<P> {
-  return (props: P) => {
-    const { hasPermission } = usePermissions();
-    
-    if (!hasPermission(requiredPermission)) {
-      return <div className="p-4 text-center">You don't have permission to access this feature.</div>;
-    }
-    
-    return <Component {...props} />;
-  };
-}
+export const usePermissions = () => useContext(PermissionsContext);
