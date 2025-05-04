@@ -55,8 +55,8 @@ const StarRating: React.FC<StarRatingProps> = ({
             fill={index < rating ? 'currentColor' : 'none'}
             className={cn(
               sizeClass,
-              index < rating ? 'text-amber-400' : 'text-muted-foreground/30',
-              !readOnly && 'hover:text-amber-400'
+              index < rating ? 'text-amber-400 dark:text-amber-300' : 'text-muted-foreground/30 dark:text-muted-foreground/50',
+              !readOnly && 'hover:text-amber-400 dark:hover:text-amber-300'
             )}
           />
         </button>

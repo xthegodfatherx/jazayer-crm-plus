@@ -106,17 +106,23 @@
   direction: ltr;
 }
 
+/* Apply dark mode class if needed */
+.direction-rtl.dark,
+.direction-ltr.dark {
+  direction: inherit;
+}
+
 /* Star Rating Styles */
 .star-rating {
   @apply inline-flex;
 }
 
 .star-rating .star {
-  @apply text-gray-300 cursor-pointer transition-colors duration-200;
+  @apply text-gray-300 cursor-pointer transition-colors duration-200 dark:text-gray-600;
 }
 
 .star-rating .star.filled {
-  @apply text-yellow-400;
+  @apply text-yellow-400 dark:text-yellow-300;
 }
 
 /* Custom Scrollbar */

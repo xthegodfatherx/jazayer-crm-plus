@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
@@ -18,11 +18,6 @@ const MainLayout: React.FC = () => {
   // Toggle dark mode
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
-    if (!darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
   };
 
   // Change language
@@ -32,7 +27,7 @@ const MainLayout: React.FC = () => {
   };
 
   // Set initial dark mode and language direction on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     // Set dark mode
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -42,6 +37,11 @@ const MainLayout: React.FC = () => {
 
     // Set language direction
     document.documentElement.className = currentLanguage === 'ar' ? 'direction-rtl' : 'direction-ltr';
+    
+    // Re-apply dark mode class if needed (since the language change overwrites the class)
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    }
   }, [darkMode, currentLanguage]);
 
   return (

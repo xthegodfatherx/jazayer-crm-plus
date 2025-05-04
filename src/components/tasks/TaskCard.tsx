@@ -39,13 +39,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'done':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        return <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400" />;
       case 'in_progress':
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
       case 'review':
-        return <AlertCircle className="h-4 w-4 text-amber-500" />;
+        return <AlertCircle className="h-4 w-4 text-amber-500 dark:text-amber-400" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-500" />;
+        return <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -55,7 +55,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className={`p-3 mb-2 cursor-pointer hover:bg-muted/50 transition-colors ${isDragging ? 'border-primary' : ''}`}
+      className={`p-3 mb-2 cursor-pointer hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors ${isDragging ? 'border-primary' : ''}`}
       onClick={onClick}
     >
       <div className="flex justify-between items-start mb-2">
@@ -75,7 +75,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick }) => {
         
         {task.assigned_to && (
           <Avatar className="h-6 w-6">
-            <AvatarFallback className="text-xs">
+            <AvatarFallback className="text-xs bg-muted dark:bg-muted/70">
               {typeof task.assigned_to === 'string' 
                 ? task.assigned_to.charAt(0) 
                 : task.assigned_to[0]}
