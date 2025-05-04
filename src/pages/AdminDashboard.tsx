@@ -42,7 +42,7 @@ import AdminSettings from '@/components/admin/AdminSettings';
 import RoleManagement from '@/components/admin/RoleManagement';
 import AuditLogs from '@/components/admin/AuditLogs';
 import EmailTemplates from '@/components/admin/EmailTemplates';
-import TaskCategorySettings from '@/components/admin/TaskCategorySettings';
+import TaskCategoryManagement from '@/components/admin/TaskCategoryManagement';
 import AdminSalarySettings from '@/components/admin/AdminSalarySettings';
 
 const AdminDashboard = () => {
@@ -104,7 +104,15 @@ const AdminDashboard = () => {
         </TabsContent>
         
         <TabsContent value="categories" className="space-y-6">
-          <TaskCategorySettings />
+          <Card>
+            <CardHeader>
+              <CardTitle>Task Categories</CardTitle>
+              <CardDescription>Manage task categories and their pricing tiers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TaskCategoryManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="time" className="space-y-6">
