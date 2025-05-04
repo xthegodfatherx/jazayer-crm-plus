@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -30,7 +29,8 @@ import {
   List, 
   Plus, 
   Star, 
-  LayoutGrid 
+  LayoutGrid,
+  ChevronDown
 } from 'lucide-react';
 import TaskList from '@/components/tasks/TaskList';
 import TaskFilters from '@/components/tasks/TaskFilters';
@@ -38,7 +38,7 @@ import CreateTaskForm from '@/components/tasks/CreateTaskForm';
 import TaskKanban from '@/components/tasks/TaskKanban';
 import TaskDetails from '@/components/tasks/TaskDetails';
 import { tasksApi } from '@/services/api';
-import { Task } from '@/services/tasks-api';
+import { Task } from '@/types/task';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -82,12 +82,12 @@ const Tasks = () => {
     setIsDetailsOpen(true);
   };
   
-  const handleStatusChange = async (taskId: string, newStatus: string) => {
+  const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
     try {
       setIsLoading(true);
       
       // Update the task status in the UI optimistically
-      setTasks(tasks.map(task => 
+      setTasks(prevTasks => prevTasks.map(task => 
         task.id === taskId ? { ...task, status: newStatus } : task
       ));
       
@@ -393,7 +393,7 @@ const Tasks = () => {
                 <TaskList 
                   tasks={tasks} 
                   onTaskClick={handleTaskClick}
-                  isLoading={isLoading}
+                  loading={isLoading}
                 />
               </CardContent>
             </Card>

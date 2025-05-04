@@ -106,7 +106,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onSuccess, onCancel }) => {
         const formattedInvoices = invoicesData.map((invoice: ApiInvoice) => ({
           id: invoice.id,
           invoice_number: invoice.id, // Using id as invoice_number if actual number not available
-          amount: invoice.total || 0,  // Using total as amount
+          amount: invoice.amount || 0,  // Using amount instead of total
           client_id: invoice.client_id || '',
           status: invoice.status,
         }));

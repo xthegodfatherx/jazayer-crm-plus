@@ -98,7 +98,18 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({ onCreateTask }) => {
   
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await onCreateTask(values);
+      // Convert form values to task data ensuring required fields are present
+      const taskData: Omit<Task, "id" | "created_at" | "updated_at"> = {
+        title: values.title,
+        description: values.description || '',
+        priority: values.priority,
+        status: values.status,
+        category_id: values.category_id,
+        assigned_to: values.assigned_to,
+        due_date: values.due_date ? values.due_date.toISOString() : undefined,
+      };
+      
+      await onCreateTask(taskData);
       form.reset();
     } catch (error) {
       console.error('Error creating task:', error);
