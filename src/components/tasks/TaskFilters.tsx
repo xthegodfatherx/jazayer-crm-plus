@@ -1,295 +1,194 @@
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+import React, { useState, useEffect } from 'react';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Check, X } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Task } from '@/types/task';
-import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger, 
+} from '@/components/ui/popover';
+import { Search, Calendar as CalendarIcon, X } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { taskCategoriesApi } from '@/services/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface FilterOptions {
-  status?: Task['status'] | 'all-statuses';
-  priority?: Task['priority'] | 'all-priorities';
-  assignee?: string;
-  tags?: string[];
-  searchQuery?: string;
-  showPinned?: boolean;
-  minRating?: number;
-  project?: string;
-  dueDate?: 'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week';
-  onlyMyTasks?: boolean; // New property for showing only current user's tasks
+export interface TaskFiltersProps {
+  onFilter: (filters: any) => void;
 }
 
-interface TaskFiltersProps {
-  onApplyFilters: (filters: FilterOptions) => void;
-  projects?: string[];
-  assignees?: string[];
-  currentUser?: string; // Added current user prop
+interface TaskCategory {
+  id: string;
+  name: string;
 }
 
-const TaskFilters: React.FC<TaskFiltersProps> = ({ onApplyFilters, projects = [], assignees = [], currentUser }) => {
-  // Use null instead of empty string for "all" values
-  const [status, setStatus] = useState<Task['status'] | 'all-statuses' | null>('all-statuses');
-  const [priority, setPriority] = useState<Task['priority'] | 'all-priorities' | null>('all-priorities');
-  const [assignee, setAssignee] = useState<string | null>(null);
-  const [project, setProject] = useState<string | null>(null);
-  const [dueDate, setDueDate] = useState<'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week'>('all');
-  const [showPinned, setShowPinned] = useState(false);
-  const [minRating, setMinRating] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
-  const [onlyMyTasks, setOnlyMyTasks] = useState(false); // New state for only my tasks filter
-
-  // Common tag options
-  const commonTags = ['Design', 'Frontend', 'Backend', 'Documentation', 'Bug', 'Feature', 'Mobile', 'Security'];
-
-  const handleAddTag = () => {
-    if (tagInput.trim() && !selectedTags.includes(tagInput.trim())) {
-      setSelectedTags([...selectedTags, tagInput.trim()]);
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setSelectedTags(selectedTags.filter(t => t !== tag));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddTag();
-    }
-  };
-
-  const handleApplyFilters = () => {
-    const filters: FilterOptions = {};
+const TaskFilters: React.FC<TaskFiltersProps> = ({ onFilter }) => {
+  const [search, setSearch] = useState<string>('');
+  const [status, setStatus] = useState<string>('');
+  const [priority, setPriority] = useState<string>('');
+  const [category, setCategory] = useState<string>('');
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [categories, setCategories] = useState<TaskCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoading(true);
+      try {
+        const { data } = await taskCategoriesApi.getAll();
+        setCategories(data);
+      } catch (error) {
+        console.error('Error fetching task categories:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
+    fetchCategories();
+  }, []);
+  
+  const handleApplyFilters = () => {
+    const filters: Record<string, any> = {};
+    
+    if (search) filters.search = search;
     if (status) filters.status = status;
     if (priority) filters.priority = priority;
-    if (assignee) filters.assignee = assignee;
-    if (project) filters.project = project;
-    if (dueDate !== 'all') filters.dueDate = dueDate;
-    if (showPinned) filters.showPinned = showPinned;
-    if (minRating > 0) filters.minRating = minRating;
-    if (searchQuery) filters.searchQuery = searchQuery;
-    if (selectedTags.length > 0) filters.tags = selectedTags;
-    if (onlyMyTasks) filters.onlyMyTasks = onlyMyTasks;
+    if (category) filters.category_id = category;
+    if (dueDate) filters.due_date = format(dueDate, 'yyyy-MM-dd');
     
-    onApplyFilters(filters);
+    onFilter(filters);
   };
-
+  
   const handleClearFilters = () => {
-    setStatus('all-statuses');
-    setPriority('all-priorities');
-    setAssignee(null);
-    setProject(null);
-    setDueDate('all');
-    setShowPinned(false);
-    setMinRating(0);
-    setSearchQuery('');
-    setSelectedTags([]);
-    setOnlyMyTasks(false);
-    
-    onApplyFilters({});
+    setSearch('');
+    setStatus('');
+    setPriority('');
+    setCategory('');
+    setDueDate(undefined);
+    onFilter({});
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="space-y-2">
+    <div className="bg-card p-4 rounded-md space-y-4 border">
+      <h3 className="text-lg font-medium mb-2">Filter Tasks</h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="search">Search</Label>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="search"
+              className="pl-8"
+              placeholder="Search tasks..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        <div>
           <Label htmlFor="status">Status</Label>
-          <Select 
-            value={status || 'all-statuses'} 
-            onValueChange={(value: Task['status'] | 'all-statuses') => setStatus(value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="All statuses" />
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger id="status">
+              <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all-statuses">All statuses</SelectItem>
+              <SelectItem value="">All</SelectItem>
               <SelectItem value="todo">To Do</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="in-review">In Review</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="review">Review</SelectItem>
               <SelectItem value="done">Done</SelectItem>
             </SelectContent>
           </Select>
         </div>
         
-        <div className="space-y-2">
+        <div>
           <Label htmlFor="priority">Priority</Label>
-          <Select 
-            value={priority || 'all-priorities'} 
-            onValueChange={(value: Task['priority'] | 'all-priorities') => setPriority(value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="All priorities" />
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger id="priority">
+              <SelectValue placeholder="Select priority" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all-priorities">All priorities</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="">All</SelectItem>
               <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
             </SelectContent>
           </Select>
         </div>
         
-        <div className="space-y-2">
-          <Label htmlFor="assignee">Assignee</Label>
-          <Select value={assignee || undefined} onValueChange={setAssignee}>
-            <SelectTrigger>
-              <SelectValue placeholder="All assignees" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all-assignees">All assignees</SelectItem>
-              {assignees?.map(assignee => (
-                <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="dueDate">Due Date</Label>
-          <Select value={dueDate} onValueChange={(value: 'all' | 'today' | 'tomorrow' | 'overdue' | 'this-week') => setDueDate(value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="All due dates" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All due dates</SelectItem>
-              <SelectItem value="today">Due today</SelectItem>
-              <SelectItem value="tomorrow">Due tomorrow</SelectItem>
-              <SelectItem value="this-week">Due this week</SelectItem>
-              <SelectItem value="overdue">Overdue</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="project">Project</Label>
-          <Select value={project || undefined} onValueChange={setProject}>
-            <SelectTrigger>
-              <SelectValue placeholder="All projects" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all-projects">All projects</SelectItem>
-              {projects?.map(project => (
-                <SelectItem key={project} value={project}>{project}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="minRating">Minimum Rating</Label>
-          <div className="pt-4">
-            <Slider
-              id="minRating"
-              min={0}
-              max={5}
-              step={1}
-              value={[minRating]}
-              onValueChange={(value) => setMinRating(value[0])}
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Any</span>
-              <span>{minRating} ⭐ or higher</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="searchQuery">Search</Label>
-          <Input
-            id="searchQuery"
-            placeholder="Search in title, description..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        <div className="space-y-2 grid grid-cols-2 gap-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="showPinned">Pinned Only</Label>
-            <Switch
-              id="showPinned"
-              checked={showPinned}
-              onCheckedChange={setShowPinned}
-            />
-          </div>
-          
-          {currentUser && (
-            <div className="flex items-center justify-between">
-              <Label htmlFor="onlyMyTasks">Only My Tasks</Label>
-              <Switch
-                id="onlyMyTasks"
-                checked={onlyMyTasks}
-                onCheckedChange={setOnlyMyTasks}
-              />
-            </div>
+        <div>
+          <Label htmlFor="category">Category</Label>
+          {isLoading ? (
+            <Skeleton className="h-10 w-full" />
+          ) : (
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger id="category">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
+        
+        <div>
+          <Label htmlFor="due-date">Due Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                id="due-date"
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !dueDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dueDate ? format(dueDate, "PPP") : "Select date"}
+                {dueDate && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDueDate(undefined);
+                    }}
+                    className="ml-auto hover:bg-accent p-1 rounded-full"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={dueDate}
+                onSelect={setDueDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
       
-      <div className="space-y-2">
-        <Label>Tags</Label>
-        <div className="flex">
-          <Input
-            placeholder="Add tag..."
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="rounded-r-none"
-          />
-          <Button 
-            type="button"
-            onClick={handleAddTag}
-            className="rounded-l-none"
-          >
-            Add
-          </Button>
-        </div>
-        
-        <div className="flex flex-wrap gap-1 mt-2">
-          {selectedTags.map(tag => (
-            <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-              {tag}
-              <X className="h-3 w-3 cursor-pointer" onClick={() => handleRemoveTag(tag)} />
-            </Badge>
-          ))}
-        </div>
-        
-        <div className="flex flex-wrap gap-1 mt-2">
-          {commonTags
-            .filter(tag => !selectedTags.includes(tag))
-            .map(tag => (
-              <Badge key={tag} variant="outline" className="cursor-pointer hover:bg-secondary" onClick={() => setSelectedTags([...selectedTags, tag])}>
-                {tag}
-              </Badge>
-            ))}
-        </div>
-      </div>
-      
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button variant="outline" onClick={handleClearFilters}>
-          <X className="h-4 w-4 mr-2" />
-          Clear
-        </Button>
-        <Button onClick={handleApplyFilters}>
-          <Check className="h-4 w-4 mr-2" />
-          Apply Filters
-        </Button>
+      <div className="flex justify-end space-x-2 pt-2">
+        <Button variant="outline" onClick={handleClearFilters}>Clear</Button>
+        <Button onClick={handleApplyFilters}>Apply Filters</Button>
       </div>
     </div>
   );

@@ -1,384 +1,486 @@
 
 import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, List, Grid3X3, Filter } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
+import { 
+  CheckSquare, 
+  Clock, 
+  ListFilter, 
+  List, 
+  Plus, 
+  Star, 
+  LayoutGrid 
+} from 'lucide-react';
 import TaskList from '@/components/tasks/TaskList';
-import TaskKanban from '@/components/tasks/TaskKanban';
 import TaskFilters from '@/components/tasks/TaskFilters';
 import CreateTaskForm from '@/components/tasks/CreateTaskForm';
-import TaskDetailDialog from '@/components/tasks/TaskDetailDialog';
-import TaskTimer from '@/components/tasks/TaskTimer';
-import { tasksApi } from '@/services/tasks-api';
-import { Task } from '@/types/task';
-import { useToast } from '@/hooks/use-toast';
+import TaskKanban from '@/components/tasks/TaskKanban';
+import TaskDetails from '@/components/tasks/TaskDetails';
+import { tasksApi } from '@/services/api';
+import { Task } from '@/services/tasks-api';
+import { toast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const Tasks: React.FC = () => {
+const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-  const [viewType, setViewType] = useState<'list' | 'kanban'>('list');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [timerTask, setTimerTask] = useState<{
-    id: string;
-    title: string;
-    assigned_to?: string;
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
-
+  const [activeTab, setActiveTab] = useState('list');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
+  
+  // Fetch tasks from API
   useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  useEffect(() => {
-    setFilteredTasks(tasks);
-  }, [tasks]);
-
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      const response = await tasksApi.getAll();
-      setTasks(response.data);
+    const fetchTasks = async () => {
+      setIsLoading(true);
       setError(null);
-    } catch (err) {
-      console.error('Error fetching tasks:', err);
-      setError('Failed to load tasks. Please try again.');
-      toast({
-        title: 'Error',
-        description: 'Failed to load tasks. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFilter = (filters: any) => {
-    let filtered = [...tasks];
-
-    if (filters.status && filters.status !== 'all') {
-      filtered = filtered.filter(task => {
-        if (filters.status === 'in-progress') return task.status === 'in_progress';
-        if (filters.status === 'in-review') return task.status === 'review';
-        return task.status === filters.status;
-      });
-    }
-
-    if (filters.priority && filters.priority !== 'all') {
-      filtered = filtered.filter(task => task.priority === filters.priority);
-    }
-
-    if (filters.assignee && filters.assignee !== 'all') {
-      filtered = filtered.filter(task => task.assigned_to === filters.assignee);
-    }
-
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(task => 
-        task.title.toLowerCase().includes(searchLower) || 
-        (task.description && task.description.toLowerCase().includes(searchLower))
-      );
-    }
-
-    setFilteredTasks(filtered);
-  };
-
-  const handleCreateTask = async (taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      const response = await tasksApi.create({
-        ...taskData,
-        status: taskData.status as Task['status']
-      });
-      setTasks([...tasks, response.data]);
-      setIsCreateDialogOpen(false);
-      toast({
-        title: 'Task Created',
-        description: 'The task has been created successfully.',
-      });
-    } catch (err) {
-      console.error('Error creating task:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to create task. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
+      
+      try {
+        const response = await tasksApi.getAll({ filters: activeFilters });
+        setTasks(response.data);
+      } catch (err) {
+        console.error('Failed to fetch tasks:', err);
+        setError('Failed to load tasks. Please try again.');
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to load tasks'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchTasks();
+  }, [activeFilters]);
+  
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
+    setIsDetailsOpen(true);
   };
-
-  const handleTaskStatusChange = async (taskId: string, status: Task['status']) => {
+  
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
     try {
-      const taskToUpdate = tasks.find(t => t.id === taskId);
-      if (!taskToUpdate) return;
-
-      await tasksApi.update(taskId, { 
-        ...taskToUpdate,
-        status 
+      setIsLoading(true);
+      
+      // Update the task status in the UI optimistically
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, status: newStatus } : task
+      ));
+      
+      // Update the task status in the database
+      await tasksApi.update(taskId, { status: newStatus });
+      
+      toast({
+        title: 'Status Updated',
+        description: 'Task status has been updated successfully.'
       });
-
-      setTasks(
-        tasks.map(task => 
-          task.id === taskId ? { ...task, status } : task
-        )
-      );
-
-      if (selectedTask && selectedTask.id === taskId) {
-        setSelectedTask({ ...selectedTask, status });
-      }
-
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      
+      // Revert the optimistic update
+      const response = await tasksApi.getAll({ filters: activeFilters });
+      setTasks(response.data);
+      
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update task status'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleCreateTask = async (taskData: Omit<Task, "id" | "created_at" | "updated_at">) => {
+    try {
+      setIsLoading(true);
+      const { data: newTask } = await tasksApi.create(taskData);
+      setTasks([...tasks, newTask]);
+      
+      toast({
+        title: 'Task Created',
+        description: 'New task has been created successfully.'
+      });
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error creating task:', error);
+      
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to create task'
+      });
+      
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleUpdateTask = async (taskId: string, taskData: Partial<Task>) => {
+    try {
+      setIsLoading(true);
+      
+      // Update the task in the UI optimistically
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, ...taskData } : task
+      ));
+      
+      // Update the task in the database
+      const { data: updatedTask } = await tasksApi.update(taskId, taskData);
+      
+      // Close the task details dialog
+      setIsDetailsOpen(false);
+      setSelectedTask(null);
+      
       toast({
         title: 'Task Updated',
-        description: `Task status changed to ${status.replace('_', ' ')}.`,
+        description: 'Task has been updated successfully.'
       });
-    } catch (err) {
-      console.error('Error updating task status:', err);
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error updating task:', error);
+      
+      // Revert the optimistic update
+      const response = await tasksApi.getAll({ filters: activeFilters });
+      setTasks(response.data);
+      
       toast({
-        title: 'Error',
-        description: 'Failed to update task status. Please try again.',
         variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update task'
       });
+      
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false);
     }
   };
-
+  
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Remove the task from the UI optimistically
+      setTasks(tasks.filter(task => task.id !== taskId));
+      
+      // Delete the task from the database
+      await tasksApi.delete(taskId);
+      
+      // Close the task details dialog
+      setIsDetailsOpen(false);
+      setSelectedTask(null);
+      
+      toast({
+        title: 'Task Deleted',
+        description: 'Task has been deleted successfully.'
+      });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      
+      // Revert the optimistic update
+      const response = await tasksApi.getAll({ filters: activeFilters });
+      setTasks(response.data);
+      
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete task'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   const handleRateTask = async (taskId: string, rating: number) => {
     try {
+      setIsLoading(true);
+      
+      // Update the task rating in the UI optimistically
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, rating } : task
+      ));
+      
+      // Update the task rating in the database
       await tasksApi.rateTask(taskId, rating);
       
-      setTasks(
-        tasks.map(task => 
-          task.id === taskId ? { ...task, rating } : task
-        )
-      );
-
-      if (selectedTask && selectedTask.id === taskId) {
-        setSelectedTask({ ...selectedTask, rating });
-      }
-
       toast({
         title: 'Task Rated',
-        description: `You rated this task ${rating} stars.`,
+        description: `You rated this task ${rating} stars.`
       });
-    } catch (err) {
-      console.error('Error rating task:', err);
+    } catch (error) {
+      console.error('Error rating task:', error);
+      
+      // Revert the optimistic update
+      const response = await tasksApi.getAll({ filters: activeFilters });
+      setTasks(response.data);
+      
       toast({
-        title: 'Error',
-        description: 'Failed to rate the task. Please try again.',
         variant: 'destructive',
-      });
-    }
-  };
-
-  const handleAddComment = async (taskId: string, commentContent: string) => {
-    try {
-      // This would typically be handled by an API call
-      // For now, we'll update the state directly
-      const newComment = {
-        id: `comment-${Date.now()}`,
-        author: 'Current User', // In production, get from auth context
-        content: commentContent,
-        createdAt: new Date().toISOString()
-      };
-
-      setTasks(
-        tasks.map(task => 
-          task.id === taskId 
-            ? { 
-                ...task, 
-                comments: [...(task.comments || []), newComment] 
-              } 
-            : task
-        )
-      );
-
-      if (selectedTask && selectedTask.id === taskId) {
-        setSelectedTask({ 
-          ...selectedTask, 
-          comments: [...(selectedTask.comments || []), newComment] 
-        });
-      }
-
-      toast({
-        title: 'Comment Added',
-        description: 'Your comment has been added successfully.',
-      });
-    } catch (err) {
-      console.error('Error adding comment:', err);
-      toast({
         title: 'Error',
-        description: 'Failed to add comment. Please try again.',
-        variant: 'destructive',
+        description: 'Failed to rate task'
       });
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  const handleToggleSubtask = async (taskId: string, subtaskId: string, completed: boolean) => {
-    try {
-      setTasks(
-        tasks.map(task => 
-          task.id === taskId
-            ? {
-                ...task,
-                subtasks: (task.subtasks || []).map(subtask =>
-                  subtask.id === subtaskId
-                    ? { ...subtask, completed }
-                    : subtask
-                )
-              }
-            : task
-        )
-      );
-
-      if (selectedTask && selectedTask.id === taskId) {
-        setSelectedTask({
-          ...selectedTask,
-          subtasks: (selectedTask.subtasks || []).map(subtask =>
-            subtask.id === subtaskId
-              ? { ...subtask, completed }
-              : subtask
-          )
-        });
-      }
-
-      toast({
-        title: completed ? 'Subtask Completed' : 'Subtask Reopened',
-        description: completed 
-          ? 'The subtask has been marked as completed.' 
-          : 'The subtask has been reopened.',
-      });
-    } catch (err) {
-      console.error('Error toggling subtask:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to update subtask. Please try again.',
-        variant: 'destructive',
-      });
-    }
+  
+  const handleFilterChange = (filters: Record<string, any>) => {
+    setActiveFilters(filters);
   };
 
-  const handleStartTimeTracking = (taskId: string) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      setTimerTask({
-        id: task.id,
-        title: task.title,
-        assigned_to: task.assigned_to
-      });
-      setSelectedTask(null);
-    }
-  };
-
-  const handleSaveTime = async (taskId: string, seconds: number) => {
-    try {
-      // This would be handled by the time entries API
-      // For now, we'll just show a success message
-      toast({
-        title: 'Time Saved',
-        description: `Time tracking saved for this task.`,
-      });
-    } catch (err) {
-      console.error('Error saving time:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to save time tracking. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
+  if (isLoading && tasks.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-32" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-10" />
+          </div>
+        </div>
+        
+        <div className="flex space-x-2">
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-20" />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-4">
+              <Skeleton className="h-8 w-32" />
+              {Array.from({ length: 3 }).map((_, j) => (
+                <Skeleton key={j} className="h-28 w-full" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Tasks</h1>
         
-        <div className="flex items-center space-x-2">
-          <Tabs value={viewType} onValueChange={(v: 'list' | 'kanban') => setViewType(v)}>
-            <TabsList>
-              <TabsTrigger value="list">
-                <List className="h-4 w-4 mr-2" />
-                List
-              </TabsTrigger>
-              <TabsTrigger value="kanban">
-                <Grid3X3 className="h-4 w-4 mr-2" />
-                Kanban
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <div className="flex space-x-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Task
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Create Task</DialogTitle>
+                <DialogDescription>
+                  Add a new task to your project. Fill in the task details below.
+                </DialogDescription>
+              </DialogHeader>
+              <CreateTaskForm onCreateTask={handleCreateTask} />
+            </DialogContent>
+          </Dialog>
           
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Task
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
+          >
+            <ListFilter className="h-4 w-4" />
           </Button>
         </div>
       </div>
-
-      <Card>
-        <CardContent className="p-6">
-          <TaskFilters onFilter={handleFilter} />
-        </CardContent>
-      </Card>
-
-      {error && (
-        <div className="bg-destructive/15 text-destructive p-4 rounded-md">
-          {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={fetchTasks} 
-            className="ml-4"
-          >
-            Retry
-          </Button>
+      
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+        <div className="flex justify-between items-center">
+          <TabsList>
+            <TabsTrigger value="list" className="flex items-center">
+              <List className="mr-2 h-4 w-4" /> 
+              List
+            </TabsTrigger>
+            <TabsTrigger value="kanban" className="flex items-center">
+              <LayoutGrid className="mr-2 h-4 w-4" /> 
+              Kanban
+            </TabsTrigger>
+            <TabsTrigger value="metrics" className="flex items-center">
+              <Star className="mr-2 h-4 w-4" /> 
+              Performance
+            </TabsTrigger>
+            <TabsTrigger value="time" className="flex items-center">
+              <Clock className="mr-2 h-4 w-4" /> 
+              Time Tracking
+            </TabsTrigger>
+          </TabsList>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="ml-auto">
+                Sort By <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>
+                Date (Newest)
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                Date (Oldest)
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                Priority (High-Low)
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                Priority (Low-High)
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                Status
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      )}
-
-      {viewType === 'list' ? (
-        <TaskList 
-          tasks={filteredTasks} 
-          onTaskClick={handleTaskClick} 
-          loading={loading}
-        />
-      ) : (
-        <TaskKanban 
-          tasks={filteredTasks}
-          onStatusChange={handleTaskStatusChange}
-          onTaskClick={handleTaskClick}
-          loading={loading}
-        />
-      )}
-
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
-          </DialogHeader>
-          <CreateTaskForm onCreateTask={handleCreateTask} />
-        </DialogContent>
-      </Dialog>
-
-      <TaskDetailDialog
-        task={selectedTask}
-        onClose={() => setSelectedTask(null)}
-        onStatusChange={handleTaskStatusChange}
-        onRateTask={handleRateTask}
-        onAddComment={handleAddComment}
-        onToggleSubtask={handleToggleSubtask}
-        onStartTimeTracking={handleStartTimeTracking}
-      />
-
-      {timerTask && (
-        <TaskTimer
-          taskId={timerTask.id}
-          taskTitle={timerTask.title}
-          assigned_to={timerTask.assigned_to}
-          onSaveTime={handleSaveTime}
-        />
+        
+        {showFilters && (
+          <div className="mt-6">
+            <TaskFilters onFilter={handleFilterChange} />
+          </div>
+        )}
+        
+        <TabsContent value="list" className="mt-6">
+          {error ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-red-500">
+                  <p>{error}</p>
+                  <Button 
+                    onClick={() => setActiveFilters({})} 
+                    className="mt-4"
+                  >
+                    Reset Filters & Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : tasks.length > 0 ? (
+            <Card>
+              <CardContent className="p-0">
+                <TaskList 
+                  tasks={tasks} 
+                  onTaskClick={handleTaskClick}
+                  isLoading={isLoading}
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <CheckSquare className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-medium">No tasks found</h3>
+                  <p className="mt-2 text-muted-foreground">
+                    {Object.keys(activeFilters).length > 0 
+                      ? "No tasks match your current filters. Try adjusting your filters or create a new task."
+                      : "Get started by creating your first task"}
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="mt-4">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Task
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[600px]">
+                      <DialogHeader>
+                        <DialogTitle>Create Task</DialogTitle>
+                      </DialogHeader>
+                      <CreateTaskForm onCreateTask={handleCreateTask} />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="kanban" className="mt-6">
+          <TaskKanban 
+            tasks={tasks} 
+            onStatusChange={handleStatusChange} 
+            onTaskClick={handleTaskClick}
+            loading={isLoading}
+          />
+        </TabsContent>
+        
+        <TabsContent value="metrics" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Task Performance</CardTitle>
+              <CardDescription>View statistics about task completion and ratings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-center text-muted-foreground py-12">
+                Task performance metrics will be displayed here.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="time" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Time Tracking</CardTitle>
+              <CardDescription>Track time spent on tasks</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-center text-muted-foreground py-12">
+                Time tracking features will be displayed here.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+      
+      {selectedTask && (
+        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Task Details</DialogTitle>
+            </DialogHeader>
+            <Separator />
+            <TaskDetails 
+              task={selectedTask} 
+              onUpdate={(taskData) => handleUpdateTask(selectedTask.id, taskData)}
+              onDelete={() => handleDeleteTask(selectedTask.id)}
+              onRate={(rating) => handleRateTask(selectedTask.id, rating)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

@@ -2,38 +2,30 @@
 import apiClient from './api-client';
 import { AxiosResponse } from 'axios';
 
-// Define types based on the backend structures
 export interface Expense {
   id: string;
   title: string;
-  description: string | null;
   amount: number;
   category: string;
   date: string;
+  description?: string;
+  receipt_url?: string;
   status: string;
-  project_id: string | null;
-  receipt_url: string | null;
+  project_id?: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface ExpenseFilter {
-  status?: string;
-  category?: string;
-  project_id?: string;
-  date_from?: string;
-  date_to?: string;
-}
-
-// Define the API response type
 interface ApiResponse<T> {
   data: T;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 export const expensesApi = {
-  getAll: async (params?: { filters?: ExpenseFilter }): Promise<{ data: Expense[] }> => {
+  getAll: async (params?: { filters?: any }): Promise<{ data: Expense[] }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Expense[]>> = await apiClient.get('/expenses', { 
+      const response: AxiosResponse<ApiResponse<Expense[]>> = await apiClient.get(`${API_URL}/expenses`, { 
         params: params?.filters 
       });
       return { data: response.data.data };
@@ -45,7 +37,7 @@ export const expensesApi = {
   
   get: async (id: string): Promise<{ data: Expense }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Expense>> = await apiClient.get(`/expenses/${id}`);
+      const response: AxiosResponse<ApiResponse<Expense>> = await apiClient.get(`${API_URL}/expenses/${id}`);
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error fetching expense with id ${id}:`, error);
@@ -53,24 +45,9 @@ export const expensesApi = {
     }
   },
   
-  create: async (expenseData: Partial<Expense>): Promise<{ data: Expense }> => {
+  create: async (data: Omit<Expense, "id" | "created_at" | "updated_at">): Promise<{ data: Expense }> => {
     try {
-      // Handle file uploads if receipt is included
-      const formData = new FormData();
-      
-      // Append all expense data to formData
-      for (const [key, value] of Object.entries(expenseData)) {
-        if (value !== undefined) {
-          formData.append(key, value.toString());
-        }
-      }
-      
-      const response: AxiosResponse<ApiResponse<Expense>> = await apiClient.post('/expenses', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
+      const response: AxiosResponse<ApiResponse<Expense>> = await apiClient.post(`${API_URL}/expenses`, data);
       return { data: response.data.data };
     } catch (error) {
       console.error('Error creating expense:', error);
@@ -78,27 +55,9 @@ export const expensesApi = {
     }
   },
   
-  update: async (id: string, expenseData: Partial<Expense>): Promise<{ data: Expense }> => {
+  update: async (id: string, data: Partial<Omit<Expense, "id" | "created_at" | "updated_at">>): Promise<{ data: Expense }> => {
     try {
-      // Handle file uploads if receipt is included
-      const formData = new FormData();
-      
-      // Append all expense data to formData
-      for (const [key, value] of Object.entries(expenseData)) {
-        if (value !== undefined) {
-          formData.append(key, value.toString());
-        }
-      }
-      
-      // Laravel expects PUT/POST for file uploads with _method=PUT
-      formData.append('_method', 'PUT');
-      
-      const response: AxiosResponse<ApiResponse<Expense>> = await apiClient.post(`/expenses/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
+      const response: AxiosResponse<ApiResponse<Expense>> = await apiClient.put(`${API_URL}/expenses/${id}`, data);
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error updating expense with id ${id}:`, error);
@@ -108,10 +67,43 @@ export const expensesApi = {
   
   delete: async (id: string): Promise<void> => {
     try {
-      await apiClient.delete(`/expenses/${id}`);
+      await apiClient.delete(`${API_URL}/expenses/${id}`);
     } catch (error) {
       console.error(`Error deleting expense with id ${id}:`, error);
       throw error;
     }
   },
+
+  // Upload receipt
+  uploadReceipt: async (id: string, file: File): Promise<{ receipt_url: string }> => {
+    try {
+      const formData = new FormData();
+      formData.append('receipt', file);
+      
+      const response: AxiosResponse<{ receipt_url: string }> = await apiClient.post(
+        `${API_URL}/expenses/${id}/receipt`, 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error(`Error uploading receipt for expense ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Get expense categories
+  getCategories: async (): Promise<{ data: string[] }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<string[]>> = await apiClient.get(`${API_URL}/expenses/categories`);
+      return { data: response.data.data };
+    } catch (error) {
+      console.error('Error fetching expense categories:', error);
+      throw error;
+    }
+  }
 };

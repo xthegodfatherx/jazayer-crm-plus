@@ -2,55 +2,47 @@
 import apiClient from './api-client';
 import { AxiosResponse } from 'axios';
 
-// Define types based on the backend structures
+export interface InvoiceItem {
+  id?: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+}
+
 export interface Invoice {
   id: string;
-  client_id: string;
-  date: string;
-  due_date: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
-  subtotal: number;
-  tax: number;
-  total: number;
-  notes: string | null;
-  terms: string | null;
+  invoice_number: string;
+  client_id?: string;
+  project_id?: string;
+  issued_date?: string;
+  due_date?: string;
+  status: string;
+  amount: number;
+  tax?: number;
+  discount?: number;
+  notes?: string;
+  items?: InvoiceItem[];
+  payment_method?: string;
   created_at: string;
   updated_at: string;
-  items?: InvoiceItem[];
   client?: {
     id: string;
     name: string;
-    company: string | null;
+    email?: string;
   };
 }
 
-export interface InvoiceItem {
-  id: string;
-  invoice_id: string;
-  description: string;
-  quantity: number;
-  price: number;
-  amount: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface InvoiceFilter {
-  status?: string;
-  client_id?: string;
-  date_from?: string;
-  date_to?: string;
-}
-
-// Define the API response type
 interface ApiResponse<T> {
   data: T;
 }
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 export const invoicesApi = {
-  getAll: async (params?: { filters?: InvoiceFilter }): Promise<{ data: Invoice[] }> => {
+  getAll: async (params?: { filters?: any }): Promise<{ data: Invoice[] }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Invoice[]>> = await apiClient.get('/invoices', { 
+      const response: AxiosResponse<ApiResponse<Invoice[]>> = await apiClient.get(`${API_URL}/invoices`, { 
         params: params?.filters 
       });
       return { data: response.data.data };
@@ -62,7 +54,7 @@ export const invoicesApi = {
   
   get: async (id: string): Promise<{ data: Invoice }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.get(`/invoices/${id}`);
+      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.get(`${API_URL}/invoices/${id}`);
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error fetching invoice with id ${id}:`, error);
@@ -70,9 +62,9 @@ export const invoicesApi = {
     }
   },
   
-  create: async (invoiceData: Partial<Invoice>): Promise<{ data: Invoice }> => {
+  create: async (data: Omit<Invoice, "id" | "created_at" | "updated_at">): Promise<{ data: Invoice }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.post('/invoices', invoiceData);
+      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.post(`${API_URL}/invoices`, data);
       return { data: response.data.data };
     } catch (error) {
       console.error('Error creating invoice:', error);
@@ -80,9 +72,9 @@ export const invoicesApi = {
     }
   },
   
-  update: async (id: string, invoiceData: Partial<Invoice>): Promise<{ data: Invoice }> => {
+  update: async (id: string, data: Partial<Omit<Invoice, "id" | "created_at" | "updated_at">>): Promise<{ data: Invoice }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.put(`/invoices/${id}`, invoiceData);
+      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.put(`${API_URL}/invoices/${id}`, data);
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error updating invoice with id ${id}:`, error);
@@ -92,30 +84,45 @@ export const invoicesApi = {
   
   delete: async (id: string): Promise<void> => {
     try {
-      await apiClient.delete(`/invoices/${id}`);
+      await apiClient.delete(`${API_URL}/invoices/${id}`);
     } catch (error) {
       console.error(`Error deleting invoice with id ${id}:`, error);
       throw error;
     }
   },
-  
-  sendInvoice: async (id: string): Promise<{ data: Invoice }> => {
+
+  // Generate PDF
+  generatePdf: async (id: string): Promise<{ url: string }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.post(`/invoices/${id}/send`);
-      return { data: response.data.data };
+      const response: AxiosResponse<{ url: string }> = await apiClient.post(`${API_URL}/invoices/${id}/pdf`);
+      return response.data;
     } catch (error) {
-      console.error(`Error sending invoice with id ${id}:`, error);
+      console.error(`Error generating PDF for invoice ${id}:`, error);
       throw error;
     }
   },
-  
-  markAsPaid: async (id: string): Promise<{ data: Invoice }> => {
+
+  // Send invoice by email
+  sendByEmail: async (id: string): Promise<{ success: boolean }> => {
     try {
-      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.post(`/invoices/${id}/mark-paid`);
+      const response: AxiosResponse<{ success: boolean }> = await apiClient.post(`${API_URL}/invoices/${id}/send`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error sending invoice ${id} by email:`, error);
+      throw error;
+    }
+  },
+
+  // Mark invoice as paid
+  markAsPaid: async (id: string, paymentMethod: string): Promise<{ data: Invoice }> => {
+    try {
+      const response: AxiosResponse<ApiResponse<Invoice>> = await apiClient.post(`${API_URL}/invoices/${id}/pay`, {
+        payment_method: paymentMethod
+      });
       return { data: response.data.data };
     } catch (error) {
       console.error(`Error marking invoice ${id} as paid:`, error);
       throw error;
     }
-  },
+  }
 };

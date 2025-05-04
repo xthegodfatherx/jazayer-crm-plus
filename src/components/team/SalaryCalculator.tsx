@@ -1,148 +1,303 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { teamApi } from '@/services/team-api';
-import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
+import { teamApi } from '@/services/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface SalaryData {
-  gross_salary: number;
-  tax_deductions: number;
-  net_salary: number;
-  hourly_rate?: number;
-  hours_worked?: number;
-  overtime_hours?: number;
-  overtime_rate?: number;
-  bonus?: number;
-  deductions?: number;
+interface SalaryCalculatorProps {
+  memberId: string;
 }
 
-const SalaryCalculator = ({ memberId }) => {
-  const [month, setMonth] = useState('');
-  const [year, setYear] = useState('');
-  const [salaryData, setSalaryData] = useState<SalaryData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+interface SalarySettings {
+  base_salary: number;
+  hourly_rate: number;
+  tax_rate: number;
+  bonus_rate: number;
+}
 
-  const months = [
-    { value: '01', label: 'January' },
-    { value: '02', label: 'February' },
-    { value: '03', label: 'March' },
-    { value: '04', label: 'April' },
-    { value: '05', label: 'May' },
-    { value: '06', label: 'June' },
-    { value: '07', label: 'July' },
-    { value: '08', label: 'August' },
-    { value: '09', label: 'September' },
-    { value: '10', label: 'October' },
-    { value: '11', label: 'November' },
-    { value: '12', label: 'December' },
-  ];
+interface CalculatedSalary {
+  base_salary: number;
+  hourly_earnings: number;
+  task_bonus: number;
+  performance_bonus: number;
+  deductions: number;
+  net_salary: number;
+}
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+const SalaryCalculator: React.FC<SalaryCalculatorProps> = ({ memberId }) => {
+  const [settings, setSettings] = useState<SalarySettings>({
+    base_salary: 0,
+    hourly_rate: 0,
+    tax_rate: 0,
+    bonus_rate: 0
+  });
+  const [calculatedSalary, setCalculatedSalary] = useState<CalculatedSalary | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [memberName, setMemberName] = useState<string>('');
 
-  const calculateSalary = async () => {
-    if (!month || !year) {
-      toast({
-        title: "Missing Information",
-        description: "Please select both month and year",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Fetch team member details
+        const memberResponse = await teamApi.getMember(memberId);
+        setMemberName(memberResponse.data.name);
+        
+        // Fetch salary settings
+        const settingsResponse = await teamApi.getSalarySettings(memberId);
+        setSettings(settingsResponse.data);
+        
+        // Calculate initial salary
+        handleCalculate();
+      } catch (err) {
+        console.error('Failed to fetch salary settings:', err);
+        setError('Failed to load salary settings. Please try again later.');
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch salary data'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [memberId]);
+  
+  const handleSettingsChange = (field: keyof SalarySettings, value: number) => {
+    setSettings({ ...settings, [field]: value });
+  };
+  
+  const handleUpdateSettings = async () => {
+    setIsLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      const { data } = await teamApi.calculateSalary(memberId, `${year}-${month}`);
-      setSalaryData(data);
-    } catch (error) {
-      console.error('Error calculating salary:', error);
+      await teamApi.updateSalarySettings(memberId, settings);
       toast({
-        title: "Error",
-        description: "Failed to calculate salary. Please try again.",
-        variant: "destructive"
+        title: 'Settings Updated',
+        description: 'Salary settings have been updated successfully.'
+      });
+    } catch (err) {
+      console.error('Failed to update salary settings:', err);
+      setError('Failed to update salary settings. Please try again.');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update salary settings'
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+  
+  const handleCalculate = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await teamApi.calculateSalary(memberId, selectedMonth);
+      setCalculatedSalary(response.data);
+    } catch (err) {
+      console.error('Failed to calculate salary:', err);
+      setError('Failed to calculate salary. Please try again.');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to calculate salary'
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Salary Calculator</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="month">Month</Label>
-            <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger id="month">
-                <SelectValue placeholder="Select month" />
-              </SelectTrigger>
-              <SelectContent>
-                {months.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+  if (isLoading && !calculatedSalary) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-32" />
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-32" />
           </div>
           <div>
-            <Label htmlFor="year">Year</Label>
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger id="year">
-                <SelectValue placeholder="Select year" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((y) => (
-                  <SelectItem key={y} value={y.toString()}>
-                    {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-64 w-full" />
           </div>
         </div>
-        <Button onClick={calculateSalary} disabled={loading}>
-          {loading ? 'Calculating...' : 'Calculate Salary'}
-        </Button>
+      </div>
+    );
+  }
 
-        {salaryData && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold">Salary Details</h3>
+  if (error) {
+    return (
+      <div className="p-4 border border-red-200 bg-red-50 text-red-700 rounded-md">
+        {error}
+        <Button 
+          variant="outline" 
+          onClick={() => {
+            setIsLoading(true);
+            window.location.reload();
+          }}
+          className="mt-4"
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-medium">Salary Calculator for {memberName}</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Salary Settings</h3>
+          
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <p>Gross Salary: {formatCurrency(salaryData.gross_salary)}</p>
-              <p>Tax Deductions: {formatCurrency(salaryData.tax_deductions)}</p>
-              <p>Net Salary: {formatCurrency(salaryData.net_salary)}</p>
-              {salaryData.hourly_rate !== undefined && (
-                <p>Hourly Rate: {formatCurrency(salaryData.hourly_rate)}</p>
-              )}
-              {salaryData.hours_worked !== undefined && (
-                <p>Hours Worked: {salaryData.hours_worked}</p>
-              )}
-               {salaryData.overtime_hours !== undefined && (
-                <p>Overtime Hours: {salaryData.overtime_hours}</p>
-              )}
-              {salaryData.overtime_rate !== undefined && (
-                <p>Overtime Rate: {formatCurrency(salaryData.overtime_rate)}</p>
-              )}
-              {salaryData.bonus !== undefined && (
-                <p>Bonus: {formatCurrency(salaryData.bonus)}</p>
-              )}
-               {salaryData.deductions !== undefined && (
-                <p>Deductions: {formatCurrency(salaryData.deductions)}</p>
-              )}
+              <Label htmlFor="base-salary">Base Salary</Label>
+              <Input
+                id="base-salary"
+                type="number"
+                value={settings.base_salary}
+                onChange={(e) => handleSettingsChange('base_salary', Number(e.target.value))}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="hourly-rate">Hourly Rate</Label>
+              <Input
+                id="hourly-rate"
+                type="number"
+                value={settings.hourly_rate}
+                onChange={(e) => handleSettingsChange('hourly_rate', Number(e.target.value))}
+              />
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="tax-rate">Tax Rate (%)</Label>
+              <Input
+                id="tax-rate"
+                type="number"
+                value={settings.tax_rate}
+                onChange={(e) => handleSettingsChange('tax_rate', Number(e.target.value))}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="bonus-rate">Bonus Rate (%)</Label>
+              <Input
+                id="bonus-rate"
+                type="number"
+                value={settings.bonus_rate}
+                onChange={(e) => handleSettingsChange('bonus_rate', Number(e.target.value))}
+              />
+            </div>
+          </div>
+          
+          <Button onClick={handleUpdateSettings}>
+            Save Settings
+          </Button>
+          
+          <div className="pt-4 border-t">
+            <div className="space-y-4">
+              <div className="flex items-end gap-4">
+                <div className="flex-1">
+                  <Label htmlFor="month-select">Select Month</Label>
+                  <Input
+                    id="month-select"
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                  />
+                </div>
+                <Button onClick={handleCalculate}>
+                  Calculate
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <h3 className="text-lg font-medium mb-4">Calculated Salary</h3>
+          
+          {calculatedSalary ? (
+            <div className="bg-card border rounded-lg p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Base Salary:</span>
+                <span className="font-medium">${calculatedSalary.base_salary.toFixed(2)}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Hourly Earnings:</span>
+                <span className="font-medium">${calculatedSalary.hourly_earnings.toFixed(2)}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Task Bonus:</span>
+                <span className="font-medium">${calculatedSalary.task_bonus.toFixed(2)}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Performance Bonus:</span>
+                <span className="font-medium">${calculatedSalary.performance_bonus.toFixed(2)}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 border-t pt-2">
+                <span className="text-muted-foreground">Gross Salary:</span>
+                <span className="font-medium">
+                  ${(calculatedSalary.base_salary + 
+                      calculatedSalary.hourly_earnings + 
+                      calculatedSalary.task_bonus + 
+                      calculatedSalary.performance_bonus).toFixed(2)}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Deductions:</span>
+                <span className="font-medium text-red-500">-${calculatedSalary.deductions.toFixed(2)}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 border-t pt-2">
+                <span className="font-medium">Net Salary:</span>
+                <span className="font-medium text-lg">${calculatedSalary.net_salary.toFixed(2)}</span>
+              </div>
+              
+              <div className="text-xs text-muted-foreground mt-4">
+                Calculation based on performance data for {new Date(selectedMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card border rounded-lg p-8 text-center flex flex-col items-center justify-center h-64">
+              <p className="text-muted-foreground mb-4">Click 'Calculate' to see salary breakdown</p>
+              <Button onClick={handleCalculate}>Calculate Now</Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

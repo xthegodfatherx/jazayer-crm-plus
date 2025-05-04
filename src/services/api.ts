@@ -11,6 +11,9 @@ import { expensesApi } from './expenses-api';
 import { timeEntriesApi } from './time-entries-api';
 import { reportsApi } from './reports-api';
 import { paymentsApi } from './payments-api';
+import { estimatesApi } from './estimates-api';
+import { productsApi } from './products-api';
+import { subscriptionsApi } from './subscriptions-api';
 import apiClient from './api-client';
 
 const handleError = (error: any) => {
@@ -49,7 +52,7 @@ const csrfCookie = async () => {
   }
 };
 
-// Re-export Task type for convenience
+// Re-export types for convenience
 export type { Task } from './tasks-api';
 export type { Project } from './projects-api';
 export type { Client } from './clients-api';
@@ -57,6 +60,11 @@ export type { Expense } from './expenses-api';
 export type { TimeEntry } from './time-entries-api';
 export type { Report } from './reports-api';
 export type { Payment } from './payments-api';
+export type { Invoice } from './invoices-api';
+export type { Estimate } from './estimates-api';
+export type { Product } from './products-api';
+export type { Subscription } from './subscriptions-api';
+export type { TeamMember, TeamPerformance, SalarySettings } from './team-api';
 
 export {
   authApi,
@@ -70,6 +78,9 @@ export {
   timeEntriesApi,
   reportsApi,
   paymentsApi,
+  estimatesApi,
+  productsApi,
+  subscriptionsApi,
   handleError,
   csrfCookie,
   apiClient
