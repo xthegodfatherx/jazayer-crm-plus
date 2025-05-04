@@ -4,13 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, Users } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import TaskSummary from '@/components/dashboard/TaskSummary';
 import RevenueChart from '@/components/dashboard/RevenueChart';
 import StatisticsChart, { MetricType } from '@/components/dashboard/StatisticsChart';
 import { tasksApi } from '@/services/tasks-api';
 import { teamApi } from '@/services/team-api';
 import { useToast } from '@/hooks/use-toast';
+import RecentActivity from '@/components/dashboard/RecentActivity';
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -158,35 +158,7 @@ const Dashboard: React.FC = () => {
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Recent Activity</h2>
-        <div className="space-y-2">
-          <div className="rounded-md border p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge>Invoice</Badge>
-                <span className="font-medium">New invoice #INV-2023-012 created</span>
-              </div>
-              <span className="text-sm text-muted-foreground">1 hour ago</span>
-            </div>
-          </div>
-          <div className="rounded-md border p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">Task</Badge>
-                <span className="font-medium">Task "Update API documentation" completed</span>
-              </div>
-              <span className="text-sm text-muted-foreground">3 hours ago</span>
-            </div>
-          </div>
-          <div className="rounded-md border p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">Project</Badge>
-                <span className="font-medium">New project "E-commerce Redesign" created</span>
-              </div>
-              <span className="text-sm text-muted-foreground">1 day ago</span>
-            </div>
-          </div>
-        </div>
+        <RecentActivity />
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ const RecentActivity: React.FC = () => {
     const fetchActivities = async () => {
       try {
         setLoading(true);
-        const { data } = await activityApi.getRecent();
+        const { data } = await activityApi.getRecent(10);
         setActivities(data);
       } catch (error) {
         handleError(error);

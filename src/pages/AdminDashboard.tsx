@@ -43,6 +43,7 @@ import RoleManagement from '@/components/admin/RoleManagement';
 import AuditLogs from '@/components/admin/AuditLogs';
 import EmailTemplates from '@/components/admin/EmailTemplates';
 import TaskCategorySettings from '@/components/admin/TaskCategorySettings';
+import AdminSalarySettings from '@/components/admin/AdminSalarySettings';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -131,17 +132,7 @@ const AdminDashboard = () => {
         </TabsContent>
         
         <TabsContent value="salary" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Salary Settings</CardTitle>
-              <CardDescription>Configure salary calculation methods and rules</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Salary settings are configured in the System Settings tab, under the Salary section.
-              </p>
-            </CardContent>
-          </Card>
+          <AdminSalarySettings />
         </TabsContent>
         
         <TabsContent value="logs" className="space-y-6">
