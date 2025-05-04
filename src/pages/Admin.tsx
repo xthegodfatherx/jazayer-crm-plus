@@ -106,7 +106,7 @@ const Admin: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-500 dark:text-slate-400">Current role:</span>
-            <RoleSwitcher className="shadow-sm" />
+            <RoleSwitcher />
           </div>
         </div>
       </div>
