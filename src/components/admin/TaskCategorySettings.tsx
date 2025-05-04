@@ -28,7 +28,7 @@ const TaskCategorySettings = () => {
       
       try {
         setLoading(true);
-        await taskCategoriesApi.getTaskCategories();
+        await taskCategoriesApi.getAll();
         setError(null);
       } catch (err) {
         setError('Failed to load task categories. Please try again later.');

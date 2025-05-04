@@ -47,7 +47,7 @@ const AdminTeamManagement: React.FC = () => {
     const fetchTeamMembers = async () => {
       try {
         setLoading(true);
-        const response = await teamApi.getTeamMembers();
+        const response = await teamApi.getMembers();
         setTeamMembers(response?.data || []);
       } catch (error) {
         handleError(error);

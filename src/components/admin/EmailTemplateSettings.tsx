@@ -271,7 +271,7 @@ const EmailTemplateSettings: React.FC = () => {
                               />
                             </FormControl>
                             <FormDescription>
-                              Available variables: {'{user}', '{company}', '{date}'}
+                              Available variables: {'{user}'} {'{company}'} {'{date}'}
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
