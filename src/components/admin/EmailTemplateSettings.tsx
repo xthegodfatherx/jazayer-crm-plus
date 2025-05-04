@@ -3,214 +3,263 @@ import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
+  CardDescription, 
   CardHeader, 
-  CardTitle,
-  CardDescription,
-  CardFooter
+  CardTitle 
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { 
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+  Mail, 
+  FileText, 
+  CheckSquare, 
+  Bell, 
+  Send,
+  Trash2,
+  Copy,
+  Save,
+  RefreshCw,
+  Loader2,
+  ChevronRight,
+  ChevronDown,
+  Edit,
+  Check
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Save, Settings, AlertTriangle } from 'lucide-react';
-import { settingsApi, EmailTemplate, NotificationSettings } from '@/services/settings-api';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { handleError } from '@/services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { settingsApi, EmailTemplate } from '@/services/settings-api';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// HTML editor component
 import { Skeleton } from '@/components/ui/skeleton';
-
-const emailTemplateSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, "Template name is required"),
-  subject: z.string().min(1, "Subject is required"),
-  body: z.string().min(1, "Email body is required"),
-  is_enabled: z.boolean(),
-  type: z.enum(['task', 'invoice', 'project', 'system']),
-});
-
-const notificationSchema = z.object({
-  email_notifications: z.boolean(),
-  task_reminders: z.boolean(),
-  invoice_notifications: z.boolean(),
-  system_notifications: z.boolean(),
-});
+import { Badge } from '@/components/ui/badge';
 
 const EmailTemplateSettings: React.FC = () => {
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [savingTemplate, setSavingTemplate] = useState(false);
-  const [savingNotification, setSavingNotification] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
   
-  const templateForm = useForm<z.infer<typeof emailTemplateSchema>>({
-    resolver: zodResolver(emailTemplateSchema),
-    defaultValues: {
-      id: '',
-      name: '',
-      subject: '',
-      body: '',
-      is_enabled: true,
+  const defaultTemplates = {
+    task_assigned: {
+      name: 'Task Assigned',
       type: 'task',
+      icon: <CheckSquare className="h-5 w-5 text-blue-600" />,
     },
-  });
-
-  const notificationForm = useForm<z.infer<typeof notificationSchema>>({
-    resolver: zodResolver(notificationSchema),
-    defaultValues: {
-      email_notifications: true,
-      task_reminders: true,
-      invoice_notifications: true,
-      system_notifications: true,
+    task_completed: {
+      name: 'Task Completed',
+      type: 'task',
+      icon: <CheckSquare className="h-5 w-5 text-green-600" />,
     },
-  });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        const [templatesResponse, notificationsResponse] = await Promise.all([
-          settingsApi.getEmailTemplates(),
-          settingsApi.getNotificationSettings()
-        ]);
-        
-        if (templatesResponse) {
-          setTemplates(templatesResponse);
-          if (templatesResponse.length > 0) {
-            setSelectedTemplate(templatesResponse[0]);
-            templateForm.reset(templatesResponse[0]);
-          }
-        }
-        
-        if (notificationsResponse) {
-          notificationForm.reset({
-            email_notifications: notificationsResponse.email_notifications,
-            task_reminders: notificationsResponse.task_reminders,
-            invoice_notifications: notificationsResponse.invoice_notifications,
-            system_notifications: notificationsResponse.system_notifications,
-          });
-        }
-      } catch (error) {
-        handleError(error);
-        toast({
-          title: "Error loading data",
-          description: "Failed to load email templates or notification settings.",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [toast, templateForm, notificationForm]);
-
-  const handleSelectTemplate = (template: EmailTemplate) => {
-    setSelectedTemplate(template);
-    templateForm.reset(template);
+    invoice_created: {
+      name: 'Invoice Created',
+      type: 'invoice',
+      icon: <FileText className="h-5 w-5 text-purple-600" />,
+    },
+    invoice_paid: {
+      name: 'Invoice Paid',
+      type: 'invoice',
+      icon: <FileText className="h-5 w-5 text-green-600" />,
+    },
+    project_created: {
+      name: 'Project Created',
+      type: 'project',
+      icon: <FileText className="h-5 w-5 text-blue-600" />,
+    },
+    welcome_email: {
+      name: 'Welcome Email',
+      type: 'system',
+      icon: <Mail className="h-5 w-5 text-indigo-600" />,
+    },
+    password_reset: {
+      name: 'Password Reset',
+      type: 'system',
+      icon: <Mail className="h-5 w-5 text-red-600" />,
+    },
   };
+  
+  // Fetch templates
+  const { 
+    data: templates, 
+    isLoading,
+    error 
+  } = useQuery({
+    queryKey: ['emailTemplates'],
+    queryFn: () => settingsApi.getEmailTemplates(),
+  });
 
-  const onTemplateSubmit = async (values: z.infer<typeof emailTemplateSchema>) => {
-    if (!selectedTemplate) return;
-    
-    try {
-      setSavingTemplate(true);
-      await settingsApi.updateEmailTemplate(selectedTemplate.id, values);
-      
-      // Update local state
-      const updatedTemplates = templates.map(t => 
-        t.id === selectedTemplate.id ? { ...t, ...values } : t
-      );
-      setTemplates(updatedTemplates);
-      setSelectedTemplate({ ...selectedTemplate, ...values });
-      
+  // Update template mutation
+  const updateTemplateMutation = useMutation({
+    mutationFn: (template: Partial<EmailTemplate>) => {
+      if (!template.id) throw new Error("Template ID is required");
+      return settingsApi.updateEmailTemplate(template.id, template);
+    },
+    onSuccess: () => {
       toast({
         title: "Template updated",
-        description: "Email template has been updated successfully.",
+        description: "Email template has been successfully updated.",
       });
-    } catch (error) {
-      handleError(error);
-      toast({
-        title: "Update failed",
-        description: "Failed to update email template.",
-        variant: "destructive"
-      });
-    } finally {
-      setSavingTemplate(false);
-    }
-  };
-
-  const onNotificationSubmit = async (values: z.infer<typeof notificationSchema>) => {
-    try {
-      setSavingNotification(true);
-      await settingsApi.updateNotificationSettings(values);
       
+      // Reset editing state
+      setEditingTemplate(null);
+      
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['emailTemplates'] });
+    },
+    onError: (error) => {
       toast({
-        title: "Notification settings updated",
-        description: "Your notification preferences have been saved.",
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update email template. Please try again."
       });
-    } catch (error) {
-      handleError(error);
-      toast({
-        title: "Update failed",
-        description: "Failed to update notification settings.",
-        variant: "destructive"
-      });
-    } finally {
-      setSavingNotification(false);
+      console.error("Update error:", error);
     }
+  });
+
+  // Set initial active template
+  useEffect(() => {
+    if (templates && templates.length > 0 && !activeTemplate) {
+      setActiveTemplate(templates[0].id);
+    }
+  }, [templates, activeTemplate]);
+
+  const handleEditTemplate = (template: EmailTemplate) => {
+    setEditingTemplate({ ...template });
   };
 
-  const getTemplatePreview = () => {
-    if (!selectedTemplate) return null;
+  const handleSaveTemplate = () => {
+    if (!editingTemplate) return;
     
-    // HTML email preview with replaced placeholders
-    const emailBody = selectedTemplate.body
-      .replace('{user}', 'John Doe')
-      .replace('{company}', 'ACME Corp')
-      .replace('{date}', new Date().toLocaleDateString());
-      
+    updateTemplateMutation.mutate({
+      id: editingTemplate.id,
+      subject: editingTemplate.subject,
+      body: editingTemplate.body,
+      is_enabled: editingTemplate.is_enabled
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTemplate(null);
+  };
+
+  const getActiveTemplate = () => {
+    return templates?.find(t => t.id === activeTemplate) || null;
+  };
+  
+  const getTemplateIcon = (type: string) => {
+    switch(type) {
+      case 'task': return <CheckSquare className="h-5 w-5 text-blue-600" />;
+      case 'invoice': return <FileText className="h-5 w-5 text-purple-600" />;
+      case 'project': return <FileText className="h-5 w-5 text-blue-600" />;
+      case 'system': return <Mail className="h-5 w-5 text-indigo-600" />;
+      default: return <Mail className="h-5 w-5 text-gray-600" />;
+    }
+  };
+
+  const getTemplateBadgeColor = (type: string) => {
+    switch(type) {
+      case 'task': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'invoice': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'project': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'system': return 'bg-green-100 text-green-800 border-green-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  // Template variables by type
+  const getTemplateVariables = (type: string) => {
+    switch(type) {
+      case 'task':
+        return [
+          { name: '{{task_name}}', description: 'Name of the task' },
+          { name: '{{task_description}}', description: 'Description of the task' },
+          { name: '{{due_date}}', description: 'Due date of the task' },
+          { name: '{{assignee_name}}', description: 'Name of the assignee' },
+          { name: '{{assigner_name}}', description: 'Name of the person who assigned' },
+          { name: '{{task_status}}', description: 'Status of the task' },
+          { name: '{{task_url}}', description: 'Link to view the task' }
+        ];
+      case 'invoice':
+        return [
+          { name: '{{invoice_number}}', description: 'Invoice number' },
+          { name: '{{invoice_date}}', description: 'Date the invoice was issued' },
+          { name: '{{due_date}}', description: 'Due date for payment' },
+          { name: '{{amount}}', description: 'Total amount due' },
+          { name: '{{client_name}}', description: 'Name of the client' },
+          { name: '{{company_name}}', description: 'Your company name' },
+          { name: '{{invoice_url}}', description: 'Link to view the invoice' }
+        ];
+      case 'project':
+        return [
+          { name: '{{project_name}}', description: 'Name of the project' },
+          { name: '{{project_description}}', description: 'Description of the project' },
+          { name: '{{start_date}}', description: 'Project start date' },
+          { name: '{{end_date}}', description: 'Project end date' },
+          { name: '{{client_name}}', description: 'Name of the client' },
+          { name: '{{project_manager}}', description: 'Name of the project manager' },
+          { name: '{{project_url}}', description: 'Link to view the project' }
+        ];
+      case 'system':
+        return [
+          { name: '{{user_name}}', description: 'Name of the user' },
+          { name: '{{user_email}}', description: 'Email of the user' },
+          { name: '{{company_name}}', description: 'Your company name' },
+          { name: '{{reset_link}}', description: 'Password reset link' },
+          { name: '{{login_url}}', description: 'Link to login page' },
+          { name: '{{verification_code}}', description: 'Email verification code' }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  if (isLoading) {
     return (
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <div className="bg-[#9b87f5] text-white p-4 rounded-t-md">
-          <h2 className="text-lg font-semibold">{selectedTemplate.subject}</h2>
-        </div>
-        
-        <div className="p-6 space-y-4">
-          <div dangerouslySetInnerHTML={{ __html: emailBody }} />
-          
-          <div className="border-t pt-4 mt-4 text-sm text-gray-500">
-            <p>&copy; {new Date().getFullYear()} Your Company. All rights reserved.</p>
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-4">
+            <Skeleton className="h-[400px] w-full" />
+          </div>
+          <div className="md:col-span-2 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-[500px] w-full" />
           </div>
         </div>
       </div>
     );
-  };
+  }
 
-  if (loading) {
+  if (error) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Email & Notifications</CardTitle>
-          <CardDescription>Configure email templates and notification settings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-muted-foreground">Loading settings...</span>
+        <CardContent className="pt-6">
+          <div className="text-center text-destructive">
+            <p>Failed to load email templates. Please try again.</p>
+            <Button 
+              variant="outline" 
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['emailTemplates'] })}
+              className="mt-4"
+            >
+              Retry
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -218,280 +267,341 @@ const EmailTemplateSettings: React.FC = () => {
   }
 
   return (
-    <Card className="border-t-4 border-t-[#9b87f5]">
-      <CardHeader className="bg-[#f8f9fa]">
-        <CardTitle className="flex items-center text-[#1A1F2C]">
-          <Mail className="mr-2 h-5 w-5 text-[#9b87f5]" />
-          Email & Notifications
-        </CardTitle>
-        <CardDescription>Configure email templates and notification settings</CardDescription>
-      </CardHeader>
-      <CardContent className="p-6">
-        <Tabs defaultValue="templates" className="w-full">
-          <TabsList className="mb-6 w-full grid grid-cols-2">
-            <TabsTrigger value="templates" className="flex items-center">
-              <Mail className="mr-2 h-4 w-4" />
-              <span>Email Templates</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Notification Settings</span>
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="templates">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-1 border rounded-md p-4 bg-white shadow-sm">
-                <h3 className="font-medium mb-2 flex items-center">
-                  <Mail className="h-4 w-4 mr-2 text-[#9b87f5]" />
-                  Email Templates
-                </h3>
-                <div className="text-sm text-gray-500 mb-3">
-                  Select a template to edit its content and settings.
-                </div>
-                {templates.length === 0 ? (
-                  <div className="text-center py-8 border rounded-md bg-gray-50">
-                    <AlertTriangle className="h-8 w-8 mx-auto text-amber-500 mb-2" />
-                    <p className="text-gray-600">No templates available</p>
-                    <p className="text-xs text-gray-500 mt-1">Contact system administrator</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                    {templates.map((template) => (
-                      <div
-                        key={template.id}
-                        className={`p-3 rounded-md cursor-pointer flex items-center justify-between transition-colors ${
-                          selectedTemplate?.id === template.id
-                            ? 'bg-[#9b87f5]/10 border border-[#9b87f5]/30 shadow-sm'
-                            : 'hover:bg-gray-100 border border-transparent'
-                        }`}
-                        onClick={() => handleSelectTemplate(template)}
-                      >
-                        <div>
-                          <p className="font-medium text-sm">{template.name}</p>
-                          <p className="text-xs text-gray-500 capitalize">{template.type}</p>
-                        </div>
-                        <Switch checked={template.is_enabled} className="pointer-events-none" />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Template Selector */}
+      <Card className="md:col-span-1">
+        <CardHeader className="pb-3">
+          <CardTitle>Email Templates</CardTitle>
+          <CardDescription>
+            Manage notification email templates
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Tabs defaultValue="all">
+            <div className="px-4">
+              <TabsList className="w-full grid grid-cols-4">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="task">Tasks</TabsTrigger>
+                <TabsTrigger value="invoice">Invoices</TabsTrigger>
+                <TabsTrigger value="system">System</TabsTrigger>
+              </TabsList>
+            </div>
+            
+            <TabsContent value="all" className="m-0">
+              <div className="max-h-[400px] overflow-y-auto">
+                {templates?.map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => setActiveTemplate(template.id)}
+                    className={`w-full flex items-center p-3 text-left hover:bg-gray-100 transition-colors ${
+                      activeTemplate === template.id ? 'bg-gray-100' : ''
+                    }`}
+                  >
+                    <div className="mr-3">
+                      {getTemplateIcon(template.type)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">{template.name}</div>
+                      <div className="text-sm text-muted-foreground truncate">
+                        {template.subject}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                    <Badge className={getTemplateBadgeColor(template.type)}>
+                      {template.is_enabled ? 'Active' : 'Disabled'}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="task" className="m-0">
+              <div className="max-h-[400px] overflow-y-auto">
+                {templates?.filter(t => t.type === 'task').map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => setActiveTemplate(template.id)}
+                    className={`w-full flex items-center p-3 text-left hover:bg-gray-100 transition-colors ${
+                      activeTemplate === template.id ? 'bg-gray-100' : ''
+                    }`}
+                  >
+                    <div className="mr-3">
+                      {getTemplateIcon(template.type)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">{template.name}</div>
+                      <div className="text-sm text-muted-foreground truncate">
+                        {template.subject}
+                      </div>
+                    </div>
+                    <Badge className={getTemplateBadgeColor(template.type)}>
+                      {template.is_enabled ? 'Active' : 'Disabled'}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="invoice" className="m-0">
+              <div className="max-h-[400px] overflow-y-auto">
+                {templates?.filter(t => t.type === 'invoice').map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => setActiveTemplate(template.id)}
+                    className={`w-full flex items-center p-3 text-left hover:bg-gray-100 transition-colors ${
+                      activeTemplate === template.id ? 'bg-gray-100' : ''
+                    }`}
+                  >
+                    <div className="mr-3">
+                      {getTemplateIcon(template.type)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">{template.name}</div>
+                      <div className="text-sm text-muted-foreground truncate">
+                        {template.subject}
+                      </div>
+                    </div>
+                    <Badge className={getTemplateBadgeColor(template.type)}>
+                      {template.is_enabled ? 'Active' : 'Disabled'}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="system" className="m-0">
+              <div className="max-h-[400px] overflow-y-auto">
+                {templates?.filter(t => t.type === 'system').map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => setActiveTemplate(template.id)}
+                    className={`w-full flex items-center p-3 text-left hover:bg-gray-100 transition-colors ${
+                      activeTemplate === template.id ? 'bg-gray-100' : ''
+                    }`}
+                  >
+                    <div className="mr-3">
+                      {getTemplateIcon(template.type)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">{template.name}</div>
+                      <div className="text-sm text-muted-foreground truncate">
+                        {template.subject}
+                      </div>
+                    </div>
+                    <Badge className={getTemplateBadgeColor(template.type)}>
+                      {template.is_enabled ? 'Active' : 'Disabled'}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Template Editor */}
+      <Card className="md:col-span-2">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>{getActiveTemplate()?.name || 'Select a template'}</CardTitle>
+              <CardDescription>
+                {getActiveTemplate()?.subject || 'Email template editor'}
+              </CardDescription>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {!editingTemplate && getActiveTemplate() && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPreviewMode(!previewMode)}
+                >
+                  {previewMode ? 'Edit' : 'Preview'}
+                </Button>
+              )}
+              
+              {!editingTemplate && getActiveTemplate() && (
+                <Button 
+                  variant="default"
+                  onClick={() => handleEditTemplate(getActiveTemplate()!)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Template
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent>
+          {!getActiveTemplate() && (
+            <div className="flex items-center justify-center h-[500px] border-2 border-dashed border-gray-200 rounded-md">
+              <p className="text-gray-500">Select a template to edit</p>
+            </div>
+          )}
+          
+          {getActiveTemplate() && !editingTemplate && !previewMode && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Subject</Label>
+                  <Badge variant={getActiveTemplate().is_enabled ? "default" : "outline"}>
+                    {getActiveTemplate().is_enabled ? 'Active' : 'Disabled'}
+                  </Badge>
+                </div>
+                <div className="p-2 border rounded-md bg-gray-50">
+                  {getActiveTemplate().subject}
+                </div>
               </div>
               
-              <div className="md:col-span-2">
-                {selectedTemplate ? (
-                  <div className="space-y-6">
-                    <div className="border rounded-lg p-5 bg-white shadow-sm">
-                      <h3 className="text-lg font-medium mb-4 text-gray-800">Edit Template</h3>
-                      <Form {...templateForm}>
-                        <form onSubmit={templateForm.handleSubmit(onTemplateSubmit)} className="space-y-4">
-                          <FormField
-                            control={templateForm.control}
-                            name="subject"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Email Subject</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    {...field} 
-                                    placeholder="Enter email subject" 
-                                    className="bg-gray-50 focus:bg-white transition-colors"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={templateForm.control}
-                            name="body"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Email Body</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    className="min-h-[250px] bg-gray-50 focus:bg-white transition-colors font-mono text-sm" 
-                                    {...field} 
-                                    placeholder="Enter email content with HTML formatting"
-                                  />
-                                </FormControl>
-                                <FormDescription>
-                                  Available variables: <code>{'{user}'}</code> <code>{'{company}'}</code> <code>{'{date}'}</code>
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={templateForm.control}
-                            name="is_enabled"
-                            render={({ field }) => (
-                              <FormItem className="flex items-center justify-between space-x-2 rounded-md border p-4">
-                                <div className="space-y-0.5">
-                                  <FormLabel>Enable Template</FormLabel>
-                                  <FormDescription>
-                                    When enabled, this email template will be sent
-                                  </FormDescription>
-                                </div>
-                                <FormControl>
-                                  <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                  />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <div className="pt-2">
-                            <Button 
-                              type="submit" 
-                              disabled={savingTemplate}
-                              className="w-full bg-[#9b87f5] hover:bg-[#7E69AB] text-white"
-                            >
-                              {savingTemplate && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                              <Save className="mr-2 h-4 w-4" />
-                              Save Template
-                            </Button>
-                          </div>
-                        </form>
-                      </Form>
+              <div className="space-y-2">
+                <Label>Email Body</Label>
+                <div className="border rounded-md bg-gray-50 p-4 max-h-[500px] overflow-y-auto whitespace-pre-wrap">
+                  <div dangerouslySetInnerHTML={{ __html: getActiveTemplate().body }} />
+                </div>
+              </div>
+              
+              <Accordion type="single" collapsible>
+                <AccordionItem value="variables">
+                  <AccordionTrigger>
+                    <span className="text-sm font-medium">Available Variables</span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                      {getTemplateVariables(getActiveTemplate().type).map((variable, index) => (
+                        <div key={index} className="border rounded-md p-2 bg-gray-50">
+                          <div className="font-mono text-sm">{variable.name}</div>
+                          <div className="text-xs text-muted-foreground">{variable.description}</div>
+                        </div>
+                      ))}
                     </div>
-                    
-                    <div className="border rounded-lg p-5 bg-white shadow-sm">
-                      <h3 className="text-lg font-medium mb-4 text-gray-800">Email Preview</h3>
-                      {getTemplatePreview()}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-[600px] bg-gray-50 border rounded-lg">
-                    <div className="text-center text-gray-500">
-                      <Mail className="h-10 w-10 mx-auto mb-3 text-gray-400" />
-                      <p>Select a template to edit</p>
-                    </div>
-                  </div>
-                )}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+          )}
+          
+          {getActiveTemplate() && !editingTemplate && previewMode && (
+            <div className="border rounded-md p-4 max-h-[600px] overflow-y-auto">
+              <div className="bg-white max-w-2xl mx-auto shadow rounded-md overflow-hidden">
+                <div className="p-6 border-b">
+                  <h2 className="text-xl font-bold">{getActiveTemplate().subject}</h2>
+                </div>
+                <div className="p-6">
+                  <div dangerouslySetInnerHTML={{ __html: getActiveTemplate().body }} />
+                </div>
               </div>
             </div>
-          </TabsContent>
+          )}
           
-          <TabsContent value="settings">
-            <div className="border rounded-lg p-5 bg-white shadow-sm">
-              <h3 className="text-lg font-medium mb-4 text-gray-800">Notification Preferences</h3>
-              <Form {...notificationForm}>
-                <form onSubmit={notificationForm.handleSubmit(onNotificationSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <FormField
-                      control={notificationForm.control}
-                      name="email_notifications"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gray-50 shadow-sm">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Email Notifications</FormLabel>
-                            <FormDescription>
-                              Receive notifications via email
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={notificationForm.control}
-                      name="task_reminders"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gray-50 shadow-sm">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Task Reminders</FormLabel>
-                            <FormDescription>
-                              Get reminded about upcoming and overdue tasks
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={!notificationForm.getValues().email_notifications}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={notificationForm.control}
-                      name="invoice_notifications"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gray-50 shadow-sm">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Invoice Notifications</FormLabel>
-                            <FormDescription>
-                              Receive notifications about invoice status changes
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={!notificationForm.getValues().email_notifications}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={notificationForm.control}
-                      name="system_notifications"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gray-50 shadow-sm">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">System Notifications</FormLabel>
-                            <FormDescription>
-                              Get notified about system updates and maintenance
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={!notificationForm.getValues().email_notifications}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
+          {editingTemplate && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="subject">Subject</Label>
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="enabled" className="text-sm">Active</Label>
+                    <Switch 
+                      id="enabled" 
+                      checked={editingTemplate.is_enabled} 
+                      onCheckedChange={(value) => setEditingTemplate({...editingTemplate, is_enabled: value})}
                     />
                   </div>
-                  
-                  <Button 
-                    type="submit" 
-                    disabled={savingNotification}
-                    className="bg-[#9b87f5] hover:bg-[#7E69AB] text-white"
-                  >
-                    {savingNotification && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Notification Settings
-                  </Button>
-                </form>
-              </Form>
+                </div>
+                <Input 
+                  id="subject" 
+                  value={editingTemplate.subject} 
+                  onChange={(e) => setEditingTemplate({...editingTemplate, subject: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="body">Email Body (HTML)</Label>
+                <Textarea 
+                  id="body" 
+                  value={editingTemplate.body} 
+                  onChange={(e) => setEditingTemplate({...editingTemplate, body: e.target.value})}
+                  className="min-h-[400px] font-mono text-sm"
+                />
+              </div>
+              
+              <Accordion type="single" collapsible>
+                <AccordionItem value="variables">
+                  <AccordionTrigger>
+                    <span className="text-sm font-medium">Available Variables</span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                      {getTemplateVariables(editingTemplate.type).map((variable, index) => (
+                        <div 
+                          key={index} 
+                          className="border rounded-md p-2 bg-gray-50 cursor-pointer hover:bg-gray-100" 
+                          onClick={() => {
+                            const textarea = document.getElementById('body') as HTMLTextAreaElement;
+                            if (textarea) {
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              const text = editingTemplate.body;
+                              const newText = text.slice(0, start) + variable.name + text.slice(end);
+                              setEditingTemplate({...editingTemplate, body: newText});
+                              
+                              // Set focus back to textarea
+                              setTimeout(() => {
+                                textarea.focus();
+                                textarea.setSelectionRange(start + variable.name.length, start + variable.name.length);
+                              }, 0);
+                            }
+                          }}
+                        >
+                          <div className="font-mono text-sm">{variable.name}</div>
+                          <div className="text-xs text-muted-foreground">{variable.description}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+                
+                <AccordionItem value="preview">
+                  <AccordionTrigger>
+                    <span className="text-sm font-medium">Preview</span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="border rounded-md p-4 mt-2 bg-white">
+                      <div dangerouslySetInnerHTML={{ __html: editingTemplate.body }} />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+              
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleCancelEdit}
+                  disabled={updateTemplateMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveTemplate}
+                  disabled={updateTemplateMutation.isPending}
+                >
+                  {updateTemplateMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Template
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-      <CardFooter className="bg-gray-50 border-t px-6 py-3">
-        <p className="text-xs text-gray-500">
-          Email templates are used for system communications with users. Make sure your templates follow email best practices.
-        </p>
-      </CardFooter>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

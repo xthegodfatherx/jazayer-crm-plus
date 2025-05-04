@@ -20,11 +20,14 @@ import {
   Calendar,
   Package,
   Wallet,
-  ShieldAlert
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { settingsApi } from '@/services/settings-api';
+import { useQuery } from '@tanstack/react-query';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -41,27 +44,13 @@ interface NavItem {
 const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>(['Sales']);
   const { userRole } = usePermissions() || { userRole: null };
-  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState<string>("CRM System");
   
-  useEffect(() => {
-    // Fetch company information for the sidebar
-    const fetchCompanyInfo = async () => {
-      try {
-        const settings = await settingsApi.getSystemSettings();
-        if (settings) {
-          setCompanyName(settings.company_name || "CRM System");
-          if (settings.company_logo) {
-            setCompanyLogo(settings.company_logo);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading company info:", error);
-      }
-    };
-    
-    fetchCompanyInfo();
-  }, []);
+  // Fetch company info using React Query
+  const { data: systemSettings, isLoading } = useQuery({
+    queryKey: ['companyInfo'],
+    queryFn: () => settingsApi.getSystemSettings(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
   
   const toggleExpand = (title: string) => {
     setExpandedItems(prev => 
@@ -121,33 +110,43 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       <div className="h-16 flex items-center justify-center border-b border-sidebar-border">
         {!collapsed ? (
           <div className="flex items-center">
-            {companyLogo ? (
+            {isLoading ? (
+              <Skeleton className="h-10 w-10 rounded-md mr-2" />
+            ) : systemSettings?.company_logo ? (
               <img 
-                src={companyLogo} 
+                src={systemSettings.company_logo} 
                 alt="Company Logo" 
-                className="h-10 w-auto mr-2"
+                className="h-10 w-auto mr-2 object-contain"
               />
             ) : (
               <div className="h-10 w-10 bg-[#9b87f5] rounded-md flex items-center justify-center mr-2">
                 <span className="font-bold text-white">
-                  {companyName.charAt(0)}
+                  {systemSettings?.company_name?.charAt(0) || 'C'}
                 </span>
               </div>
             )}
-            <h1 className="text-lg font-bold text-white">{companyName}</h1>
+            {isLoading ? (
+              <Skeleton className="h-6 w-32" />
+            ) : (
+              <h1 className="text-lg font-bold text-white">
+                {systemSettings?.company_name || "CRM System"}
+              </h1>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center">
-            {companyLogo ? (
+            {isLoading ? (
+              <Skeleton className="h-10 w-10 rounded-md" />
+            ) : systemSettings?.company_logo ? (
               <img 
-                src={companyLogo} 
+                src={systemSettings.company_logo} 
                 alt="Company Logo" 
-                className="h-10 w-auto"
+                className="h-10 w-10 object-contain"
               />
             ) : (
               <div className="h-10 w-10 bg-[#9b87f5] rounded-md flex items-center justify-center">
                 <span className="font-bold text-white">
-                  {companyName.charAt(0)}
+                  {systemSettings?.company_name?.charAt(0) || 'C'}
                 </span>
               </div>
             )}

@@ -14,10 +14,13 @@ import {
   Settings, 
   Activity,
   UserCheck,
-  Loader
+  Loader,
+  Building
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 // Admin components
 import RoleSwitcher from '@/components/admin/RoleSwitcher';
@@ -32,33 +35,30 @@ import EmailTemplateSettings from '@/components/admin/EmailTemplateSettings';
 import SecuritySettings from '@/components/admin/SecuritySettings';
 import SystemSettings from '@/components/admin/SystemSettings';
 import { settingsApi } from '@/services/settings-api';
+import CompanySettings from '@/components/admin/CompanySettings';
 
 const Admin: React.FC = () => {
   const { userRole } = usePermissions();
   const [activeTab, setActiveTab] = useState('users');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState<string>("Admin Dashboard");
+  const { toast } = useToast();
   
-  // Fetch company name for title
-  useEffect(() => {
-    const fetchCompanyInfo = async () => {
-      try {
-        setLoading(true);
-        const settings = await settingsApi.getSystemSettings();
-        if (settings) {
-          setCompanyName(settings.company_name || "Admin Dashboard");
-        }
-      } catch (err) {
-        setError("Failed to load system settings");
-        console.error("Error fetching company info:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchCompanyInfo();
-  }, []);
+  // Fetch company info using React Query
+  const { 
+    data: systemSettings, 
+    isLoading, 
+    error 
+  } = useQuery({
+    queryKey: ['systemSettings'],
+    queryFn: () => settingsApi.getSystemSettings(),
+    onError: (err) => {
+      toast({
+        title: "Error loading system settings",
+        description: "Please try again or contact support.",
+        variant: "destructive"
+      });
+      console.error("Error fetching system settings:", err);
+    }
+  });
   
   // Check if user has admin permissions
   if (userRole !== 'admin') {
@@ -74,7 +74,7 @@ const Admin: React.FC = () => {
     );
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-8 space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -88,7 +88,7 @@ const Admin: React.FC = () => {
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-800">
-          {companyName} - Admin Settings
+          {systemSettings?.company_name || "Admin Dashboard"} - Admin Settings
         </h1>
         <RoleSwitcher />
       </div>
@@ -96,13 +96,17 @@ const Admin: React.FC = () => {
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>Failed to load system settings. Please refresh and try again.</AlertDescription>
         </Alert>
       )}
 
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
         <div className="bg-muted/50 rounded-lg p-1 overflow-x-auto">
-          <TabsList className="inline-flex min-w-full md:grid md:grid-cols-5 gap-1">
+          <TabsList className="inline-flex min-w-full md:grid md:grid-cols-6 gap-1">
+            <TabsTrigger value="company" className="flex items-center whitespace-nowrap">
+              <Building className="h-4 w-4 mr-2" />
+              <span className="hidden md:inline">Company</span>
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center whitespace-nowrap">
               <Users className="h-4 w-4 mr-2" />
               <span className="hidden md:inline">User Management</span>
@@ -145,6 +149,10 @@ const Admin: React.FC = () => {
             </TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="company" className="mt-6">
+          <CompanySettings />
+        </TabsContent>
 
         <TabsContent value="users" className="mt-6">
           <AdminUserManagement />
