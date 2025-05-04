@@ -23,7 +23,11 @@ import {
   CreditCard,
   Settings,
   BarChart,
-  ShieldCheck
+  ShieldCheck,
+  Mail,
+  Star,
+  DollarSign,
+  Activity
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import AdminOverview from '@/components/admin/AdminOverview';
@@ -36,6 +40,9 @@ import AdminSubscriptions from '@/components/admin/AdminSubscriptions';
 import AdminReports from '@/components/admin/AdminReports';
 import AdminSettings from '@/components/admin/AdminSettings';
 import RoleManagement from '@/components/admin/RoleManagement';
+import AuditLogs from '@/components/admin/AuditLogs';
+import EmailTemplates from '@/components/admin/EmailTemplates';
+import TaskCategorySettings from '@/components/admin/TaskCategorySettings';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -46,11 +53,15 @@ const AdminDashboard = () => {
     { id: 'roles', label: 'Roles', icon: <ShieldCheck className="h-4 w-4 mr-2" /> },
     { id: 'projects', label: 'Projects', icon: <Folders className="h-4 w-4 mr-2" /> },
     { id: 'tasks', label: 'Tasks', icon: <CheckSquare className="h-4 w-4 mr-2" /> },
+    { id: 'categories', label: 'Categories', icon: <Star className="h-4 w-4 mr-2" /> },
     { id: 'time', label: 'Time Tracking', icon: <Clock className="h-4 w-4 mr-2" /> },
     { id: 'invoices', label: 'Invoices', icon: <FileText className="h-4 w-4 mr-2" /> },
     { id: 'subscriptions', label: 'Subscriptions', icon: <CreditCard className="h-4 w-4 mr-2" /> },
     { id: 'reports', label: 'Reports', icon: <BarChart className="h-4 w-4 mr-2" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4 mr-2" /> },
+    { id: 'emails', label: 'Emails', icon: <Mail className="h-4 w-4 mr-2" /> },
+    { id: 'salary', label: 'Salary', icon: <DollarSign className="h-4 w-4 mr-2" /> },
+    { id: 'logs', label: 'Audit Logs', icon: <Activity className="h-4 w-4 mr-2" /> },
   ];
 
   return (
@@ -60,10 +71,10 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="bg-muted rounded-lg p-1">
-          <TabsList className="grid grid-cols-2 md:grid-cols-10 gap-1">
+        <div className="bg-muted/50 rounded-lg p-1 overflow-x-auto">
+          <TabsList className="inline-flex min-w-full md:grid md:grid-cols-7 gap-1">
             {tabs.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id} className="flex items-center">
+              <TabsTrigger key={tab.id} value={tab.id} className="flex items-center whitespace-nowrap">
                 {tab.icon}
                 <span className="hidden md:inline">{tab.label}</span>
               </TabsTrigger>
@@ -91,6 +102,10 @@ const AdminDashboard = () => {
           <AdminTaskManagement />
         </TabsContent>
         
+        <TabsContent value="categories" className="space-y-6">
+          <TaskCategorySettings />
+        </TabsContent>
+        
         <TabsContent value="time" className="space-y-6">
           <AdminTimeTracking />
         </TabsContent>
@@ -109,6 +124,28 @@ const AdminDashboard = () => {
         
         <TabsContent value="settings" className="space-y-6">
           <AdminSettings />
+        </TabsContent>
+        
+        <TabsContent value="emails" className="space-y-6">
+          <EmailTemplates />
+        </TabsContent>
+        
+        <TabsContent value="salary" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Salary Settings</CardTitle>
+              <CardDescription>Configure salary calculation methods and rules</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Salary settings are configured in the System Settings tab, under the Salary section.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="logs" className="space-y-6">
+          <AuditLogs />
         </TabsContent>
       </Tabs>
     </div>

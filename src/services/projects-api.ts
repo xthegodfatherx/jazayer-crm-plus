@@ -32,6 +32,44 @@ export interface ProjectFilter {
   created_before?: string;
 }
 
+// Define project performance data types
+export interface ProjectTimeData {
+  project_id: string;
+  project_name: string;
+  estimated_hours: number;
+  actual_hours: number;
+  remaining_hours: number;
+}
+
+export interface ProjectProgressData {
+  project_id: string;
+  project_name: string;
+  progress: number;
+  budget: number;
+  budget_used: number;
+}
+
+export interface ProjectStatusDistribution {
+  active: number;
+  completed: number;
+  on_hold: number;
+  pending: number;
+}
+
+export interface ProjectProgressOverTime {
+  month: string;
+  [projectId: string]: string | number;
+}
+
+export interface ProjectPerformanceData {
+  project_status: ProjectStatusDistribution;
+  project_time: ProjectTimeData[];
+  project_progress: ProjectProgressData[];
+  project_progress_over_time: ProjectProgressOverTime[];
+  total_budget: number;
+  total_budget_used: number;
+}
+
 // Define the API response type
 interface ApiResponse<T> {
   data: T;
@@ -99,6 +137,20 @@ export const projectsApi = {
       return { ...response.data.data };
     } catch (error) {
       console.error('Error fetching project statistics:', error);
+      throw error;
+    }
+  },
+  
+  // Get project performance data
+  getPerformanceData: async (dateRange?: string): Promise<ProjectPerformanceData> => {
+    try {
+      const response: AxiosResponse<ApiResponse<ProjectPerformanceData>> = 
+        await apiClient.get(`${API_URL}/projects/performance`, {
+          params: { date_range: dateRange }
+        });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching project performance data:', error);
       throw error;
     }
   }
